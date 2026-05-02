@@ -46,7 +46,7 @@ namespace Zapisi.Pro
 
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             Console.WriteLine("DB_HOST = " + Environment.GetEnvironmentVariable("DB_HOST"));
-            db = new DbHelper($"Host={host};Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
+            db = new DbHelper($"Host=localhost;Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
             botClient = new TelegramBotClient(token); // инициализация клиента с токеном бота
             
             receiverOptions = new ReceiverOptions
@@ -133,6 +133,7 @@ namespace Zapisi.Pro
                     }
                     if (message.Text.StartsWith("/start"))
                     {
+                        
                         var parts = message.Text.Split(' ');
                         if (parts.Length > 1) 
                         {
@@ -181,7 +182,7 @@ namespace Zapisi.Pro
                                 });
                         }
 
-                        var path = @"C:\Users\GAVRISH666\source\repos\Zapisi.Pro\Zapisi.Pro\source\helloPicture.png";
+                        var path = Path.Combine(AppContext.BaseDirectory, "source", "helloPicture.png");
 
                         using (var stream = new FileStream(path, FileMode.Open))
                         {
