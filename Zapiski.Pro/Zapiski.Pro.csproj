@@ -16,6 +16,9 @@
 	  <None Update=".env">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </None>
+	  <Content Include="source\helloPicture.png">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
 
   </ItemGroup>
 

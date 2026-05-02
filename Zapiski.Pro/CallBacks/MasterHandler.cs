@@ -347,7 +347,7 @@ namespace Zapisi.Pro.CallBacks
             foreach (var row in records.Rows) 
             { 
                 var record = (DataRow)row;
-                var date = Convert.ToDateTime(record["Date"]).ToString("dd.MM.yyyy");
+                var date = (DateOnly)record["Date"];
                 var time = record["Time"].ToString();
                 var username = record["UserName"] != DBNull.Value ? record["UserName"].ToString() : "Пользователь удалён";
                 var serviceName =  record["Name"] != DBNull.Value ? record["Name"].ToString() : "Услуга удалена";

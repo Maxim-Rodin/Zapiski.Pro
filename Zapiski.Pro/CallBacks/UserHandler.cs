@@ -100,7 +100,7 @@ namespace Zapisi.Pro.CallBacks
                 int bookingId = (int)r["idBooking"];
                 string status = r["Status"].ToString();
 
-                var date = Convert.ToDateTime(r["Date"]);
+                var date = (DateOnly)r["Date"];
                 var time = TimeSpan.Parse(r["Time"].ToString());
 
                 string icon =
@@ -170,7 +170,7 @@ namespace Zapisi.Pro.CallBacks
             string service = record["ServiceName"].ToString();
             string masterKey = record["MasterKey"].ToString();
 
-            var date = Convert.ToDateTime(record["Date"]);
+            var date = (DateOnly)record["Date"];
             var time = TimeSpan.Parse(record["Time"].ToString());
 
             long masterTelegramId = Convert.ToInt64(record["MasterTelegramId"]);
