@@ -46,7 +46,7 @@ namespace Zapisi.Pro
 
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             Console.WriteLine("DB_HOST = " + Environment.GetEnvironmentVariable("DB_HOST"));
-            db = new DbHelper($"Host=localhost;Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
+            db = new DbHelper($"Host={host};Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
             botClient = new TelegramBotClient(token); // инициализация клиента с токеном бота
             
             receiverOptions = new ReceiverOptions
