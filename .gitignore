@@ -361,3 +361,26 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ========================
+# ДОБАВКА ДЛЯ ТВОЕГО ПРОЕКТА
+# ========================
+
+# ENV (СЕКРЕТЫ!)
+.env
+.env.*
+
+# DATABASE / DOCKER
+postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# BACKUPS (ОЧЕНЬ ВАЖНО)
+*.backup
+*.dump
+*.sql
+
+# Logs (на всякий)
+logs/
+*.log
