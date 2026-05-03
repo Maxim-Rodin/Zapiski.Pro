@@ -19,6 +19,7 @@ namespace Zapisi.Pro
         }
         public NpgsqlConnection GetConnection() // метод получения соединения 
         {
+            Console.WriteLine($"[DIAGNOSTIC] Строка подключения: {connString}");
             return new NpgsqlConnection(connString);
         }
         public DataTable ExecuteQuery(string sql, params NpgsqlParameter[] parametrs) // выполнение select комманд 
