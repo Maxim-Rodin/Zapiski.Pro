@@ -24,6 +24,8 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       DB_HOST: postgres
       DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: admin
 
 volumes:
   postgres_data:
