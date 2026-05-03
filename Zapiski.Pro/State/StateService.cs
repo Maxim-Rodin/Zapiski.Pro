@@ -15,7 +15,9 @@ namespace Zapisi.Pro.State
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
             DotNetEnv.Env.Load(envPath);
             var host = Environment.GetEnvironmentVariable("DB_HOST");
-            db = new DbHelper($"Host={host};Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
+            var user = Environment.GetEnvironmentVariable("DB_USER");
+            var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
+            db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
         }
 
         public void SetState(long telegramId, string state)

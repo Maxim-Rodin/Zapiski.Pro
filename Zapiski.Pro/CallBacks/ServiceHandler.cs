@@ -19,8 +19,10 @@ namespace Zapisi.Pro.CallBacks
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
             DotNetEnv.Env.Load(envPath);
             var host = Environment.GetEnvironmentVariable("DB_HOST");
+            var user = Environment.GetEnvironmentVariable("DB_USER");
+            var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-            db = new DbHelper($"Host={host};Port=5432;Username=postgres;Password=admin;Database=Zapisi.Pro");
+            db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
         }
         public void AddService(string key, string title, int price, int duration)
         {
