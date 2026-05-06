@@ -692,6 +692,23 @@ namespace Zapisi.Pro.CallBacks
         {
             var serviceId = data.SubAction;
             var key = data.Id;
+            string check = $@" 
+                SELECT COUNT(*)
+                FROM ""Bookings""
+                WHERE ""idService"" = {serviceId}"; // проверка есть ли связанные с услгой записи
+            
+            var countOfBookings = int.Parse(db.ExecuteScalar(check).ToString());
+            if (countOfBookings > 0)
+            {
+                await botClient.EditMessageText(
+               query.Message.Chat.Id,
+               query.Message.MessageId,
+               $"❗Нельзя удалить услугу, так как есть связанные с ней записи - {countOfBookings}шт\n Отмените записи потом переходите к удалению", replyMarkup: new InlineKeyboardMarkup(new[]
+               {
+                    new[] { InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:master_edit:{key}") }
+               })
+           );
+            }
             var keyboard = new InlineKeyboardMarkup(new[]
             {
         new[]

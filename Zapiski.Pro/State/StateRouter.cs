@@ -138,7 +138,7 @@ namespace Zapisi.Pro.State
 
                         db.ExecuteNonQuery($@"
                             UPDATE ""Services""
-                            SET ""Title"" = '{message.Text}'
+                            SET ""Name"" = '{message.Text}'
                             WHERE ""idService"" = {serviceId}
                         ");
 
