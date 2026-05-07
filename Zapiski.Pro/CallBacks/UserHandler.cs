@@ -156,7 +156,7 @@ namespace Zapisi.Pro.CallBacks
         FROM ""Bookings"" b
         JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
         JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
-        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""s
+        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
         JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
         WHERE b.""idBooking"" = {bookingId}
     ");
