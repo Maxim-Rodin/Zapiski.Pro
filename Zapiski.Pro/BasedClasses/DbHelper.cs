@@ -19,7 +19,7 @@ namespace Zapisi.Pro
         }
         public NpgsqlConnection GetConnection() // метод получения соединения 
         {
-            Console.WriteLine($"[DIAGNOSTIC] Строка подключения: {connString}");
+            
             return new NpgsqlConnection(connString);
         }
         public DataTable ExecuteQuery(string sql, params NpgsqlParameter[] parametrs) // выполнение select комманд 
@@ -133,6 +133,17 @@ namespace Zapisi.Pro
                 ");
 
             return Convert.ToInt32(table.Rows[0]["idMaster"]);
+        }
+        public long GetMasterTelegramId(int masterId)
+        {
+            var table = ExecuteQuery($@"
+        SELECT ""TelegrammId""
+        FROM ""Masters""
+        WHERE ""idMaster"" = {masterId}
+        LIMIT 1
+    ");
+
+            return Convert.ToInt64(table.Rows[0]["TelegrammId"]);
         }
     }
 }

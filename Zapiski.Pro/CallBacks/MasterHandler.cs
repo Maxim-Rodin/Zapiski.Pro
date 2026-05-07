@@ -336,6 +336,7 @@ namespace Zapisi.Pro.CallBacks
                 JOIN ""Users"" u ON u.""idUser"" = r.""UserId""
                 JOIN ""Services"" o ON o.""idService"" = r.""ServiceId""
                 WHERE r.""MasterId"" = {masterId}
+                AND r.""Status"" != 'cancelled'
                 ORDER BY r.""Date"" ");
 
             if (records.Rows.Count == 0)
@@ -695,7 +696,7 @@ namespace Zapisi.Pro.CallBacks
             string check = $@" 
                 SELECT COUNT(*)
                 FROM ""Bookings""
-                WHERE ""idService"" = {serviceId}"; // проверка есть ли связанные с услгой записи
+                WHERE ""ServiceId"" = {serviceId}"; // проверка есть ли связанные с услгой записи
             
             var countOfBookings = int.Parse(db.ExecuteScalar(check).ToString());
             if (countOfBookings > 0)

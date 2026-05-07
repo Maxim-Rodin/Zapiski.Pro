@@ -51,6 +51,8 @@ namespace Zapisi.Pro.CallBacks
                     break;
                 case "book_time":
                     await BookTime(query, data); break;
+                case "cancel":
+                    await CancelBookingByClient(query, data); break;
             }
             return;
         }
@@ -85,6 +87,7 @@ namespace Zapisi.Pro.CallBacks
         JOIN ""Masters"" m ON m.""idMaster"" = r.""MasterId""
         JOIN ""Users"" u ON u.""idUser"" = r.""UserId""
         WHERE u.""TelegrammId"" = {telegramId}
+        AND r.""Status"" != 'cancelled'
         ORDER BY r.""Date"" DESC, r.""Time"" DESC
     ");
 
@@ -117,9 +120,7 @@ namespace Zapisi.Pro.CallBacks
 
                 var buttons = new List<InlineKeyboardButton[]>();
 
-                // ❗ если запись не отменена — даём кнопку
-                if (status != "cancelled")
-                {
+               
                     buttons.Add(new[]
                     {
                 InlineKeyboardButton.WithCallbackData(
@@ -127,7 +128,7 @@ namespace Zapisi.Pro.CallBacks
                     $"client:cancel:{bookingId}"
                 )
             });
-                }
+                
 
                 buttons.Add(new[]
                 {
@@ -148,14 +149,14 @@ namespace Zapisi.Pro.CallBacks
             // ─────────────────────────────
             var row = db.ExecuteQuery($@"
         SELECT b.*, 
-               u.""Username"", u.""TelegrammId"",
+               u.""UserName"", u.""TelegrammId"",
                s.""Name"" AS ServiceName,
                m.""Key"" AS MasterKey,
                mu.""TelegrammId"" AS MasterTelegramId
         FROM ""Bookings"" b
         JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
         JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
-        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""s
         JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
         WHERE b.""idBooking"" = {bookingId}
     ");
@@ -235,15 +236,60 @@ namespace Zapisi.Pro.CallBacks
         {
             var chatId = query.Message.Chat.Id;
             var key = data.Id;
-            var keyboard = new InlineKeyboardMarkup(new[] { InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:master_profile:{key}") });
+
             stateService.SetState(chatId, $"booking_date:{key}:{data.SubAction}");
 
-            await botClient.EditMessageText(
-                        query.Message.Chat.Id,
-                        query.Message.MessageId,
-                        "Выберите дату для записи в формате ДД.ММ.ГГГГ", replyMarkup: keyboard
-                    );
+            var masterId = db.GetMasterIdByKey(key);
 
+            var rows = db.ExecuteQuery($@"
+        SELECT *
+        FROM ""MasterSchedule""
+        WHERE ""MasterId"" = {masterId}
+        ORDER BY ""DayOfWeek""
+    ");
+
+            string[] days = { "", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" };
+
+            var text = "📅 График мастера\n\n";
+
+            foreach (DataRow r in rows.Rows)
+            {
+                bool active = (bool)r["IsActive"];
+
+                if (!active)
+                    continue;
+
+                if (r["StartTime"] == DBNull.Value ||
+                    r["EndTime"] == DBNull.Value)
+                    continue;
+
+                int day = (int)r["DayOfWeek"];
+
+                var start = ((TimeOnly)r["StartTime"]).ToString(@"HH\:mm");
+                var end = ((TimeOnly)r["EndTime"]).ToString(@"HH\:mm");
+
+                text += $"{days[day]} — {start}-{end}\n";
+            }
+
+            text += "\n📅 Введите дату для записи в формате ДД.MM.ГГГГ";
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "⬅️ Назад",
+                $"master:master_profile:{key}"
+            )
+        }
+    });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                text,
+                replyMarkup: keyboard
+            );
         }
         public async Task GetSheduleByDate(Message message, string state)
         {
@@ -517,6 +563,46 @@ namespace Zapisi.Pro.CallBacks
                 $"⏰ {time}\n\n" +
                 $"Подтвердить?",
                 replyMarkup: keyboard
+            );
+        }
+
+        public async Task CancelBookingByUser(
+    CallbackQuery query,
+    CallBackData data)
+        {
+            int bookingId = int.Parse(data.SubAction);
+
+            db.ExecuteNonQuery($@"
+                                    UPDATE ""Bookings""
+                                    SET ""Status"" = 'cancelled'
+                                    WHERE ""idBooking"" = {bookingId}
+                                ");
+
+            var booking = db.ExecuteQuery($@"
+                                        SELECT 
+                                            b.""MasterId"",
+                                            u.""UserName""
+                                        FROM ""Bookings"" b
+                                        JOIN ""Users"" u 
+                                            ON u.""idUser"" = b.""UserId""
+                                        WHERE b.""idBooking"" = {bookingId}
+                                    ").Rows[0];
+
+            int masterId = Convert.ToInt32(booking["MasterId"]);
+
+            string userName = booking["Name"].ToString();
+
+            long masterTelegramId = db.GetMasterTelegramId(masterId);
+
+            await botClient.SendMessage(
+                masterTelegramId,
+                $"❌ Клиент {userName} отменил запись"
+            );
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "❌ Вы отменили запись"
             );
         }
     }
