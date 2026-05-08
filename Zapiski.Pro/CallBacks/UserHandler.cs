@@ -169,7 +169,7 @@ namespace Zapisi.Pro.CallBacks
 
             var record = row.Rows[0];
 
-            string username = record["Username"]?.ToString() ?? "без username";
+            string username = record["UserName"]?.ToString() ?? "без username";
             string service = record["ServiceName"].ToString();
             string masterKey = record["MasterKey"].ToString();
 
