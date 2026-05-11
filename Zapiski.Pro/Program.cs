@@ -53,7 +53,11 @@ namespace Zapisi.Pro
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
-            
+            Console.WriteLine("===== ENV DEBUG =====");
+            Console.WriteLine($"DB_HOST = {Environment.GetEnvironmentVariable("DB_HOST")}");
+            Console.WriteLine($"DB_USER = {Environment.GetEnvironmentVariable("DB_USER")}");
+            Console.WriteLine($"DB_PASSWORD = {(Environment.GetEnvironmentVariable("DB_PASSWORD") != null ? "***" : "NULL")}");
+            Console.WriteLine("=====================");
             GlobalConfiguration.Configuration .UsePostgreSqlStorage(c =>  c.UseNpgsqlConnection($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro")
                 );
             using var hangfireServer = new BackgroundJobServer();
