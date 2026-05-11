@@ -1066,12 +1066,12 @@ namespace Zapisi.Pro.CallBacks
                     JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
                     WHERE b.""idBooking"" = {bookingId}
             ").Rows[0];
-
+            
             long clientId = Convert.ToInt64(booking["TelegrammId"]);
             DateOnly date = (DateOnly)booking["Date"];
-            TimeSpan time = (TimeSpan)booking["Time"];
+            TimeOnly time = (TimeOnly)booking["Time"];
 
-            DateTime appointmentTime = date.ToDateTime(TimeOnly.MinValue).Add(time);
+            DateTime appointmentTime = date.ToDateTime(time);
             string serviceName = booking["ServiceName"].ToString();
 
 
