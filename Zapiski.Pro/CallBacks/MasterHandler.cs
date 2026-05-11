@@ -1055,7 +1055,7 @@ namespace Zapisi.Pro.CallBacks
 
             var booking = db.ExecuteQuery($@"
                 SELECT 
-                        b.""DateTime"",
+                        b.""Date"",
                         u.""TelegrammId"",
                         s.""Name"" as ""ServiceName""
                  
@@ -1067,7 +1067,7 @@ namespace Zapisi.Pro.CallBacks
             ").Rows[0];
 
             long clientId = Convert.ToInt64(booking["TelegrammId"]);
-            DateTime appointmentTime = Convert.ToDateTime(booking["DateTime"]);
+            DateTime appointmentTime = Convert.ToDateTime(booking["Date"]);
             string serviceName = booking["ServiceName"].ToString();
 
 
