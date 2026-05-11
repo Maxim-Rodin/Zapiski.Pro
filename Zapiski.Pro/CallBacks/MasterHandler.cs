@@ -1,4 +1,6 @@
-﻿using Microsoft.SqlServer.Server;
+﻿using Hangfire;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,6 +12,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro.State;
+using Zapiski.Pro.Services;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace Zapisi.Pro.CallBacks
@@ -1033,6 +1036,7 @@ namespace Zapisi.Pro.CallBacks
 
         public async Task AcceptBooking(CallbackQuery query, CallBackData data)
         {
+            string key = data.Id;
 
             var clientKeyboard = new InlineKeyboardMarkup(new[]
           {
@@ -1049,14 +1053,23 @@ namespace Zapisi.Pro.CallBacks
                         WHERE ""idBooking"" = {bookingId}
                     ");
 
-            var user = db.ExecuteQuery($@"
-                SELECT u.""TelegrammId""
-                FROM ""Bookings"" b
-                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
-                WHERE b.""idBooking"" = {bookingId}
+            var booking = db.ExecuteQuery($@"
+                SELECT 
+                        b.""DateTime"",
+                        u.""TelegrammId"",
+                        s.""Name"" as ""ServiceName""
+                 
+                    FROM ""Bookings"" b
+                    JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                    JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                    JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+                    WHERE b.""idBooking"" = {bookingId}
             ").Rows[0];
 
-            long clientId = Convert.ToInt64(user["TelegrammId"]);
+            long clientId = Convert.ToInt64(booking["TelegrammId"]);
+            DateTime appointmentTime = Convert.ToDateTime(booking["DateTime"]);
+            string serviceName = booking["ServiceName"].ToString();
+
 
             await botClient.SendMessage(clientId, "✅ Ваша запись подтверждена", replyMarkup: clientKeyboard);
 
@@ -1065,6 +1078,45 @@ namespace Zapisi.Pro.CallBacks
                      query.Message.MessageId,
                      "✅ Запись подтверждена"
                  );
+
+            var reminder2hTime = appointmentTime.AddHours(-2) - DateTime.UtcNow;
+            var reminder1hTime = appointmentTime.AddHours(-1) - DateTime.UtcNow;
+
+
+            // 🔔 за 2 часа
+            if (reminder2hTime.TotalSeconds > 0)
+            {
+                BackgroundJob.Schedule(
+                    () => ReminderService.SendReminder(
+                        clientId,
+                        $"⏰ Напоминание!\n\n" +
+                        $"Через 2 часа у вас запись.\n\n" +
+                        $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
+                        $"⏰ Время: {appointmentTime:HH:mm}\n" +
+                        $"💼 Услуга: {serviceName}\n" +
+                        $"Не опаздывайте 🙌"
+                        
+                    ),
+                    reminder2hTime
+                );
+            }
+
+            // 🔔 за 1 час
+            if (reminder1hTime.TotalSeconds > 0)
+            {
+                BackgroundJob.Schedule(
+                    () => ReminderService.SendReminder(
+                        clientId,
+                        $"⏰ Напоминание!\n\n" +
+                        $"Через 1 час у вас запись.\n\n" +
+                        $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
+                        $"⏰ Время: {appointmentTime:HH:mm}\n" +
+                        $"💼 Услуга: {serviceName}\n" +
+                        $"Ждём вас 🙌"
+                    ),
+                    reminder1hTime
+                );
+            }
         }
         public async Task CancelBooking(CallbackQuery query, CallBackData data)
         {

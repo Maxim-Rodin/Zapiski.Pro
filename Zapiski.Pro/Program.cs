@@ -1,4 +1,7 @@
-﻿using Microsoft.SqlServer.Server;
+﻿using DotNetEnv;
+using Hangfire; //бибилиотеки для чтого чтоб реализовать напоминания
+using Hangfire.PostgreSql;
+using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -15,7 +18,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro.CallBacks;
 using Zapisi.Pro.State;
-using DotNetEnv;
+using Zapiski.Pro.Services;
 
 namespace Zapisi.Pro
 {
@@ -30,10 +33,11 @@ namespace Zapisi.Pro
             private static Dictionary<string, byte[]> photoCache = new Dictionary<string, byte[]>(); // кэш для хранения фотографий
 
         private static DbHelper db ;
+
         static async Task Main(string[] args)
             {
 
-            ;
+            
 
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
 
@@ -49,8 +53,19 @@ namespace Zapisi.Pro
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
-            botClient = new TelegramBotClient(token); // инициализация клиента с токеном бота
             
+            GlobalConfiguration.Configuration .UsePostgreSqlStorage(c =>  c.UseNpgsqlConnection($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro")
+                );
+            using var hangfireServer = new BackgroundJobServer();
+
+            Console.WriteLine("Hangfire + Bot запущены");
+
+
+            
+
+
+            botClient = new TelegramBotClient(token); // инициализация клиента с токеном бота
+            ReminderService.BotClient = botClient;
             receiverOptions = new ReceiverOptions
                 {
                     AllowedUpdates = new[] // тут указваем тип полуаемх обновлений
@@ -67,6 +82,8 @@ namespace Zapisi.Pro
 
 
                     botClient.StartReceiving(UpdateHandler, ErrorHandler, receiverOptions, cancellationToken: cts.Token); // запуск получения обновлений
+                  await Task.Delay(-1);
+                }
 
                 try
                 {
@@ -81,7 +98,7 @@ namespace Zapisi.Pro
                 }
 
                
-                }
+                
 
             }
 
