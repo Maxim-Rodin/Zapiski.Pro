@@ -308,6 +308,15 @@ namespace Zapisi.Pro.CallBacks
                 await botClient.SendMessage(message.Chat.Id, "❌ Формат: 25.04.2026");
                 return;
             }
+            if (date.Date < DateTime.Today)
+            {
+                await botClient.SendMessage(
+                    message.Chat.Id,
+                    "❌ Нельзя записаться на прошедшую дату",
+                    replyMarkup: btn
+                );
+                return;
+            }
             int day;
 
             switch (date.DayOfWeek)
@@ -472,7 +481,7 @@ namespace Zapisi.Pro.CallBacks
                 await botClient.AnswerCallbackQuery(query.Id, "❌ Уже занято выберите другую дату");
                 return;
             }
-            Console.WriteLine("step10");
+           
             Console.WriteLine($"полученный id мастера - {masterId} , дата - {date} , время - {time}");
             // ─────────────────────────────
             // 2. клиент
@@ -484,7 +493,7 @@ namespace Zapisi.Pro.CallBacks
             {
                 userService.CreateUser(query.From.Id, query.From.Username ?? "unknown");
             }
-            Console.WriteLine("step12");
+           
             var user = db.ExecuteQuery($@"
         SELECT u.*
         FROM ""Users"" u
