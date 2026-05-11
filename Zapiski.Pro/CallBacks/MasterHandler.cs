@@ -1056,7 +1056,7 @@ namespace Zapisi.Pro.CallBacks
             var booking = db.ExecuteQuery($@"
                 SELECT 
                         b.""Date"",
-                        b.""Time"" 
+                        b.""Time"" ,
                         u.""TelegrammId"",
                         s.""Name"" as ""ServiceName""
                  
