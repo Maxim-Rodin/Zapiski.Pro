@@ -1083,8 +1083,8 @@ namespace Zapisi.Pro.CallBacks
                      "✅ Запись подтверждена"
                  );
 
-            var reminder2hTime = appointmentTime.AddHours(-2) - DateTime.UtcNow;
-            var reminder1hTime = appointmentTime.AddHours(-1) - DateTime.UtcNow;
+            var reminder2hTime = appointmentTime.AddHours(-2) - DateTime.Now;
+            var reminder1hTime = appointmentTime.AddHours(-1) - DateTime.Now;
 
 
             // 🔔 за 2 часа
