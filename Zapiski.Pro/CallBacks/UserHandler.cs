@@ -391,10 +391,11 @@ namespace Zapisi.Pro.CallBacks
 
             /// Получаем уже занятые слоты на эту дату ///
             var busy = db.ExecuteQuery($@"
-                                        SELECT ""Time""
+                                         SELECT ""Time""
                                         FROM ""Bookings""
                                         WHERE ""MasterId"" = {masterId}
                                         AND ""Date"" = '{date:yyyy-MM-dd}'
+                                        AND ""Status"" IN ('pending', 'confirmed')
                                     ");
 
             var busyTimes = new HashSet<TimeSpan>();
