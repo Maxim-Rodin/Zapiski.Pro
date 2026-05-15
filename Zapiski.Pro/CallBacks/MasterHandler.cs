@@ -906,12 +906,12 @@ namespace Zapisi.Pro.CallBacks
                 bool active = (bool)r["IsActive"];
 
                 var start = r["StartTime"] == DBNull.Value
-                    ? "-"
-                    : ((TimeSpan)r["StartTime"]).ToString(@"hh\:mm");
+                     ? "-"
+                     : ((TimeOnly)r["StartTime"]).ToString(@"hh\:mm");
 
                 var end = r["EndTime"] == DBNull.Value
                     ? "-"
-                    : ((TimeSpan)r["EndTime"]).ToString(@"hh\:mm");
+                    : ((TimeOnly)r["EndTime"]).ToString(@"hh\:mm");
 
                 if (active)
                     text += $"{days[day]} — {start}-{end}\n";
