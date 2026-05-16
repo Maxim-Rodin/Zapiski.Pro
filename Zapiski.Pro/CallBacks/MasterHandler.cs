@@ -12,6 +12,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro.State;
+using Zapiski.Pro.BasedClasses;
 using Zapiski.Pro.Services;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -39,6 +40,8 @@ namespace Zapisi.Pro.CallBacks
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
             this.botClient = botClient;
             this.scheduleService = scheduleService;
+            BookingJobs.BotClient = botClient;
+            BookingJobs.Db = db;
         }
         public async Task Handle( CallBackData data, CallbackQuery query)
         {
@@ -340,8 +343,9 @@ namespace Zapisi.Pro.CallBacks
                 JOIN ""Services"" o ON o.""idService"" = r.""ServiceId""
                 WHERE r.""MasterId"" = {masterId}
                 AND r.""Status"" != 'cancelled'
+                AND r.""Status"" != 'completed'
                 ORDER BY r.""Date"" ");
-
+            
             if (records.Rows.Count == 0)
             {
                 await botClient.SendMessage(chatId, "📅 Нет записей.",replyMarkup: btn);
@@ -1053,29 +1057,31 @@ namespace Zapisi.Pro.CallBacks
                         WHERE ""idBooking"" = {bookingId}
                     ");
 
+
             var booking = db.ExecuteQuery($@"
-                SELECT 
-                        b.""Date"",
-                        b.""Time"" ,
-                        u.""TelegrammId"",
-                        s.""Name"" as ""ServiceName""
-                 
-                    FROM ""Bookings"" b
-                    JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
-                    JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
-                    JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
-                    WHERE b.""idBooking"" = {bookingId}
-            ").Rows[0];
-            
+                            SELECT 
+                                b.""Date"",
+                                b.""Time"",
+                                u.""TelegrammId"",
+                                s.""Name"" as ""ServiceName"",
+                                s.""Duration""
+                            FROM ""Bookings"" b
+                            JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                            JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                            WHERE b.""idBooking"" = {bookingId}
+                        ").Rows[0];
+
             long clientId = Convert.ToInt64(booking["TelegrammId"]);
             DateOnly date = (DateOnly)booking["Date"];
             TimeOnly time = (TimeOnly)booking["Time"];
-
             DateTime appointmentTime = date.ToDateTime(time);
             string serviceName = booking["ServiceName"].ToString();
+            int durationMinutes = Convert.ToInt32(booking["Duration"]);
+
 
 
             await botClient.SendMessage(clientId, "✅ Ваша запись подтверждена", replyMarkup: clientKeyboard);
+
 
             await botClient.EditMessageText(
                      query.Message.Chat.Id,
@@ -1121,7 +1127,23 @@ namespace Zapisi.Pro.CallBacks
                     reminder1hTime
                 );
             }
+
+            DateTime completeTime = appointmentTime.AddMinutes(durationMinutes);
+           
+            TimeSpan delay = completeTime - DateTime.Now;
+            if (delay.TotalSeconds > 0)
+            {
+                BackgroundJob.Schedule(
+                    () => BookingJobs.AutoCompleteBooking(bookingId, clientId, serviceName),
+                    delay
+                );
+
+                Console.WriteLine($"[AutoComplete] Запланировано завершение записи {bookingId} на {completeTime:dd.MM.yyyy HH:mm}");
+            }
         }
+
+       
+
         public async Task CancelBooking(CallbackQuery query, CallBackData data)
         {
            

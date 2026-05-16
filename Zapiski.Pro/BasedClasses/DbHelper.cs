@@ -9,7 +9,7 @@ using Npgsql;
 
 namespace Zapisi.Pro
 {
-    internal class DbHelper
+    public class DbHelper
     {
 
         public string connString { get; set; }
