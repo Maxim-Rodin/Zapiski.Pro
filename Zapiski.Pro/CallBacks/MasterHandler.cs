@@ -38,6 +38,7 @@ namespace Zapisi.Pro.CallBacks
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
+
             this.botClient = botClient;
             this.scheduleService = scheduleService;
             BookingJobs.BotClient = botClient;
