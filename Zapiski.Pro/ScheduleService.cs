@@ -69,7 +69,7 @@ namespace Zapisi.Pro
                  {
                     new[]
                     {
-                        InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:schedule_day:{key}:{day}")
+                        InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:schedule_edit:{key}")
                     }
                 });
 
