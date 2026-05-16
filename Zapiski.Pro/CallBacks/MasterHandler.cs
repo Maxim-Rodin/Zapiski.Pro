@@ -988,8 +988,13 @@ namespace Zapisi.Pro.CallBacks
 
             if (active)
             {
-                var start = ((TimeSpan)row["StartTime"]).ToString(@"hh\:mm");
-                var end = ((TimeSpan)row["EndTime"]).ToString(@"hh\:mm");
+                var start = row["StartTime"] == DBNull.Value
+                     ? "-"
+                     : ((TimeOnly)row["StartTime"]).ToString(@"hh\:mm");
+
+                var end = row["EndTime"] == DBNull.Value
+                    ? "-"
+                    : ((TimeOnly)row["EndTime"]).ToString(@"hh\:mm");
 
                 text += $"⏰ {start} – {end}\n";
 
