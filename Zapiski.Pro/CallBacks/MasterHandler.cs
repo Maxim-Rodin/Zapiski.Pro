@@ -1095,58 +1095,14 @@ namespace Zapisi.Pro.CallBacks
                      "✅ Запись подтверждена"
                  );
 
-            var reminder2hTime = appointmentTime.AddHours(-2) - DateTime.Now;
-            var reminder1hTime = appointmentTime.AddHours(-1) - DateTime.Now;
-
-
-            // 🔔 за 2 часа
-            if (reminder2hTime.TotalSeconds > 0)
-            {
-                BackgroundJob.Schedule(
-                    () => ReminderService.SendReminder(
-                        clientId,
-                        $"⏰ Напоминание!\n\n" +
-                        $"Через 2 часа у вас запись.\n\n" +
-                        $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
-                        $"⏰ Время: {appointmentTime:HH:mm}\n" +
-                        $"💼 Услуга: {serviceName}\n" +
-                        $"Не опаздывайте 🙌"
-                        
-                    ),
-                    reminder2hTime
+            BookingJobs.ScheduleAllReminders(
+                    bookingId,
+                    clientId,
+                    appointmentTime,
+                    serviceName,
+                    durationMinutes
                 );
-            }
-
-            // 🔔 за 1 час
-            if (reminder1hTime.TotalSeconds > 0)
-            {
-                BackgroundJob.Schedule(
-                    () => ReminderService.SendReminder(
-                        clientId,
-                        $"⏰ Напоминание!\n\n" +
-                        $"Через 1 час у вас запись.\n\n" +
-                        $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
-                        $"⏰ Время: {appointmentTime:HH:mm}\n" +
-                        $"💼 Услуга: {serviceName}\n" +
-                        $"Ждём вас 🙌"
-                    ),
-                    reminder1hTime
-                );
-            }
-
-            DateTime completeTime = appointmentTime.AddMinutes(durationMinutes);
-           
-            TimeSpan delay = completeTime - DateTime.Now;
-            if (delay.TotalSeconds > 0)
-            {
-                BackgroundJob.Schedule(
-                    () => BookingJobs.AutoCompleteBooking(bookingId, clientId, serviceName),
-                    delay
-                );
-
-                Console.WriteLine($"[AutoComplete] Запланировано завершение записи {bookingId} на {completeTime:dd.MM.yyyy HH:mm}");
-            }
-        }
+         }
 
        
 

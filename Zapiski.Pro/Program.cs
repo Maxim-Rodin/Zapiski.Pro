@@ -18,6 +18,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro.CallBacks;
 using Zapisi.Pro.State;
+using Zapiski.Pro.BasedClasses;
 using Zapiski.Pro.Services;
 
 namespace Zapisi.Pro
@@ -63,13 +64,20 @@ namespace Zapisi.Pro
             using var hangfireServer = new BackgroundJobServer();
 
             Console.WriteLine("Hangfire + Bot запущены");
+           
 
 
-            
+
 
 
             botClient = new TelegramBotClient(token); // инициализация клиента с токеном бота
             ReminderService.BotClient = botClient;
+            BookingJobs.BotClient = botClient;
+            BookingJobs.Db = db;
+
+           
+            BookingJobs.RestoreReminders();
+
             receiverOptions = new ReceiverOptions
                 {
                     AllowedUpdates = new[] // тут указваем тип полуаемх обновлений

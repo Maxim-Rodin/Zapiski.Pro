@@ -53,9 +53,128 @@ namespace Zapisi.Pro.CallBacks
                     await BookTime(query, data); break;
                 case "cancel":
                     await CancelBookingByClient(query, data); break;
+                case "preconfirm_yes":
+                    await PreConfirmYes(query, data);
+                    break;
+
+                case "preconfirm_no":
+                    await PreConfirmNo(query, data);
+                    break;
             }
             return;
         }
+
+        public async Task PreConfirmNo(CallbackQuery query, CallBackData data)
+        {
+            int bookingId = int.Parse(data.Id);
+
+            var row = db.ExecuteQuery($@"
+        SELECT 
+            b.""MasterId"",
+            s.""Name"" AS ServiceName,
+            m.""Key"",
+            mu.""TelegrammId"" AS MasterTelegramId
+        FROM ""Bookings"" b
+        JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+        JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
+        WHERE b.""idBooking"" = {bookingId}
+    ").Rows[0];
+
+            long masterTelegramId = Convert.ToInt64(row["MasterTelegramId"]);
+            string serviceName = row["ServiceName"].ToString();
+            string masterKey = row["Key"].ToString();
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Bookings""
+        SET ""Status"" = 'cancelled'
+        WHERE ""idBooking"" = {bookingId}
+    ");
+
+            await botClient.AnswerCallbackQuery(query.Id, "❌ Запись отменена");
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "❌ Вы отменили запись"
+            );
+
+            // 📩 уведомление мастеру
+            await botClient.SendMessage(
+                masterTelegramId,
+                $"❌ Клиент отменил запись за день\n\n" +
+                $"💼 {serviceName}"
+            );
+        }
+        public async Task PreConfirmYes(CallbackQuery query, CallBackData data)
+        {
+            int bookingId = int.Parse(data.Id);
+
+            var row = db.ExecuteQuery($@"
+        SELECT 
+            b.""MasterId"",
+            b.""Date"",
+            b.""Time"",
+            m.""Key"" ,
+            s.""Name"" AS ServiceName,
+            mu.""TelegrammId"" AS MasterTelegramId
+        FROM ""Bookings"" b
+        JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+        JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+        JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
+        WHERE b.""idBooking"" = {bookingId}
+    ").Rows[0];
+
+            int masterId = Convert.ToInt32(row["MasterId"]);
+            long masterTelegramId = Convert.ToInt64(row["MasterTelegramId"]);
+            string masterKey = row["Key"].ToString();
+
+            string serviceName = row["ServiceName"].ToString();
+            DateOnly date = (DateOnly)row["Date"];
+            TimeOnly time = (TimeOnly)row["Time"];
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Bookings""
+        SET ""Status"" = 'confirmed'
+        WHERE ""idBooking"" = {bookingId}
+    ");
+
+            await botClient.AnswerCallbackQuery(query.Id, "👍 Вы подтвердили запись");
+
+            await botClient.EditMessageText(
+                            query.Message.Chat.Id,
+                            query.Message.MessageId,
+                            "✅ Вы подтвердили запись",
+                            replyMarkup: new InlineKeyboardMarkup(new[]
+                            {
+                                new[]
+                                {
+                                    InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
+                                }
+                            })
+                        );
+
+            // 📩 уведомление мастеру
+            await botClient.SendMessage(
+                masterTelegramId,
+                $"✅ Клиент подтвердил запись\n\n" +
+                $"💼 {serviceName}\n" +
+                $"📅 {date:dd.MM.yyyy} {time}",
+
+                replyMarkup: new InlineKeyboardMarkup(new[]
+                {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "👤 Профиль мастера",
+                $"master:master_profile:{masterKey}"
+            )
+        }
+        
+                })
+            );
+        }
+
         public async Task ShowMenu(long chatId)
         {
             var keyboard = new InlineKeyboardMarkup(new[]
