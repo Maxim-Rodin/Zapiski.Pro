@@ -314,7 +314,7 @@ namespace Zapisi.Pro.CallBacks
 
               );
 
-            await botClient.SendMessage(chatId, $"👤 Редактор услгу \n\nВыберите действие:", replyMarkup: keyboard);
+            await botClient.SendMessage(chatId, $"👤 Редактор услуг \n\nВыберите действие:", replyMarkup: keyboard);
 
 
 
@@ -643,7 +643,7 @@ namespace Zapisi.Pro.CallBacks
             {
                 var s = pageItems[i];
 
-                text += $"{start + i + 1}. {s["Name"]} — {s["Price"]}₴ — {s["Duration"]} мин\n";
+                text += $"{start + i + 1}. {s["Name"]} — {s["Price"]}₽ — {s["Duration"]} мин\n";
             }
             text += "\nВыберите услугу по ID:";
 
