@@ -76,7 +76,7 @@ namespace Zapisi.Pro
             BookingJobs.Db = db;
 
            
-            BookingJobs.RestoreReminders();
+            //BookingJobs.RestoreReminders();
 
             receiverOptions = new ReceiverOptions
                 {
