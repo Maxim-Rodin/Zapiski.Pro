@@ -60,10 +60,127 @@ namespace Zapisi.Pro.CallBacks
                 case "preconfirm_no":
                     await PreConfirmNo(query, data);
                     break;
+                case "paid_booking":
+                    await PaidBooking(query, data);
+                    break;
             }
             return;
         }
+        public async Task PaidBooking(
+    CallbackQuery query,
+    CallBackData data)
+        {
+            int bookingId = int.Parse(data.Id);
 
+            // ─────────────────────────────
+            // запись
+            // ─────────────────────────────
+
+            var row = db.ExecuteQuery($@"
+        SELECT
+            b.""MasterId"",
+            b.""Date"",
+            b.""Time"",
+            s.""Name"" AS ""ServiceName"",
+            s.""Price"",
+            s.""PrepaymentPercent"",
+            m.""Key"" AS ""MasterKey"",
+            mu.""TelegrammId"" AS ""MasterTelegramId""
+        FROM ""Bookings"" b
+
+        JOIN ""Services"" s
+            ON s.""idService"" = b.""ServiceId""
+
+        JOIN ""Masters"" m
+            ON m.""idMaster"" = b.""MasterId""
+
+        JOIN ""Users"" mu
+            ON mu.""idUser"" = m.""UserId""
+
+        WHERE b.""idBooking"" = {bookingId}
+    ").Rows[0];
+
+            long masterTelegramId =
+                Convert.ToInt64(row["MasterTelegramId"]);
+
+            string masterKey =
+                row["MasterKey"].ToString();
+
+            string serviceName =
+                row["ServiceName"].ToString();
+
+            int price =
+                Convert.ToInt32(row["Price"]);
+
+            int percent =
+                Convert.ToInt32(row["PrepaymentPercent"]);
+
+            int prepaymentAmount =
+                (price * percent) / 100;
+
+            DateOnly date =
+                (DateOnly)row["Date"];
+
+            TimeOnly time =
+                (TimeOnly)row["Time"];
+
+            // ─────────────────────────────
+            // статус
+            // ─────────────────────────────
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Bookings""
+        SET ""Status"" = 'waiting_payment_confirm'
+        WHERE ""idBooking"" = {bookingId}
+    ");
+
+            // ─────────────────────────────
+            // клиенту
+            // ─────────────────────────────
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "⏳ Ожидаем подтверждение оплаты от мастера", replyMarkup: new InlineKeyboardMarkup(new[]
+                            {
+                                new[]
+                                {
+                                    InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
+                                }
+                            })
+            );
+
+            // ─────────────────────────────
+            // мастеру
+            // ─────────────────────────────
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "✅ Деньги пришли",
+                $"master:payment_accept:{masterKey}:{bookingId}"
+            ),
+
+            InlineKeyboardButton.WithCallbackData(
+                "❌ Не пришли",
+                $"master:payment_reject:{masterKey}:{bookingId}"
+            )
+        }
+    });
+
+            await botClient.SendMessage(
+                masterTelegramId,
+                $"💸 Клиент отправил предоплату\n\n" +
+                $"💼 {serviceName}\n" +
+                $"💰 Сумма: {prepaymentAmount}₽\n" +
+                $"📅 {date:dd.MM.yyyy}\n" +
+                $"⏰ {time}\n\n" +
+                $"Подтвердить получение?",
+                replyMarkup: keyboard
+            );
+        }
         public async Task PreConfirmNo(CallbackQuery query, CallBackData data)
         {
             int bookingId = int.Parse(data.Id);
@@ -554,132 +671,256 @@ namespace Zapisi.Pro.CallBacks
         public async Task BookTime(CallbackQuery query, CallBackData data)
         {
             var clientKeyboard = new InlineKeyboardMarkup(new[]
-          {
+            {
         new[]
         {
-            InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
+            InlineKeyboardButton.WithCallbackData(
+                "🏠 В меню",
+                "client:menu"
+            )
         }
     });
 
             var chatId = query.Message.Chat.Id;
-            
 
             var key = data.Id;
-            
             var serviceId = data.SubAction;
-           
+
             var date = DateTime.Parse(data.Extra);
+
             var timeParts = data.Ultra.Split('-');
-          
 
             var times = new TimeSpan(
                 int.Parse(timeParts[0]),
                 int.Parse(timeParts[1]),
-                timeParts.Length > 2 ? int.Parse(timeParts[2]) : 0
+                timeParts.Length > 2
+                    ? int.Parse(timeParts[2])
+                    : 0
             );
-            
-            Console.WriteLine($"ключ - {key} айди услуги{serviceId} дата -{date} время {times.ToString()}");
+
+            Console.WriteLine(
+                $"ключ - {key} айди услуги {serviceId} дата - {date} время {times}"
+            );
+
             var masterId = db.GetMasterIdByKey(key);
-           
+
             // ─────────────────────────────
-            // 1. проверка занятости
+            // ПРОВЕРКА ЗАНЯТОСТИ
             // ─────────────────────────────
+
             var time = times.ToString(@"hh\:mm\:ss");
-           
 
             var check = db.ExecuteQuery($@"
-        SELECT * FROM ""Bookings""
+        SELECT *
+        FROM ""Bookings""
         WHERE ""MasterId"" = {masterId}
         AND ""Date"" = '{date:yyyy-MM-dd}'
         AND ""Time"" = '{time}'
-        AND ""Status"" IN ('pending','confirmed')
+        AND ""Status"" IN
+        (
+            'pending',
+            'confirmed',
+            'waiting_payment',
+            'waiting_payment_confirm'
+        )
     ");
-           
 
             if (check.Rows.Count > 0)
             {
-                await botClient.AnswerCallbackQuery(query.Id, "❌ Уже занято выберите другую дату");
+                await botClient.AnswerCallbackQuery(
+                    query.Id,
+                    "❌ Уже занято"
+                );
+
                 return;
             }
-           
-            Console.WriteLine($"полученный id мастера - {masterId} , дата - {date} , время - {time}");
+
             // ─────────────────────────────
-            // 2. клиент
+            // СОЗДАЁМ ПОЛЬЗОВАТЕЛЯ
             // ─────────────────────────────
+
             var userService = new UserService();
-            
 
             if (!userService.ExistsByTelegramId(query.From.Id))
             {
-                userService.CreateUser(query.From.Id, query.From.Username ?? "unknown");
+                userService.CreateUser(
+                    query.From.Id,
+                    query.From.Username ?? "unknown"
+                );
             }
-           
-            var user = db.ExecuteQuery($@"
-        SELECT u.*
-        FROM ""Users"" u
-        WHERE u.""TelegrammId"" = {query.From.Id}
-    ").Rows[0];
-           
+
             var userTable = db.ExecuteQuery($@"
-                SELECT ""idUser""
-                FROM ""Users""
-                WHERE ""TelegrammId"" = {query.From.Id}
-            ");
-            
+        SELECT ""idUser""
+        FROM ""Users""
+        WHERE ""TelegrammId"" = {query.From.Id}
+    ");
 
             if (userTable.Rows.Count == 0)
             {
-                await botClient.SendMessage(chatId, "❌ Пользователь не найден");
+                await botClient.SendMessage(
+                    chatId,
+                    "❌ Пользователь не найден"
+                );
+
                 return;
             }
-          
 
-            var userId = (int)userTable.Rows[0]["idUser"];
-            string username = query.From.Username ?? "no_username";
-            Console.WriteLine("step16");
+            var userId =
+                (int)userTable.Rows[0]["idUser"];
+
+            string username =
+                query.From.Username ?? "no_username";
+
             // ─────────────────────────────
-            // 3. создаём запись
+            // УСЛУГА
             // ─────────────────────────────
+
+            var service = db.ExecuteQuery($@"
+        SELECT *
+        FROM ""Services""
+        WHERE ""idService"" = {serviceId}
+    ").Rows[0];
+
+            string serviceName =
+                service["Name"].ToString();
+
+            int price =
+                Convert.ToInt32(service["Price"]);
+
+            int prepaymentPercent =
+                Convert.ToInt32(service["PrepaymentPercent"]);
+
+            int prepaymentAmount =
+                (price * prepaymentPercent) / 100;
+
+            // ─────────────────────────────
+            // РЕКВИЗИТЫ
+            // ─────────────────────────────
+
+            var masterData = db.ExecuteQuery($@"
+        SELECT
+            u.""TelegrammId"",
+            m.""PaymentDetails""
+        FROM ""Users"" u
+        JOIN ""Masters"" m
+            ON m.""UserId"" = u.""idUser""
+        WHERE m.""idMaster"" = {masterId}
+    ").Rows[0];
+
+            long masterTelegramId =
+                Convert.ToInt64(masterData["TelegrammId"]);
+
+            string paymentDetails =
+                masterData["PaymentDetails"] != DBNull.Value
+                    ? masterData["PaymentDetails"].ToString()
+                    : "Реквизиты не указаны";
+
+            // ─────────────────────────────
+            // СТАТУС
+            // ─────────────────────────────
+
+            string status =
+                prepaymentPercent > 0
+                    ? "waiting_payment"
+                    : "pending";
+
+            // ─────────────────────────────
+            // СОЗДАЁМ ЗАПИСЬ
+            // ─────────────────────────────
+
             var bookingTable = db.ExecuteQuery($@"
         INSERT INTO ""Bookings""
-        (""MasterId"", ""ServiceId"", ""UserId"",  ""Date"", ""Time"", ""Status"")
+        (
+            ""MasterId"",
+            ""ServiceId"",
+            ""UserId"",
+            ""Date"",
+            ""Time"",
+            ""Status""
+        )
         VALUES
-        ({masterId}, {serviceId}, {userId},'{date:yyyy-MM-dd}', '{time}', 'pending')
-         RETURNING ""idBooking"";
+        (
+            {masterId},
+            {serviceId},
+            {userId},
+            '{date:yyyy-MM-dd}',
+            '{time}',
+            '{status}'
+        )
+        RETURNING ""idBooking"";
     ");
-           
+
+            int bookingId =
+                Convert.ToInt32(
+                    bookingTable.Rows[0]["idBooking"]
+                );
 
             // ─────────────────────────────
-            // 4. клиенту
+            // ЕСЛИ ЕСТЬ ПРЕДОПЛАТА
             // ─────────────────────────────
-            await botClient.SendMessage(chatId,
-                "✅ Запись создана!\n⏳ Ожидает подтверждения мастера" ,replyMarkup:clientKeyboard);
+
+            if (prepaymentPercent > 0)
+            {
+                var paymentKeyboard =
+                    new InlineKeyboardMarkup(new[]
+                    {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData(
+                        "✅ Я оплатил",
+                        $"client:paid_booking:{bookingId}"
+                    )
+                },
+
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData(
+                        "🏠 В меню",
+                        "client:menu"
+                    )
+                }
+                    });
+
+                await botClient.SendMessage(
+                    chatId,
+                    $"💳 Для подтверждения записи требуется предоплата\n\n" +
+                    $"💼 Услуга: {serviceName}\n" +
+                    $"💰 Стоимость: {price}₽\n" +
+                    $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n\n" +
+                    $"📅 {date:dd.MM.yyyy}\n" +
+                    $"⏰ {time}\n\n" +
+                    $"Реквизиты мастера:\n\n" +
+                    $"{paymentDetails}\n\n" +
+                    $"После оплаты нажмите кнопку ниже 👇",
+                    replyMarkup: paymentKeyboard
+                );
+
+                return;
+            }
 
             // ─────────────────────────────
-            // 5. мастеру уведомление
+            // ОБЫЧНАЯ ЗАПИСЬ БЕЗ ПРЕДОПЛАТЫ
             // ─────────────────────────────
-            var service = db.ExecuteQuery($@"
-                        SELECT * FROM ""Services""
-                        WHERE ""idService"" = {serviceId}
-                    ").Rows[0];
 
-            var masterUser = db.ExecuteQuery($@"
-                        SELECT u.""TelegrammId""
-                        FROM ""Users"" u
-                        JOIN ""Masters"" m ON m.""UserId"" = u.""idUser""
-                        WHERE m.""idMaster"" = {masterId}
-                    ").Rows[0];
+            await botClient.SendMessage(
+                chatId,
+                "✅ Запись создана!\n⏳ Ожидает подтверждения мастера",
+                replyMarkup: clientKeyboard
+            );
 
-            long masterTelegramId = (long)masterUser["TelegrammId"];
-            int bookingId = Convert.ToInt32(bookingTable.Rows[0]["idBooking"]);
-            Console.WriteLine($"MASTER TELEGRAM ID = {masterTelegramId}");
-            var timeString = $"{times.Hours}-{times.Minutes}-{times.Seconds}";
             var keyboard = new InlineKeyboardMarkup(new[]
             {
         new[]
         {
-            InlineKeyboardButton.WithCallbackData("✅ Принять", $"master:booking_accept:{key}:{bookingId}"),
-            InlineKeyboardButton.WithCallbackData("❌ Отмена", $"master:booking_cancel:{key}:{bookingId}")
+            InlineKeyboardButton.WithCallbackData(
+                "✅ Принять",
+                $"master:booking_accept:{key}:{bookingId}"
+            ),
+
+            InlineKeyboardButton.WithCallbackData(
+                "❌ Отмена",
+                $"master:booking_cancel:{key}:{bookingId}"
+            )
         }
     });
 
@@ -687,7 +928,7 @@ namespace Zapisi.Pro.CallBacks
                 masterTelegramId,
                 $"📥 Новая запись!\n\n" +
                 $"👤 @{username}\n" +
-                $"💼 {service["Name"]}\n" +
+                $"💼 {serviceName}\n" +
                 $"📅 {date:dd.MM.yyyy}\n" +
                 $"⏰ {time}\n\n" +
                 $"Подтвердить?",

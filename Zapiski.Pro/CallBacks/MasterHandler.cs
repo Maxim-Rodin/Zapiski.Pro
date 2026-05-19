@@ -151,12 +151,381 @@ namespace Zapisi.Pro.CallBacks
 
                 case "booking_cancel":
                     await CancelBooking(query, data); break;
+                case "payment":
+                    await ShowPayment(query, data);
+                    break;
+                case "edit_payment":
+                    await EditPayment(query, data);
+                    break;
+                case "delete_payment":
+                    await DeletePayment(query, data);
+                    break;
+                case "edit_prepayment":
+                    await EditPrepayment(query, data);
+                    break;
+                case "payment_accept":
+                    await AcceptPayment(query, data);
+                    break;
 
-
+                case "payment_reject":
+                    await RejectPayment(query, data);
+                    break;
             }
 
         }
-        
+
+        public async Task AcceptPayment(
+       CallbackQuery query,
+       CallBackData data)
+        {
+            int bookingId = int.Parse(data.SubAction);
+
+            // ─────────────────────────────
+            // ПОЛУЧАЕМ ДАННЫЕ
+            // ─────────────────────────────
+
+            var row = db.ExecuteQuery($@"
+        SELECT
+            b.""Date"",
+            b.""Time"",
+            u.""TelegrammId"",
+            s.""Name"" AS ""ServiceName"",
+            s.""Duration""
+        FROM ""Bookings"" b
+
+        JOIN ""Users"" u
+            ON u.""idUser"" = b.""UserId""
+
+        JOIN ""Services"" s
+            ON s.""idService"" = b.""ServiceId""
+
+        WHERE b.""idBooking"" = {bookingId}
+    ").Rows[0];
+
+            long clientId =
+                Convert.ToInt64(row["TelegrammId"]);
+
+            DateOnly date =
+                (DateOnly)row["Date"];
+
+            TimeOnly time =
+                (TimeOnly)row["Time"];
+
+            DateTime appointmentTime =
+                date.ToDateTime(time);
+
+            string serviceName =
+                row["ServiceName"].ToString();
+
+            int durationMinutes =
+                Convert.ToInt32(row["Duration"]);
+
+            // ─────────────────────────────
+            // СТАТУС
+            // ─────────────────────────────
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Bookings""
+        SET ""Status"" = 'confirmed'
+        WHERE ""idBooking"" = {bookingId}
+    ");
+
+            // ─────────────────────────────
+            // КЛИЕНТУ
+            // ─────────────────────────────
+
+            var clientKeyboard =
+                new InlineKeyboardMarkup(new[]
+                {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    "🏠 В меню",
+                    "client:menu"
+                )
+            }
+                });
+
+            await botClient.SendMessage(
+                clientId,
+                $"✅ Предоплата подтверждена\n\n" +
+                $"🎉 Запись успешно подтверждена",
+                replyMarkup: clientKeyboard
+            );
+
+            // ─────────────────────────────
+            // МАСТЕРУ
+            // ─────────────────────────────
+
+            var masterKeyboard =
+                new InlineKeyboardMarkup(new[]
+                {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    "⬅️ Назад",
+                    "master:menu"
+                )
+            }
+                });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "✅ Предоплата подтверждена",
+                replyMarkup: masterKeyboard
+            );
+
+            // ─────────────────────────────
+            // ЗАПУСК НАПОМИНАНИЙ
+            // ─────────────────────────────
+
+            BookingJobs.ScheduleAllReminders(
+                bookingId,
+                clientId,
+                appointmentTime,
+                serviceName,
+                durationMinutes
+            );
+        }
+
+        public async Task RejectPayment(
+            CallbackQuery query,
+            CallBackData data)
+        {
+            int bookingId = int.Parse(data.SubAction);
+
+            // ─────────────────────────────
+            // ДАННЫЕ
+            // ─────────────────────────────
+
+            var row = db.ExecuteQuery($@"
+        SELECT
+            u.""TelegrammId"",
+            s.""Name"" AS ""ServiceName"",
+            s.""Price"",
+            s.""PrepaymentPercent"",
+            m.""PaymentDetails"",
+            m.""Key""
+        FROM ""Bookings"" b
+
+        JOIN ""Users"" u
+            ON u.""idUser"" = b.""UserId""
+
+        JOIN ""Services"" s
+            ON s.""idService"" = b.""ServiceId""
+
+        JOIN ""Masters"" m
+            ON m.""idMaster"" = b.""MasterId""
+
+        WHERE b.""idBooking"" = {bookingId}
+    ").Rows[0];
+
+            long clientId =
+                Convert.ToInt64(row["TelegrammId"]);
+
+            string serviceName =
+                row["ServiceName"].ToString();
+
+            int price =
+                Convert.ToInt32(row["Price"]);
+
+            int percent =
+                Convert.ToInt32(row["PrepaymentPercent"]);
+
+            int prepaymentAmount =
+                (price * percent) / 100;
+
+            string paymentDetails =
+                row["PaymentDetails"] != DBNull.Value
+                    ? row["PaymentDetails"].ToString()
+                    : "Реквизиты не указаны";
+
+            string masterKey =
+                row["Key"].ToString();
+
+            // ─────────────────────────────
+            // ВОЗВРАЩАЕМ СТАТУС
+            // ─────────────────────────────
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Bookings""
+        SET ""Status"" = 'waiting_payment'
+        WHERE ""idBooking"" = {bookingId}
+    ");
+
+            // ─────────────────────────────
+            // МАСТЕРУ
+            // ─────────────────────────────
+
+            var masterKeyboard =
+                new InlineKeyboardMarkup(new[]
+                {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    "⬅️ Назад",
+                    $"master:master_profile:{masterKey}"
+                )
+            }
+                });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "❌ Оплата отклонена",
+                replyMarkup: masterKeyboard
+            );
+
+            // ─────────────────────────────
+            // КЛИЕНТУ
+            // ─────────────────────────────
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "✅ Я оплатил",
+                $"client:paid_booking:{bookingId}"
+            )
+        },
+
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "🏠 В меню",
+                "client:menu"
+            )
+        }
+    });
+
+            await botClient.SendMessage(
+                clientId,
+                $"❌ Мастер не подтвердил оплату\n\n" +
+                $"💼 {serviceName}\n" +
+                $"💸 Предоплата: {prepaymentAmount}₽\n\n" +
+                $"Проверьте перевод и попробуйте снова\n\n" +
+                $"Реквизиты:\n{paymentDetails}",
+                replyMarkup: keyboard
+            );
+        }
+
+        public async Task EditPrepayment(CallbackQuery query, CallBackData data)
+        {
+            var key = data.Id;
+            var serviceId = data.SubAction;
+
+            stateService.SetState(
+                query.Message.Chat.Id,
+                $"edit_prepayment:{key}:{serviceId}"
+            );
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "⬅️ Назад",
+                $"master:service_options:{key}:{serviceId}"
+            )
+        }
+    });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "💳 Введите новый процент предоплаты\n\n" +
+                "От 0 до 100\n\n" +
+                "0 — без предоплаты",
+                replyMarkup: keyboard
+            );
+        }
+        public async Task DeletePayment(
+    CallbackQuery query,
+    CallBackData data)
+        {
+            var key = data.Id;
+
+            db.ExecuteNonQuery($@"
+        UPDATE ""Masters""
+        SET ""PaymentDetails"" = NULL
+        WHERE ""Key"" = '{key}'
+    ");
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "➕ Добавить",
+                $"master:edit_payment:{key}"
+            )
+        },
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "⬅️ Назад",
+                $"master:master_edit:{key}"
+            )
+        }
+    });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "🗑 Реквизиты удалены",
+                replyMarkup: keyboard
+            );
+        }
+
+        private async Task EditPayment(CallbackQuery query, CallBackData data)
+        {
+            var key = data.Id;
+
+            stateService.SetState(
+                query.Message.Chat.Id,
+                $"edit_payment:{key}"
+            );
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+        new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "⬅️ Назад",
+                $"master:payment:{key}"
+            )
+        }
+    });
+
+            await botClient.EditMessageText(
+                query.Message.Chat.Id,
+                query.Message.MessageId,
+                "💳 Отправьте новые реквизиты одним сообщением\n\n" +
+                "Например:\n\n" +
+                "Сбербанк\n" +
+                "+7 999 123-45-67\n" +
+                "СБП\n" +
+                "Иванов И.И.",
+                replyMarkup: keyboard
+            );
+        }
+
+        private async Task ShowPayment(CallbackQuery query, CallBackData data)
+        {
+          var key = data.Id;
+            string sql = $@"SELECT ""PaymentDetails"" FROM ""Masters"" WHERE ""Key"" = '{key}'";
+            var dt = db.ExecuteQuery(sql);
+            string paymentDetails = dt.Rows[0]["PaymentDetails"] != DBNull.Value ? dt.Rows[0]["PaymentDetails"].ToString() : "Реквизиты не указаны";
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("✏️ Редактировать", $"master:edit_payment:{key}") },
+                 new[] { InlineKeyboardButton.WithCallbackData("🗑 Удалить", $"master:delete_payment:{key}") },
+                new[] { InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:master_edit:{key}") }
+            });
+            await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, $"💳 Ваши реквизиты:\n\n{paymentDetails}", replyMarkup: keyboard);
+        }
 
         public async Task ShowMenu(CallbackQuery query, string key) //главное меню мастера  
         {
@@ -305,6 +674,10 @@ namespace Zapisi.Pro.CallBacks
                 new[]
                  {
                      InlineKeyboardButton.WithCallbackData("⏰ График",$"master:schedule:{key}")
+                 },
+                 new[]
+                 {
+                     InlineKeyboardButton.WithCallbackData("💳 Реквизиты",$"master:payment:{key}")
                  },
                  new[]
                         {
@@ -865,6 +1238,13 @@ namespace Zapisi.Pro.CallBacks
             InlineKeyboardButton.WithCallbackData(
                 "⏱ Длительность",
                 $"master:edit_duration:{key}:{serviceId}"
+            )
+        },
+          new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                "💳 Предоплата",
+                $"master:edit_prepayment:{key}:{serviceId}"
             )
         },
         new[]

@@ -24,15 +24,16 @@ namespace Zapisi.Pro.CallBacks
 
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro;SSL Mode=Disable;Trust Server Certificate=true;");
         }
-        public void AddService(string key, string title, int price, int duration)
+        public void AddService(string key, string title, int price, int duration, int prepaymentPercent)
         {
             string sql = $@"
-        INSERT INTO ""Services"" (""MasterId"", ""Name"", ""Price"", ""Duration"")
+        INSERT INTO ""Services"" (""MasterId"", ""Name"", ""Price"", ""Duration"", ""PrepaymentPercent"")
         VALUES (
             (SELECT ""idMaster"" FROM ""Masters"" WHERE ""Key"" = '{key}'),
             '{title}',
             {price},
-            {duration}
+            {duration},
+            {prepaymentPercent} 
         );
     ";
             db.ExecuteNonQuery(sql);

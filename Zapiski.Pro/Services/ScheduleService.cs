@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
+using Zapisi.Pro;
 using Zapisi.Pro.CallBacks;
 using Zapisi.Pro.State;
 
-namespace Zapisi.Pro
+namespace Zapiski.Pro.Services
 {
     internal class ScheduleService
     {
