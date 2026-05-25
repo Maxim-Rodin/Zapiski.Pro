@@ -1,5 +1,22 @@
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { Link, Route, Routes, useParams } from "react-router-dom"
+import {
+  Bot,
+  BriefcaseBusiness,
+  CalendarCheck,
+  CalendarDays,
+  ChevronRight,
+  Construction,
+  CreditCard,
+  Globe,
+  Home,
+  LayoutDashboard,
+  Plus,
+  Settings,
+  User,
+  Users,
+  X,
+} from "lucide-react"
 import { API_URL } from "./config"
 import "./App.css"
 
@@ -88,21 +105,23 @@ function HomePage() {
           </Link>
         </div>
 
-        <div className="robot">🤖</div>
+        <div className="heroIcon">
+          <Bot size={56} strokeWidth={2.1} />
+        </div>
       </section>
 
       <section className="grid">
         <Link to="/admin" className="cardLink">
-          <Card icon="📊" title="Панель" text="Основная сводка и быстрые действия" />
+          <Card icon={<LayoutDashboard />} title="Панель" text="Основная сводка и быстрые действия" />
         </Link>
         <Link to="/admin/masters" className="cardLink">
-          <Card icon="💼" title="Мастера" text="Добавление и удаление мастеров" />
+          <Card icon={<BriefcaseBusiness />} title="Мастера" text="Добавление и удаление мастеров" />
         </Link>
         <Link to="/admin/users" className="cardLink">
-          <Card icon="👥" title="Пользователи" text="Список пользователей приложения" />
+          <Card icon={<Users />} title="Пользователи" text="Список пользователей приложения" />
         </Link>
         <Link to="/admin/profile" className="cardLink">
-          <Card icon="⚙️" title="Настройки" text="Служебные настройки кабинета" />
+          <Card icon={<Settings />} title="Настройки" text="Служебные настройки кабинета" />
         </Link>
       </section>
 
@@ -136,18 +155,18 @@ function AdminPage() {
       </section>
 
       <section className="statsGrid">
-        <AdminStat title="Пользователи" value={stats?.users ?? "..."} icon="👥" />
-        <AdminStat title="Мастера" value={stats?.masters ?? "..."} icon="💼" />
-        <AdminStat title="Записи" value={stats?.bookings ?? "..."} icon="📅" />
-        <AdminStat title="Оплаты" value={stats?.payments ?? "..."} icon="💳" />
+        <AdminStat title="Пользователи" value={stats?.users ?? "..."} icon={<Users />} />
+        <AdminStat title="Мастера" value={stats?.masters ?? "..."} icon={<BriefcaseBusiness />} />
+        <AdminStat title="Записи" value={stats?.bookings ?? "..."} icon={<CalendarDays />} />
+        <AdminStat title="Оплаты" value={stats?.payments ?? "..."} icon={<CreditCard />} />
       </section>
 
       <section className="grid">
         <Link to="/admin/masters" className="cardLink">
-          <Card icon="💼" title="Мастера" text="Управляйте мастерами и доступом" />
+          <Card icon={<BriefcaseBusiness />} title="Мастера" text="Управляйте мастерами и доступом" />
         </Link>
         <Link to="/admin/users" className="cardLink">
-          <Card icon="👥" title="Пользователи" text="Смотрите базу пользователей" />
+          <Card icon={<Users />} title="Пользователи" text="Смотрите базу пользователей" />
         </Link>
       </section>
 
@@ -271,7 +290,9 @@ function MastersPage() {
         ) : (
           masters.map((master) => (
             <div className="masterCard" key={master.id}>
-              <div className="masterAvatar">💼</div>
+              <div className="masterAvatar">
+                <BriefcaseBusiness size={23} strokeWidth={2.3} />
+              </div>
 
               <div className="masterInfo">
                 <h3>@{master.username || "unknown"}</h3>
@@ -280,7 +301,7 @@ function MastersPage() {
               </div>
 
               <button className="deleteButton" onClick={() => setDeleteCandidate(master)}>
-                ×
+                <X size={20} strokeWidth={2.5} />
               </button>
             </div>
           ))
@@ -290,7 +311,9 @@ function MastersPage() {
       {deleteCandidate && (
         <div className="modalOverlay">
           <div className="modalCard">
-            <div className="modalIcon">×</div>
+            <div className="modalIcon">
+              <X size={28} strokeWidth={2.5} />
+            </div>
             <h2>Удалить мастера?</h2>
             <p>
               Вы точно хотите удалить <b>@{deleteCandidate.username || "unknown"}</b>?
@@ -343,7 +366,9 @@ function UsersPage() {
         ) : (
           users.map((user) => (
             <div className="masterCard" key={user.id}>
-              <div className="masterAvatar">👤</div>
+              <div className="masterAvatar">
+                <User size={23} strokeWidth={2.3} />
+              </div>
 
               <div className="masterInfo">
                 <h3>@{user.username || "unknown"}</h3>
@@ -414,33 +439,50 @@ function MasterHomePage() {
           </Link>
         </div>
 
-        <div className="robot">💼</div>
+        <div className="heroIcon">
+          <BriefcaseBusiness size={56} strokeWidth={2.1} />
+        </div>
       </section>
 
       <section className="grid">
         <Link to={`/master/${master.key}/bookings`} className="cardLink">
-          <Card icon="📅" title="Записи" text="Скоро здесь появятся записи" />
+          <Card icon={<CalendarCheck />} title="Записи" text="Скоро здесь появятся записи" />
         </Link>
         <Link to={`/master/${master.key}/clients`} className="cardLink">
-          <Card icon="👥" title="Клиенты" text="База клиентов мастера" />
+          <Card icon={<Users />} title="Клиенты" text="База клиентов мастера" />
         </Link>
         <Link to={`/master/${master.key}/services`} className="cardLink">
-          <Card icon="💼" title="Услуги" text="Настройка услуг и цен" />
+          <Card icon={<BriefcaseBusiness />} title="Услуги" text="Настройка услуг и цен" />
         </Link>
         <Link to={`/master/${master.key}/schedule`} className="cardLink">
-          <Card icon="🗓️" title="Расписание" text="Управление временем" />
+          <Card icon={<CalendarDays />} title="Расписание" text="Управление временем" />
         </Link>
         <Link to={`/master/${master.key}/public-profile`} className="cardLink">
-          <Card icon="🌐" title="Профиль" text="Так страницу будут видеть клиенты" />
+          <Card icon={<Globe />} title="Профиль" text="Так страницу будут видеть клиенты" />
         </Link>
       </section>
 
       <section className="adminCard statsBlock">
         <h2>Статистика</h2>
-        <div className="statsGrid compactStats">
-          <AdminStat title="Клиенты" value={stats?.clients ?? "..."} icon="👥" />
-          <AdminStat title="Активные записи" value={stats?.activeBookings ?? "..."} icon="📅" />
-          <AdminStat title="Услуги" value={stats?.services ?? "..."} icon="💼" />
+        <div className="masterStatsList">
+          <MasterStatRow
+            to={`/master/${master.key}/clients`}
+            icon={<Users size={26} strokeWidth={2.4} />}
+            title="Клиенты"
+            value={stats?.clients ?? "..."}
+          />
+          <MasterStatRow
+            to={`/master/${master.key}/bookings`}
+            icon={<CalendarCheck size={26} strokeWidth={2.4} />}
+            title="Активные записи"
+            value={stats?.activeBookings ?? "..."}
+          />
+          <MasterStatRow
+            to={`/master/${master.key}/services`}
+            icon={<BriefcaseBusiness size={26} strokeWidth={2.4} />}
+            title="Услуги"
+            value={stats?.services ?? "..."}
+          />
         </div>
       </section>
 
@@ -460,7 +502,9 @@ function PublicProfileStub() {
       </header>
 
       <section className="stubScreen">
-        <div className="stubIcon">🌐</div>
+        <div className="stubIcon">
+          <Globe size={38} strokeWidth={2.2} />
+        </div>
         <h2>Скоро здесь будет профиль мастера</h2>
         <p>
           Тут появятся фото, описание, услуги, контакты и кнопка записи для клиентов.
@@ -520,7 +564,9 @@ function MasterClientsPage() {
         ) : (
           filteredClients.map((client) => (
             <div className="masterCard clientCard" key={client.id}>
-              <div className="masterAvatar">👤</div>
+              <div className="masterAvatar">
+                <User size={23} strokeWidth={2.3} />
+              </div>
 
               <div className="masterInfo">
                 <div className="clientTitleRow">
@@ -554,7 +600,9 @@ function MasterComingSoon({ title }: { title: string }) {
       </header>
 
       <section className="stubScreen">
-        <div className="stubIcon">🚧</div>
+        <div className="stubIcon">
+          <Construction size={38} strokeWidth={2.2} />
+        </div>
         <h2>Скоро тут появятся записи</h2>
         <p>Этот раздел уже подключен в меню, а рабочая логика появится следующим шагом.</p>
         <Link to={`/master/${key}`} className="inlineButton">
@@ -579,7 +627,9 @@ function ComingSoon({
   return (
     <main className="app">
       <section className="stubScreen">
-        <div className="stubIcon">🚧</div>
+        <div className="stubIcon">
+          <Construction size={38} strokeWidth={2.2} />
+        </div>
         <h2>{title}</h2>
         <p>{subtitle}</p>
       </section>
@@ -607,26 +657,50 @@ function StatusBadge({ status }: { status: string | null }) {
   )
 }
 
+function MasterStatRow({
+  to,
+  icon,
+  title,
+  value,
+}: {
+  to: string
+  icon: ReactNode
+  title: string
+  value: string | number
+}) {
+  return (
+    <Link to={to} className="masterStatRow">
+      <span className="masterStatIcon">{icon}</span>
+      <span className="masterStatText">
+        <small>{title}</small>
+        <strong>{value}</strong>
+      </span>
+      <span className="masterStatTrend">↗</span>
+      <ChevronRight className="masterStatArrow" size={24} strokeWidth={2.4} />
+    </Link>
+  )
+}
+
 function AdminBottomNav() {
   return (
     <nav className="bottomNav">
       <Link to="/admin" className="bottomNavItem">
-        <span>🏠</span>
+        <span><Home size={20} strokeWidth={2.2} /></span>
         <small>Основная</small>
       </Link>
       <Link to="/admin/masters" className="bottomNavItem">
-        <span>💼</span>
+        <span><BriefcaseBusiness size={20} strokeWidth={2.2} /></span>
         <small>Мастера</small>
       </Link>
       <Link to="/admin" className="bottomNavMain">
-        +
+        <Plus size={30} strokeWidth={2.4} />
       </Link>
       <Link to="/admin/users" className="bottomNavItem">
-        <span>👥</span>
+        <span><Users size={20} strokeWidth={2.2} /></span>
         <small>Пользователи</small>
       </Link>
       <Link to="/admin/profile" className="bottomNavItem">
-        <span>👤</span>
+        <span><User size={20} strokeWidth={2.2} /></span>
         <small>Профиль</small>
       </Link>
     </nav>
@@ -637,22 +711,22 @@ function MasterBottomNav({ masterKey }: { masterKey: string }) {
   return (
     <nav className="bottomNav">
       <Link to={`/master/${masterKey}`} className="bottomNavItem">
-        <span>🏠</span>
+        <span><Home size={20} strokeWidth={2.2} /></span>
         <small>Главная</small>
       </Link>
       <Link to={`/master/${masterKey}/bookings`} className="bottomNavItem">
-        <span>📅</span>
+        <span><CalendarCheck size={20} strokeWidth={2.2} /></span>
         <small>Записи</small>
       </Link>
       <Link to={`/master/${masterKey}`} className="bottomNavMain">
-        +
+        <Plus size={30} strokeWidth={2.4} />
       </Link>
       <Link to={`/master/${masterKey}/clients`} className="bottomNavItem">
-        <span>👥</span>
+        <span><Users size={20} strokeWidth={2.2} /></span>
         <small>Клиенты</small>
       </Link>
       <Link to={`/master/${masterKey}/profile`} className="bottomNavItem">
-        <span>👤</span>
+        <span><User size={20} strokeWidth={2.2} /></span>
         <small>Профиль</small>
       </Link>
     </nav>
@@ -664,7 +738,7 @@ function Card({
   title,
   text,
 }: {
-  icon: string
+  icon: ReactNode
   title: string
   text: string
 }) {
@@ -685,11 +759,11 @@ function AdminStat({
 }: {
   title: string
   value: string | number
-  icon: string
+  icon: ReactNode
 }) {
   return (
     <div className="statCard">
-      <span>{icon}</span>
+      <span className="statIcon">{icon}</span>
       <p>{title}</p>
       <h2>{value}</h2>
     </div>
