@@ -31,7 +31,7 @@ namespace Zapisi.Pro.State
         {
             var envPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".env");
 
-            DotNetEnv.Env.Load(envPath);
+            EnvConfig.Load(envPath);
 
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             var user = Environment.GetEnvironmentVariable("DB_USER");

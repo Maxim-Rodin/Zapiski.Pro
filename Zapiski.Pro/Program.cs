@@ -63,7 +63,7 @@ namespace Zapisi.Pro
 
             
 
-            DotNetEnv.Env.Load(envPath);
+            EnvConfig.Load(envPath);
 
             // загрузка переменных окружения из .env файла
             var token = Environment.GetEnvironmentVariable("BOT_TOKEN"); // получение токена бота из переменных окружения  

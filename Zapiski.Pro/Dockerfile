@@ -16,5 +16,6 @@ RUN apt-get update && apt-get install -y \
 ENV TZ=Europe/Moscow
 
 COPY --from=build /app/out .
+RUN rm -f .env
 
 ENTRYPOINT ["dotnet", "Zapiski.Pro.dll"]

@@ -26,7 +26,7 @@ namespace Zapisi.Pro.CallBacks
         public UserHandler(ITelegramBotClient botClient)
         {
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
-            DotNetEnv.Env.Load(envPath);
+            EnvConfig.Load(envPath);
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
@@ -333,8 +333,14 @@ namespace Zapisi.Pro.CallBacks
                 return;
             }
 
-            // удалим старое сообщение с кнопки
-            await botClient.DeleteMessage(chatId, query.Message.MessageId);
+            try
+            {
+                await botClient.DeleteMessage(chatId, query.Message.MessageId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Не удалось удалить сообщение меню: {ex.Message}");
+            }
 
             foreach (DataRow r in rows.Rows)
             {

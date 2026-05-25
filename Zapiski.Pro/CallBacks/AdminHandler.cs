@@ -24,7 +24,7 @@ namespace Zapisi.Pro
         {
             this.botClient = botClient;
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
-            DotNetEnv.Env.Load(envPath);
+            EnvConfig.Load(envPath);
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
