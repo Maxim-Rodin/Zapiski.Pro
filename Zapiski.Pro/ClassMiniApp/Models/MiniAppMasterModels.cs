@@ -24,4 +24,28 @@
         public int ActiveBookings { get; set; }
         public int Services { get; set; }
     }
+
+    public class MiniAppMasterServiceDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public int Price { get; set; }
+        public int Duration { get; set; }
+        public int PrepaymentPercent { get; set; }
+        public int PrepaymentAmount { get; set; }
+    }
+
+    public class MiniAppCreateMasterServiceRequest
+    {
+        public string Name { get; set; }
+        public int Price { get; set; }
+        public int Duration { get; set; }
+        public int PrepaymentPercent { get; set; }
+    }
+
+    public class MiniAppMasterActionResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+    }
 }

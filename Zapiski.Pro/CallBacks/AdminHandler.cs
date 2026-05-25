@@ -148,6 +148,13 @@ namespace Zapisi.Pro
                 {
                     InlineKeyboardButton.WithCallbackData("➕ Назначить мастера", "admin:make_master"),
                     InlineKeyboardButton.WithCallbackData("❌ Удалить мастера","admin:delet_master")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp(
+                        "📱 Мой клиентский кабинет",
+                        new WebAppInfo { Url = $"{miniAppUrl.TrimEnd('/')}/user/{query.From.Id}" }
+                    )
                 }
             }
             );
@@ -172,6 +179,13 @@ namespace Zapisi.Pro
                 {
                     InlineKeyboardButton.WithCallbackData("➕ Назначить мастера", "admin:make_master"),
                     InlineKeyboardButton.WithCallbackData("❌ Удалить мастера","admin:delet_master")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp(
+                        "📱 Мой клиентский кабинет",
+                        new WebAppInfo { Url = $"{miniAppUrl.TrimEnd('/')}/user/{chatId}" }
+                    )
                 }
             }
              );

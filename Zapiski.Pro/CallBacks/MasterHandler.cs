@@ -534,6 +534,7 @@ namespace Zapisi.Pro.CallBacks
         {
             var chatId = query.Message.Chat.Id;
             var miniAppUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{key}";
+            var clientMiniAppUrl = $"{miniAppBaseUrl.TrimEnd('/')}/user/{query.From.Id}";
             Console.WriteLine("MASTER MINI APP URL = " + miniAppUrl);
             var keyboard = new InlineKeyboardMarkup(new[]
              {
@@ -555,6 +556,13 @@ namespace Zapisi.Pro.CallBacks
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData("📅 Мои записи", $"master:master_records:{key}")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp(
+                                "📱 Мой клиентский кабинет",
+                                new WebAppInfo(clientMiniAppUrl)
+                            )
                 }
 
             }

@@ -248,12 +248,103 @@ body {
   margin-bottom: 14px;
 }
 
+.clientCabinetBanner {
+  display: grid;
+  grid-template-columns: 46px 1fr 22px;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #e4edf8;
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.roleSwitchList {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.roleSwitchList .clientCabinetBanner {
+  margin-bottom: 0;
+}
+
+.clientCabinetIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clientCabinetText {
+  min-width: 0;
+}
+
+.clientCabinetText strong,
+.clientCabinetText small {
+  display: block;
+}
+
+.clientCabinetText strong {
+  font-size: 15px;
+  margin-bottom: 3px;
+}
+
+.clientCabinetText small {
+  color: #6b7888;
+  font-size: 12px;
+}
+
 .statsBlock {
   margin-top: 12px;
 }
 
 .statsBlock h2 {
   margin: 0 0 12px;
+}
+
+.clientSection {
+  margin-top: 12px;
+}
+
+.clientSection h2 {
+  margin: 0 0 12px;
+}
+
+.clientList {
+  display: grid;
+  gap: 10px;
+}
+
+.clientListItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e4edf8;
+  background: #f8fbff;
+  border-radius: 16px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.clientListLink {
+  cursor: pointer;
+}
+
+.emptyLine {
+  color: #6b7888;
+  font-size: 14px;
+  text-align: center;
+  padding: 14px 6px;
 }
 
 .masterStatsList {
@@ -512,6 +603,94 @@ body {
   text-align: center;
   color: #6b7888;
 }
+
+.servicesList {
+  display: grid;
+  gap: 12px;
+}
+
+.serviceCard {
+  background: white;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+  cursor: pointer;
+}
+
+.serviceCardTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.serviceMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.serviceMain h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.serviceMain p {
+  margin: 0;
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.serviceMetaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.serviceMeta {
+  min-width: 0;
+  border: 1px solid #e4edf8;
+  background: #f8fbff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.serviceMeta:last-child {
+  grid-column: 1 / -1;
+}
+
+.serviceMeta span {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.serviceMeta span svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.3;
+}
+
+.serviceMeta small {
+  display: block;
+  color: #6b7888;
+  font-size: 12px;
+}
+
+.serviceMeta strong {
+  display: block;
+  margin-top: 3px;
+  color: #102033;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
 .addForm {
   margin-top: 14px;
 }
@@ -529,6 +708,53 @@ body {
 
 .searchInput {
   margin-bottom: 0;
+}
+
+.serviceFormCard {
+  margin-bottom: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.fieldLabel {
+  display: block;
+  margin: 2px 0 8px;
+  color: #59697c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rangeInput {
+  width: 100%;
+  accent-color: #4b8df7;
+  margin: 0 0 14px;
+}
+
+.editingNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4b8df7;
+  background: #eef5ff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.formActions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.formActions:has(.cancelButton) {
+  grid-template-columns: 0.8fr 1.2fr;
 }
 
 .primaryButton {
@@ -550,6 +776,9 @@ body {
   height: 38px;
   border-radius: 12px;
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .formMessage {

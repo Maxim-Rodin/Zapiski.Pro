@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Zapiski.Pro.MiniApp.Models;
 using Zapiski.Pro.MiniApp.Services;
 
 namespace Zapiski.Pro.MiniApp.Endpoints
@@ -50,6 +51,50 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     });
 
                 return Results.Ok(stats);
+            });
+
+            app.MapGet("/api/master/{key}/services", (string key) =>
+            {
+                var services = masterService.GetServices(key);
+
+                if (services == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(services);
+            });
+
+            app.MapPost("/api/master/{key}/services", (string key, MiniAppCreateMasterServiceRequest request) =>
+            {
+                var result = masterService.CreateService(key, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPut("/api/master/{key}/services/{serviceId:int}", (string key, int serviceId, MiniAppCreateMasterServiceRequest request) =>
+            {
+                var result = masterService.UpdateService(key, serviceId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapDelete("/api/master/{key}/services/{serviceId:int}", (string key, int serviceId) =>
+            {
+                var result = masterService.DeleteService(key, serviceId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
             });
         }
     }

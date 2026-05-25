@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   CalendarCheck,
   CalendarDays,
+  Clock,
   ChevronRight,
   Construction,
   CreditCard,
@@ -12,7 +13,12 @@ import {
   Home,
   LayoutDashboard,
   Plus,
+  BadgePercent,
+  Banknote,
+  Pencil,
+  Trash2,
   Settings,
+  ShieldCheck,
   User,
   Users,
   X,
@@ -55,11 +61,51 @@ type MasterStats = {
   services: number
 }
 
+type MasterServiceItem = {
+  id: number
+  name: string
+  price: number
+  duration: number
+  prepaymentPercent: number
+  prepaymentAmount: number
+}
+
 type AdminStats = {
   users: number
   masters: number
   bookings: number
   payments: number
+}
+
+type UserDashboard = {
+  profile: {
+    id: number
+    telegramId: number
+    username: string
+  }
+  roles: {
+    isAdmin: boolean
+    isMaster: boolean
+    masterKey: string | null
+  }
+  bookings: UserBooking[]
+  masters: UserMaster[]
+}
+
+type UserBooking = {
+  id: number
+  serviceName: string
+  masterKey: string
+  masterUsername: string
+  dateTime: string
+  status: string
+}
+
+type UserMaster = {
+  id: number
+  key: string
+  username: string
+  bookingsCount: number
 }
 
 const telegramId = () =>
@@ -76,13 +122,13 @@ function App() {
 
       <Route path="/master/:key" element={<MasterHomePage />} />
       <Route path="/master/:key/bookings" element={<MasterComingSoon title="Записи" />} />
-      <Route path="/master/:key/services" element={<MasterComingSoon title="Услуги" />} />
+      <Route path="/master/:key/services" element={<MasterServicesPage />} />
       <Route path="/master/:key/schedule" element={<MasterComingSoon title="Расписание" />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/profile" element={<MasterComingSoon title="Профиль" />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
 
-      <Route path="/user/:telegramId" element={<ComingSoon title="Кабинет клиента" subtitle="Скоро здесь появится личный кабинет клиента" />} />
+      <Route path="/user/:telegramId" element={<UserHomePage />} />
     </Routes>
   )
 }
@@ -153,6 +199,8 @@ function AdminPage() {
         <h1>Основная</h1>
         <p>Сводка по приложению и быстрые разделы</p>
       </section>
+
+      <ClientCabinetBanner />
 
       <section className="statsGrid">
         <AdminStat title="Пользователи" value={stats?.users ?? "..."} icon={<Users />} />
@@ -444,6 +492,8 @@ function MasterHomePage() {
         </div>
       </section>
 
+      <ClientCabinetBanner telegramId={master.telegramId} />
+
       <section className="grid">
         <Link to={`/master/${master.key}/bookings`} className="cardLink">
           <Card icon={<CalendarCheck />} title="Записи" text="Скоро здесь появятся записи" />
@@ -519,6 +569,135 @@ function PublicProfileStub() {
   )
 }
 
+function UserHomePage() {
+  const { telegramId: routeTelegramId } = useParams()
+  const [dashboard, setDashboard] = useState<UserDashboard | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const currentTelegramId = telegramId()
+
+    if (!currentTelegramId) {
+      setError("Откройте кабинет из Telegram")
+      setLoading(false)
+      return
+    }
+
+    if (currentTelegramId !== routeTelegramId) {
+      setError("Доступ закрыт: это не ваш профиль")
+      setLoading(false)
+      return
+    }
+
+    fetch(`${API_URL}/api/user/${routeTelegramId}/dashboard`, {
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const text = await res.text()
+        const data = text ? JSON.parse(text) : {}
+
+        if (!res.ok) {
+          setError(data.message || "Доступ закрыт")
+          return
+        }
+
+        setDashboard(data)
+      })
+      .catch(() => setError("Ошибка соединения с сервером"))
+      .finally(() => setLoading(false))
+  }, [routeTelegramId])
+
+  if (loading) {
+    return <ComingSoon title="Загрузка..." subtitle="Открываем кабинет клиента" />
+  }
+
+  if (error || !dashboard) {
+    return <ComingSoon title="Доступ закрыт" subtitle={error || "Кабинет недоступен"} />
+  }
+
+  return (
+    <main className="app">
+      <header className="top">
+        <h1>Zapisi.Pro</h1>
+        <p>кабинет клиента</p>
+      </header>
+
+      <section className="hero">
+        <div>
+          <h2>Привет!</h2>
+          <p>@{dashboard.profile.username || "client"}, здесь ваши записи и мастера</p>
+        </div>
+
+        <div className="heroIcon">
+          <ShieldCheck size={56} strokeWidth={2.1} />
+        </div>
+      </section>
+
+      <RoleSwitchBanners dashboard={dashboard} />
+
+      <section className="grid">
+        <a href="#bookings" className="cardLink">
+          <Card icon={<CalendarCheck />} title="Мои записи" text={`${dashboard.bookings.length} последних записей`} />
+        </a>
+        <a href="#masters" className="cardLink">
+          <Card icon={<BriefcaseBusiness />} title="Мастера" text="К кому вы уже записывались" />
+        </a>
+      </section>
+
+      <section className="adminCard clientSection" id="bookings">
+        <h2>Мои записи</h2>
+        <div className="clientList">
+          {dashboard.bookings.length === 0 ? (
+            <div className="emptyLine">Записей пока нет</div>
+          ) : (
+            dashboard.bookings.map((booking) => (
+              <div className="clientListItem" key={booking.id}>
+                <span className="masterAvatar">
+                  <CalendarCheck size={23} strokeWidth={2.3} />
+                </span>
+                <div className="masterInfo">
+                  <div className="clientTitleRow">
+                    <h3>{booking.serviceName || "Услуга"}</h3>
+                    <StatusBadge status={booking.status} />
+                  </div>
+                  <p>@{booking.masterUsername || booking.masterKey}</p>
+                  <span>{booking.dateTime}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="adminCard clientSection" id="masters">
+        <h2>Мои мастера</h2>
+        <div className="clientList">
+          {dashboard.masters.length === 0 ? (
+            <div className="emptyLine">Вы пока не записывались к мастерам</div>
+          ) : (
+            dashboard.masters.map((master) => (
+              <Link to={`/master/${master.key}/public-profile`} className="clientListItem clientListLink" key={master.id}>
+                <span className="masterAvatar">
+                  <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                </span>
+                <div className="masterInfo">
+                  <h3>@{master.username || "master"}</h3>
+                  <p>Записей: {master.bookingsCount}</p>
+                  <span>Открыть профиль мастера</span>
+                </div>
+                <ChevronRight className="masterStatArrow" size={22} strokeWidth={2.4} />
+              </Link>
+            ))
+          )}
+        </div>
+      </section>
+
+      <UserBottomNav telegramId={dashboard.profile.telegramId} />
+    </main>
+  )
+}
+
 function MasterClientsPage() {
   const { key } = useParams()
   const [clients, setClients] = useState<MasterClient[]>([])
@@ -586,6 +765,299 @@ function MasterClientsPage() {
 
       <MasterBottomNav masterKey={key ?? ""} />
     </main>
+  )
+}
+
+function MasterServicesPage() {
+  const { key } = useParams()
+  const [services, setServices] = useState<MasterServiceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState("")
+  const [price, setPrice] = useState("")
+  const [duration, setDuration] = useState("")
+  const [prepaymentPercent, setPrepaymentPercent] = useState("0")
+  const [message, setMessage] = useState("")
+  const [loadError, setLoadError] = useState("")
+  const [editingService, setEditingService] = useState<MasterServiceItem | null>(null)
+
+  function loadServices() {
+    setLoading(true)
+    setLoadError("")
+
+    fetch(`${API_URL}/api/master/${key}/services`)
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok) {
+          setLoadError(data.message || "Не удалось загрузить услуги")
+          setServices([])
+          return
+        }
+
+        if (!Array.isArray(data)) {
+          setLoadError("Сервер вернул неверный формат услуг")
+          setServices([])
+          return
+        }
+
+        setServices(data)
+      })
+      .catch((err) => {
+        console.error("Ошибка загрузки услуг мастера:", err)
+        setServices([])
+        setLoadError("Ошибка соединения с сервером")
+      })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadServices()
+  }, [key])
+
+  function resetServiceForm() {
+    setName("")
+    setPrice("")
+    setDuration("")
+    setPrepaymentPercent("0")
+    setEditingService(null)
+  }
+
+  function startEditService(service: MasterServiceItem) {
+    setEditingService(service)
+    setName(service.name)
+    setPrice(String(service.price))
+    setDuration(String(service.duration))
+    setPrepaymentPercent(String(service.prepaymentPercent))
+    setShowForm(true)
+    setMessage("")
+  }
+
+  function closeServiceForm() {
+    setShowForm(false)
+    resetServiceForm()
+    setMessage("")
+  }
+
+  function saveService() {
+    setMessage("")
+
+    const priceValue = Number(price)
+    const durationValue = Number(duration)
+    const prepaymentValue = Number(prepaymentPercent)
+
+    if (!name.trim()) {
+      setMessage("Введите название услуги")
+      return
+    }
+
+    if (!Number.isInteger(priceValue) || priceValue <= 0) {
+      setMessage("Цена должна быть больше 0")
+      return
+    }
+
+    if (!Number.isInteger(durationValue) || durationValue <= 0) {
+      setMessage("Длительность должна быть больше 0")
+      return
+    }
+
+    if (!Number.isInteger(prepaymentValue) || prepaymentValue < 0 || prepaymentValue > 100) {
+      setMessage("Предоплата должна быть от 0 до 100%")
+      return
+    }
+
+    const serviceUrl = editingService
+      ? `${API_URL}/api/master/${key}/services/${editingService.id}`
+      : `${API_URL}/api/master/${key}/services`
+
+    fetch(serviceUrl, {
+      method: editingService ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        price: priceValue,
+        duration: durationValue,
+        prepaymentPercent: prepaymentValue,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok) {
+          setMessage(data.message || "Ошибка добавления услуги")
+          return
+        }
+
+        setMessage(editingService ? "Услуга обновлена" : "Услуга добавлена")
+        resetServiceForm()
+        setShowForm(false)
+        loadServices()
+      })
+      .catch(() => setMessage("Ошибка соединения с сервером"))
+  }
+
+  function deleteService(serviceId: number) {
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}/services/${serviceId}`, {
+      method: "DELETE",
+    })
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok) {
+          setMessage(data.message || "Ошибка удаления услуги")
+          return
+        }
+
+        setMessage("Услуга удалена")
+        loadServices()
+      })
+      .catch(() => setMessage("Ошибка соединения с сервером"))
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Услуги</h1>
+        <p>Добавляйте услуги, цены, время и предоплату</p>
+      </header>
+
+      <section className="adminCard serviceFormCard">
+        <button className="primaryButton" onClick={() => (showForm ? closeServiceForm() : setShowForm(true))}>
+          {showForm ? "Закрыть" : "Добавить услугу"}
+        </button>
+
+        {showForm && (
+          <div className="addForm">
+            {editingService && (
+              <div className="editingNotice">
+                <Pencil size={18} strokeWidth={2.4} />
+                <span>Редактируете услугу</span>
+              </div>
+            )}
+
+            <input
+              className="adminInput"
+              placeholder="Название услуги"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+
+            <div className="formGrid">
+              <input
+                className="adminInput"
+                inputMode="numeric"
+                placeholder="Цена"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+              <input
+                className="adminInput"
+                inputMode="numeric"
+                placeholder="Минуты"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
+            </div>
+
+            <label className="fieldLabel" htmlFor="prepaymentPercent">
+              Предоплата: {prepaymentPercent || 0}%
+            </label>
+            <input
+              id="prepaymentPercent"
+              className="rangeInput"
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={prepaymentPercent}
+              onChange={(e) => setPrepaymentPercent(e.target.value)}
+            />
+
+            <div className="formActions">
+              {editingService && (
+                <button className="cancelButton" onClick={closeServiceForm}>
+                  Отмена
+                </button>
+              )}
+              <button className="primaryButton" onClick={saveService}>
+                {editingService ? "Сохранить" : "Создать услугу"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {message && <p className="formMessage">{message}</p>}
+      </section>
+
+      <section className="servicesList">
+        {loading ? (
+          <div className="emptyCard">Загружаем услуги...</div>
+        ) : loadError ? (
+          <div className="emptyCard">{loadError}</div>
+        ) : services.length === 0 ? (
+          <div className="emptyCard">Услуги пока не добавлены</div>
+        ) : (
+          services.map((service) => (
+            <article className="serviceCard" key={service.id} onClick={() => startEditService(service)}>
+              <div className="serviceCardTop">
+                <span className="masterAvatar">
+                  <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                </span>
+                <div className="serviceMain">
+                  <h3>{service.name}</h3>
+                  <p>Нажмите, чтобы редактировать</p>
+                </div>
+                <button
+                  className="deleteButton"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    deleteService(service.id)
+                  }}
+                >
+                  <Trash2 size={19} strokeWidth={2.4} />
+                </button>
+              </div>
+
+              <div className="serviceMetaGrid">
+                <ServiceMeta icon={<Banknote />} label="Цена" value={`${service.price}₽`} />
+                <ServiceMeta icon={<Clock />} label="Время" value={`${service.duration} мин`} />
+                <ServiceMeta
+                  icon={<BadgePercent />}
+                  label="Предоплата"
+                  value={
+                    service.prepaymentPercent > 0
+                      ? `${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
+                      : "Без предоплаты"
+                  }
+                />
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
+function ServiceMeta({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <div className="serviceMeta">
+      <span>{icon}</span>
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </div>
   )
 }
 
@@ -730,6 +1202,91 @@ function MasterBottomNav({ masterKey }: { masterKey: string }) {
         <small>Профиль</small>
       </Link>
     </nav>
+  )
+}
+
+function UserBottomNav({ telegramId }: { telegramId: number }) {
+  return (
+    <nav className="bottomNav">
+      <Link to={`/user/${telegramId}`} className="bottomNavItem">
+        <span><Home size={20} strokeWidth={2.2} /></span>
+        <small>Главная</small>
+      </Link>
+      <a href="#bookings" className="bottomNavItem">
+        <span><CalendarCheck size={20} strokeWidth={2.2} /></span>
+        <small>Записи</small>
+      </a>
+      <Link to={`/user/${telegramId}`} className="bottomNavMain">
+        <Plus size={30} strokeWidth={2.4} />
+      </Link>
+      <a href="#masters" className="bottomNavItem">
+        <span><BriefcaseBusiness size={20} strokeWidth={2.2} /></span>
+        <small>Мастера</small>
+      </a>
+      <Link to={`/user/${telegramId}`} className="bottomNavItem">
+        <span><User size={20} strokeWidth={2.2} /></span>
+        <small>Профиль</small>
+      </Link>
+    </nav>
+  )
+}
+
+function RoleSwitchBanners({ dashboard }: { dashboard: UserDashboard }) {
+  const hasRoles = dashboard.roles?.isAdmin || dashboard.roles?.isMaster
+
+  if (!hasRoles) {
+    return null
+  }
+
+  return (
+    <section className="roleSwitchList">
+      {dashboard.roles?.isMaster && dashboard.roles.masterKey && (
+        <Link to={`/master/${dashboard.roles.masterKey}`} className="clientCabinetBanner">
+          <span className="clientCabinetIcon">
+            <BriefcaseBusiness size={22} strokeWidth={2.3} />
+          </span>
+          <span className="clientCabinetText">
+            <strong>Мастер-панель</strong>
+            <small>Услуги, клиенты и записи</small>
+          </span>
+          <ChevronRight size={22} strokeWidth={2.4} />
+        </Link>
+      )}
+
+      {dashboard.roles?.isAdmin && (
+        <Link to="/admin" className="clientCabinetBanner">
+          <span className="clientCabinetIcon">
+            <Settings size={22} strokeWidth={2.3} />
+          </span>
+          <span className="clientCabinetText">
+            <strong>Админ-панель</strong>
+            <small>Мастера, пользователи и настройки</small>
+          </span>
+          <ChevronRight size={22} strokeWidth={2.4} />
+        </Link>
+      )}
+    </section>
+  )
+}
+
+function ClientCabinetBanner({ telegramId: fallbackTelegramId }: { telegramId?: number }) {
+  const currentTelegramId = fallbackTelegramId ? String(fallbackTelegramId) : telegramId()
+
+  if (!currentTelegramId) {
+    return null
+  }
+
+  return (
+    <Link to={`/user/${currentTelegramId}`} className="clientCabinetBanner">
+      <span className="clientCabinetIcon">
+        <User size={22} strokeWidth={2.3} />
+      </span>
+      <span className="clientCabinetText">
+        <strong>Клиентский кабинет</strong>
+        <small>Ваши записи и мастера</small>
+      </span>
+      <ChevronRight size={22} strokeWidth={2.4} />
+    </Link>
   )
 }
 

@@ -1,12 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Zapiski.Pro.ClassMiniApp.Models;
+using Zapiski.Pro.ClassMiniApp.Repositories;
 
 namespace Zapiski.Pro.ClassMiniApp.Services
 {
-    internal class MiniAppUserService
+    public class MiniAppUserService
     {
+        private readonly MiniAppUserRepository repository;
+
+        public MiniAppUserService(MiniAppUserRepository repository)
+        {
+            this.repository = repository;
+        }
+
+        public MiniAppUserDashboardDto? GetDashboard(long telegramId)
+        {
+            if (telegramId <= 0)
+                return null;
+
+            return repository.GetDashboard(telegramId);
+        }
     }
 }

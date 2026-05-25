@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using Npgsql;
 using Zapisi.Pro;
 using Zapiski.Pro.MiniApp.Models;
 
@@ -125,6 +126,164 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     WHERE m.""Key"" = '{safeKey}'
                 "))
             };
+        }
+
+        public List<MiniAppMasterServiceDto> GetServices(string key)
+        {
+            var safeKey = key.Replace("'", "''");
+
+            var dt = db.ExecuteQuery($@"
+                SELECT
+                    s.""idService"",
+                    COALESCE(s.""Name"", 'Без названия') AS ""Name"",
+                    COALESCE(s.""Price"", 0) AS ""Price"",
+                    COALESCE(s.""Duration"", 0) AS ""Duration"",
+                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent""
+                FROM ""Services"" s
+                JOIN ""Masters"" m ON m.""idMaster"" = s.""MasterId""
+                WHERE m.""Key"" = '{safeKey}'
+                ORDER BY s.""idService"" DESC
+            ");
+
+            var services = new List<MiniAppMasterServiceDto>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                var price = Convert.ToInt32(row["Price"]);
+                var percent = Convert.ToInt32(row["PrepaymentPercent"]);
+
+                services.Add(new MiniAppMasterServiceDto
+                {
+                    Id = Convert.ToInt32(row["idService"]),
+                    Name = row["Name"]?.ToString(),
+                    Price = price,
+                    Duration = Convert.ToInt32(row["Duration"]),
+                    PrepaymentPercent = percent,
+                    PrepaymentAmount = (price * percent) / 100
+                });
+            }
+
+            return services;
+        }
+
+        public MiniAppMasterActionResult CreateService(string key, MiniAppCreateMasterServiceRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            var name = request.Name?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+                return Failed("Введите название услуги");
+
+            if (request.Price <= 0)
+                return Failed("Цена должна быть больше 0");
+
+            if (request.Duration <= 0)
+                return Failed("Длительность должна быть больше 0");
+
+            if (request.PrepaymentPercent < 0 || request.PrepaymentPercent > 100)
+                return Failed("Предоплата должна быть от 0 до 100%");
+
+            db.ExecuteNonQuery(@"
+                INSERT INTO ""Services""
+                    (""MasterId"", ""Name"", ""Price"", ""Duration"", ""PrepaymentPercent"")
+                VALUES
+                    (@masterId, @name, @price, @duration, @prepaymentPercent)
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("name", name),
+                new NpgsqlParameter("price", request.Price),
+                new NpgsqlParameter("duration", request.Duration),
+                new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent));
+
+            return Ok("Услуга добавлена");
+        }
+
+        public MiniAppMasterActionResult UpdateService(string key, int serviceId, MiniAppCreateMasterServiceRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            var name = request.Name?.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+                return Failed("Введите название услуги");
+
+            if (request.Price <= 0)
+                return Failed("Цена должна быть больше 0");
+
+            if (request.Duration <= 0)
+                return Failed("Длительность должна быть больше 0");
+
+            if (request.PrepaymentPercent < 0 || request.PrepaymentPercent > 100)
+                return Failed("Предоплата должна быть от 0 до 100%");
+
+            var updated = db.ExecuteNonQuery(@"
+                UPDATE ""Services""
+                SET
+                    ""Name"" = @name,
+                    ""Price"" = @price,
+                    ""Duration"" = @duration,
+                    ""PrepaymentPercent"" = @prepaymentPercent
+                WHERE ""idService"" = @serviceId
+                AND ""MasterId"" = @masterId
+            ",
+                new NpgsqlParameter("name", name),
+                new NpgsqlParameter("price", request.Price),
+                new NpgsqlParameter("duration", request.Duration),
+                new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent),
+                new NpgsqlParameter("serviceId", serviceId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            if (updated == 0)
+                return Failed("Услуга не найдена");
+
+            return Ok("Услуга обновлена");
+        }
+
+        public MiniAppMasterActionResult DeleteService(string key, int serviceId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            var bookingsCount = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""Bookings""
+                WHERE ""ServiceId"" = @serviceId
+            ", new NpgsqlParameter("serviceId", serviceId)));
+
+            if (bookingsCount > 0)
+                return Failed($"Нельзя удалить услугу: есть связанные записи ({bookingsCount})");
+
+            var deleted = db.ExecuteNonQuery(@"
+                DELETE FROM ""Services""
+                WHERE ""idService"" = @serviceId
+                AND ""MasterId"" = @masterId
+            ",
+                new NpgsqlParameter("serviceId", serviceId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            if (deleted == 0)
+                return Failed("Услуга не найдена");
+
+            return Ok("Услуга удалена");
+        }
+
+        private static MiniAppMasterActionResult Ok(string message)
+        {
+            return new MiniAppMasterActionResult { Success = true, Message = message };
+        }
+
+        private static MiniAppMasterActionResult Failed(string message)
+        {
+            return new MiniAppMasterActionResult { Success = false, Message = message };
         }
 
         private static string? FormatBookingDateTime(object dateValue, object timeValue)

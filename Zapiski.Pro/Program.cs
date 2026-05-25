@@ -99,12 +99,12 @@ namespace Zapisi.Pro
             var miniAppMasterRepository = new MiniAppMasterRepository(db);
             var miniAppMasterService = new MiniAppMasterService(miniAppMasterRepository);
 
-            //var miniAppUserRepository = new MiniAppUserRepository(db);
-            //var miniAppUserService = new MiniAppUserService(miniAppUserRepository);
+            var miniAppUserRepository = new MiniAppUserRepository(db);
+            var miniAppUserService = new MiniAppUserService(miniAppUserRepository);
 
             app.MapMiniAppAdminEndpoints(miniAppAdminService);
             app.MapMiniAppMasterEndpoints(miniAppMasterService);
-            //app.MapMiniAppUserEndpoints(miniAppUserService);
+            app.MapMiniAppUserEndpoints(miniAppUserService);
    
             app.RunAsync();
 
@@ -215,8 +215,17 @@ namespace Zapisi.Pro
                         var user = userService.GetByTelegramId(telegramId);
                         var role = user["Role"].ToString();
 
+                        var miniAppUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
+
                         var keyboard = new List<InlineKeyboardButton[]>
                                 {
+                                    new[]
+                                    {
+                                        InlineKeyboardButton.WithWebApp(
+                                            "📱 Мини-приложение",
+                                            new WebAppInfo($"{miniAppUrl.TrimEnd('/')}/user/{telegramId}")
+                                        )
+                                    },
                                     new[]
                                     {
                                         InlineKeyboardButton.WithCallbackData("📅 Записаться", "client:book")

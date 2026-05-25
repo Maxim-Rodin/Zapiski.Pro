@@ -20,6 +20,7 @@ namespace Zapisi.Pro.CallBacks
 
         private readonly DbHelper db ;
         private readonly StateService stateService = new StateService();
+        private readonly string miniAppBaseUrl;
 
         public string Entity => "client";
 
@@ -31,6 +32,7 @@ namespace Zapisi.Pro.CallBacks
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro;SSL Mode=Disable;Trust Server Certificate=true;");
+            miniAppBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
             this.botClient = botClient;
         }
         public async Task Handle(CallBackData data,CallbackQuery query)
@@ -294,8 +296,17 @@ namespace Zapisi.Pro.CallBacks
 
         public async Task ShowMenu(long chatId)
         {
+            var miniAppUrl = $"{miniAppBaseUrl.TrimEnd('/')}/user/{chatId}";
+
             var keyboard = new InlineKeyboardMarkup(new[]
      {
+        new[]
+        {
+            InlineKeyboardButton.WithWebApp(
+                "📱 Мини-приложение",
+                new WebAppInfo(miniAppUrl)
+            )
+        },
         new[]
         {
             InlineKeyboardButton.WithCallbackData("📅 Записаться", "client:book")
