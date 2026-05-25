@@ -24,6 +24,7 @@ services:
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: admin
+      MINIAPP_URL: https://app-zapisi-pro.site
       ASPNETCORE_URLS: http://+:8080
     expose:
       - "8080"
@@ -32,6 +33,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: https://api.app-zapisi-pro.site
     container_name: zapiski-web
     restart: unless-stopped
     depends_on:

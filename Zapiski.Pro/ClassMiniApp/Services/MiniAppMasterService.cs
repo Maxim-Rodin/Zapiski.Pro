@@ -19,5 +19,27 @@ namespace Zapiski.Pro.MiniApp.Services
 
             return repository.GetMasterByKey(key.Trim());
         }
+
+        public List<MiniAppMasterClientDto>? GetClients(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetClients(key.Trim());
+        }
+
+        public MiniAppMasterStatsDto? GetStats(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetStats(key.Trim());
+        }
     }
 }

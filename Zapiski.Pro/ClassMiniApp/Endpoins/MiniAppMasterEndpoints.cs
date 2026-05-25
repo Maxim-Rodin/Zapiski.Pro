@@ -23,6 +23,34 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 return Results.Ok(master);
             });
+
+            app.MapGet("/api/master/{key}/clients", (string key) =>
+            {
+                var clients = masterService.GetClients(key);
+
+                if (clients == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(clients);
+            });
+
+            app.MapGet("/api/master/{key}/stats", (string key) =>
+            {
+                var stats = masterService.GetStats(key);
+
+                if (stats == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(stats);
+            });
         }
     }
 }

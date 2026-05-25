@@ -26,6 +26,7 @@ namespace Zapisi.Pro.CallBacks
         private readonly StateService stateService = new StateService();
         private readonly ServiceHandler serviceHandler = new ServiceHandler();
         private readonly ScheduleService scheduleService;
+        private readonly string miniAppBaseUrl;
 
 
 
@@ -38,6 +39,7 @@ namespace Zapisi.Pro.CallBacks
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
+            miniAppBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro;SSL Mode=Disable;Trust Server Certificate=true;");
 
             this.botClient = botClient;
@@ -531,7 +533,7 @@ namespace Zapisi.Pro.CallBacks
         public async Task ShowMenu(CallbackQuery query, string key) //главное меню мастера  
         {
             var chatId = query.Message.Chat.Id;
-            var miniAppUrl = $"https://app-zapisi-pro.site/master/{key}";
+            var miniAppUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{key}";
             Console.WriteLine("MASTER MINI APP URL = " + miniAppUrl);
             var keyboard = new InlineKeyboardMarkup(new[]
              {

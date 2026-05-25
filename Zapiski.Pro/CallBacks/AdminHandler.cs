@@ -17,6 +17,7 @@ namespace Zapisi.Pro
         private readonly ITelegramBotClient botClient;
         private readonly StateService stateService = new StateService();
         private readonly DbHelper db;
+        private readonly string miniAppUrl;
         public string Entity => "admin";
 
 
@@ -28,6 +29,7 @@ namespace Zapisi.Pro
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
+            miniAppUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro;SSL Mode=Disable;Trust Server Certificate=true;");
             this.botClient = botClient;
         }
@@ -139,7 +141,7 @@ namespace Zapisi.Pro
                    InlineKeyboardButton.WithCallbackData("👤 Пользователи", "admin:users"),
                     InlineKeyboardButton.WithCallbackData("💇 Мастера", "admin:masters"),
                     InlineKeyboardButton.WithCallbackData("📣 Рассылка","admin:broadcast"),
-                    InlineKeyboardButton.WithWebApp("🛠 Admin Panel",new WebAppInfo{Url = "https://app-zapisi-pro.site/"})
+                    InlineKeyboardButton.WithWebApp("🛠 Admin Panel",new WebAppInfo{Url = $"{miniAppUrl.TrimEnd('/')}/admin"})
 
                 },
                 new[]

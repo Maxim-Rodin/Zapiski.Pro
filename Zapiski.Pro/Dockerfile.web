@@ -5,6 +5,8 @@ COPY miniapp/package*.json ./
 RUN npm ci
 
 COPY miniapp/ ./
+ARG VITE_API_URL=https://api.app-zapisi-pro.site
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 FROM nginx:1.27-alpine
