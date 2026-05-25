@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+miniapp/node_modules/
+miniapp/dist/
+**/*.user
+**/*.suo

@@ -1,0 +1,509 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #eef5ff;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f7fbff;
+  padding: 14px;
+  padding-bottom: 90px;
+}
+
+.top {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.top p {
+  margin: 0;
+  color: #777;
+  font-size: 12px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(58, 123, 255, 0.12);
+  margin-bottom: 14px;
+}
+
+.hero h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.hero p {
+  margin: 0 0 14px;
+  color: #5d6b7a;
+  font-size: 14px;
+}
+
+.hero button {
+  border: none;
+  background: #4b8df7;
+  color: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(75, 141, 247, 0.35);
+}
+
+.robot {
+  font-size: 70px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  min-height: 128px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.icon {
+  width: 38px;
+  height: 38px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.card h3,
+.wideCard h3,
+.banner h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.card p,
+.wideCard p,
+.banner p {
+  margin: 0;
+  color: #6b7888;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  color: #8b98a8;
+  font-size: 24px;
+}
+
+.wideCard {
+  margin-top: 12px;
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.badge {
+  margin-left: auto;
+  background: #4b8df7;
+  color: white;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.banner {
+  margin-top: 14px;
+  background: linear-gradient(135deg, #dcebff, #ffffff);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chart {
+  font-size: 48px;
+}
+
+.bottomNav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  max-width: 430px;
+  width: 100%;
+  background: white;
+  border-radius: 22px 22px 0 0;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 -8px 24px rgba(58, 123, 255, 0.12);
+}
+
+.bottomNav span {
+  text-align: center;
+  font-size: 11px;
+  color: #6b7888;
+}
+
+.bottomNav button {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: #4b8df7;
+  color: white;
+  font-size: 32px;
+  box-shadow: 0 8px 22px rgba(75, 141, 247, 0.45);
+}
+.adminHeader {
+  background: linear-gradient(135deg, #4b8df7, #7caeff);
+  color: white;
+  border-radius: 22px;
+  padding: 22px;
+  margin-bottom: 14px;
+}
+
+.adminHeader h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.adminHeader p {
+  margin: 6px 0 0;
+  opacity: 0.9;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.statCard {
+  background: white;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.statCard span {
+  font-size: 24px;
+}
+
+.statCard p {
+  margin: 10px 0 4px;
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.statCard h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.adminCard {
+  background: white;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.adminCard h2 {
+  margin: 0 0 12px;
+}
+
+.adminButton {
+  width: 100%;
+  border: none;
+  background: #f7fbff;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.adminButton h3 {
+  margin: 0 0 4px;
+}
+
+.adminButton p {
+  margin: 0;
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.adminButton span {
+  font-size: 26px;
+  color: #8b98a8;
+}
+.backLink {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #4b8df7;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.adminButtonLink {
+  text-decoration: none;
+  display: block;
+}
+
+.mastersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.masterCard {
+  background: white;
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.masterAvatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: #e8f2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.masterInfo {
+  flex: 1;
+}
+
+.masterInfo h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.masterInfo p {
+  margin: 0 0 4px;
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.masterInfo span {
+  color: #9aa6b2;
+  font-size: 12px;
+}
+
+.smallAction {
+  border: none;
+  background: #f0f6ff;
+  color: #4b8df7;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  font-size: 22px;
+}
+
+.emptyCard {
+  background: white;
+  border-radius: 18px;
+  padding: 20px;
+  text-align: center;
+  color: #6b7888;
+}
+.addForm {
+  margin-top: 14px;
+}
+
+.adminInput {
+  width: 100%;
+  border: 1px solid #dbe7f5;
+  background: #f7fbff;
+  border-radius: 14px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+.primaryButton {
+  width: 100%;
+  border: none;
+  background: #4b8df7;
+  color: white;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.deleteButton {
+  border: none;
+  background: #fff1f1;
+  color: #e54848;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+.formMessage {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #4b8df7;
+  font-weight: 700;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 18px;
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 360px;
+  background: white;
+  border-radius: 24px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+}
+
+.modalIcon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  background: #fff1f1;
+  color: #e54848;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+}
+
+.modalCard h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.modalCard p {
+  margin: 0;
+  color: #6b7888;
+  line-height: 1.45;
+}
+
+.modalInfo {
+  margin: 16px 0;
+  background: #f7fbff;
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cancelButton {
+  border: none;
+  background: #edf4ff;
+  color: #4b8df7;
+  border-radius: 14px;
+  padding: 13px;
+  font-weight: 700;
+}
+
+.dangerButton {
+  border: none;
+  background: #e54848;
+  color: white;
+  border-radius: 14px;
+  padding: 13px;
+  font-weight: 700;
+}
+
+.stubScreen {
+  min-height: 55vh;
+  background: white;
+  border-radius: 24px;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.stubIcon {
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  background: #e8f2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+}
+
+.stubScreen h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.stubScreen p {
+  margin: 0;
+  color: #6b7888;
+  line-height: 1.5;
+  font-size: 14px;
+}

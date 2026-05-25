@@ -4,6 +4,7 @@ using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
@@ -530,6 +531,8 @@ namespace Zapisi.Pro.CallBacks
         public async Task ShowMenu(CallbackQuery query, string key) //главное меню мастера  
         {
             var chatId = query.Message.Chat.Id;
+            var miniAppUrl = $"https://app-zapisi-pro.site/master/{key}";
+            Console.WriteLine("MASTER MINI APP URL = " + miniAppUrl);
             var keyboard = new InlineKeyboardMarkup(new[]
              {
                          new[]
@@ -542,8 +545,16 @@ namespace Zapisi.Pro.CallBacks
                 },
                 new[]
                 {
+                    InlineKeyboardButton.WithWebApp(
+                                "👤 Мастер панель",
+                                new WebAppInfo(miniAppUrl)
+                            )
+                },
+                new[]
+                {
                     InlineKeyboardButton.WithCallbackData("📅 Мои записи", $"master:master_records:{key}")
                 }
+
             }
              );
             var link = $"https://t.me/ZapisiProBot?start={key}";

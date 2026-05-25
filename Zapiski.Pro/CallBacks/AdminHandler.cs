@@ -138,7 +138,8 @@ namespace Zapisi.Pro
                 {
                    InlineKeyboardButton.WithCallbackData("👤 Пользователи", "admin:users"),
                     InlineKeyboardButton.WithCallbackData("💇 Мастера", "admin:masters"),
-                    InlineKeyboardButton.WithCallbackData("📣 Рассылка","admin:broadcast")
+                    InlineKeyboardButton.WithCallbackData("📣 Рассылка","admin:broadcast"),
+                    InlineKeyboardButton.WithWebApp("🛠 Admin Panel",new WebAppInfo{Url = "https://app-zapisi-pro.site/"})
 
                 },
                 new[]

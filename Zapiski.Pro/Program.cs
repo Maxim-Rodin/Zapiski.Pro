@@ -1,6 +1,8 @@
 ﻿using DotNetEnv;
 using Hangfire; //бибилиотеки для чтого чтоб реализовать напоминания
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Generic;
@@ -19,6 +21,11 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro.CallBacks;
 using Zapisi.Pro.State;
 using Zapiski.Pro.BasedClasses;
+using Zapiski.Pro.ClassMiniApp.Repositories;
+using Zapiski.Pro.ClassMiniApp.Services;
+using Zapiski.Pro.MiniApp.Endpoints;
+using Zapiski.Pro.MiniApp.Repositories;
+using Zapiski.Pro.MiniApp.Services;
 using Zapiski.Pro.Services;
 
 namespace Zapisi.Pro
@@ -37,8 +44,20 @@ namespace Zapisi.Pro
 
         static async Task Main(string[] args)
             {
-
-            
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("MiniApp", policy =>
+                {
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+            var app = builder.Build();
+           
+            app.UseCors("MiniApp");
 
             var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
 
@@ -74,8 +93,21 @@ namespace Zapisi.Pro
             ReminderService.BotClient = botClient;
             BookingJobs.BotClient = botClient;
             BookingJobs.Db = db;
+            var miniAppAdminRepository = new MiniAppAdminRepository(db);
+            var miniAppAdminService = new MiniAppAdminService(miniAppAdminRepository, botClient);
 
-           
+            var miniAppMasterRepository = new MiniAppMasterRepository(db);
+            var miniAppMasterService = new MiniAppMasterService(miniAppMasterRepository);
+
+            //var miniAppUserRepository = new MiniAppUserRepository(db);
+            //var miniAppUserService = new MiniAppUserService(miniAppUserRepository);
+
+            app.MapMiniAppAdminEndpoints(miniAppAdminService);
+            app.MapMiniAppMasterEndpoints(miniAppMasterService);
+            //app.MapMiniAppUserEndpoints(miniAppUserService);
+   
+            app.RunAsync();
+
             //BookingJobs.RestoreReminders();
 
             receiverOptions = new ReceiverOptions
