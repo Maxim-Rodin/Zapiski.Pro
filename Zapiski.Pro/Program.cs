@@ -294,7 +294,8 @@ namespace Zapisi.Pro
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при обработке обновления: {ex.Message}");
+                Console.WriteLine("Ошибка при обработке обновления:");
+                Console.WriteLine(ex.ToString());
             }
         }
 
