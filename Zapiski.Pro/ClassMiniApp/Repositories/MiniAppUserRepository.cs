@@ -90,7 +90,6 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 WHERE b.""UserId"" = {userId}
                 AND b.""Status"" != 'cancelled'
                 ORDER BY b.""Date"" DESC, b.""Time"" DESC
-                LIMIT 8
             ");
 
             var bookings = new List<MiniAppUserBookingDto>();
@@ -125,7 +124,6 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 WHERE b.""UserId"" = {userId}
                 GROUP BY m.""idMaster"", m.""Key"", mu.""UserName""
                 ORDER BY COUNT(b.""idBooking"") DESC, m.""idMaster"" DESC
-                LIMIT 8
             ");
 
             var masters = new List<MiniAppUserMasterDto>();

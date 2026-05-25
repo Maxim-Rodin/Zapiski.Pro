@@ -129,6 +129,8 @@ function App() {
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
 
       <Route path="/user/:telegramId" element={<UserHomePage />} />
+      <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
+      <Route path="/user/:telegramId/masters" element={<UserMastersPage />} />
     </Routes>
   )
 }
@@ -542,7 +544,8 @@ function MasterHomePage() {
 }
 
 function PublicProfileStub() {
-  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const clientCabinetUrl = currentTelegramId ? `/user/${currentTelegramId}` : "/"
 
   return (
     <main className="app">
@@ -559,17 +562,17 @@ function PublicProfileStub() {
         <p>
           Тут появятся фото, описание, услуги, контакты и кнопка записи для клиентов.
         </p>
-        <Link to={`/master/${key}`} className="inlineButton">
-          Назад в кабинет
+        <Link to={clientCabinetUrl} className="inlineButton">
+          Назад
         </Link>
       </section>
 
-      <MasterBottomNav masterKey={key ?? ""} />
+      {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
     </main>
   )
 }
 
-function UserHomePage() {
+function useUserDashboard() {
   const { telegramId: routeTelegramId } = useParams()
   const [dashboard, setDashboard] = useState<UserDashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -608,6 +611,12 @@ function UserHomePage() {
       .finally(() => setLoading(false))
   }, [routeTelegramId])
 
+  return { dashboard, loading, error, routeTelegramId }
+}
+
+function UserHomePage() {
+  const { dashboard, loading, error } = useUserDashboard()
+
   if (loading) {
     return <ComingSoon title="Загрузка..." subtitle="Открываем кабинет клиента" />
   }
@@ -637,64 +646,158 @@ function UserHomePage() {
       <RoleSwitchBanners dashboard={dashboard} />
 
       <section className="grid">
-        <a href="#bookings" className="cardLink">
-          <Card icon={<CalendarCheck />} title="Мои записи" text={`${dashboard.bookings.length} последних записей`} />
-        </a>
-        <a href="#masters" className="cardLink">
+        <Link to={`/user/${dashboard.profile.telegramId}/bookings`} className="cardLink">
+          <Card icon={<CalendarCheck />} title="Мои записи" text={`${dashboard.bookings.length} записей`} />
+        </Link>
+        <Link to={`/user/${dashboard.profile.telegramId}/masters`} className="cardLink">
           <Card icon={<BriefcaseBusiness />} title="Мастера" text="К кому вы уже записывались" />
-        </a>
+        </Link>
       </section>
 
-      <section className="adminCard clientSection" id="bookings">
-        <h2>Мои записи</h2>
-        <div className="clientList">
-          {dashboard.bookings.length === 0 ? (
-            <div className="emptyLine">Записей пока нет</div>
-          ) : (
-            dashboard.bookings.map((booking) => (
-              <div className="clientListItem" key={booking.id}>
-                <span className="masterAvatar">
-                  <CalendarCheck size={23} strokeWidth={2.3} />
-                </span>
-                <div className="masterInfo">
-                  <div className="clientTitleRow">
-                    <h3>{booking.serviceName || "Услуга"}</h3>
-                    <StatusBadge status={booking.status} />
-                  </div>
-                  <p>@{booking.masterUsername || booking.masterKey}</p>
-                  <span>{booking.dateTime}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
+      <UserBookingsSection
+        title="Последние записи"
+        bookings={dashboard.bookings.slice(0, 3)}
+        emptyText="Записей пока нет"
+      />
 
-      <section className="adminCard clientSection" id="masters">
-        <h2>Мои мастера</h2>
-        <div className="clientList">
-          {dashboard.masters.length === 0 ? (
-            <div className="emptyLine">Вы пока не записывались к мастерам</div>
-          ) : (
-            dashboard.masters.map((master) => (
-              <Link to={`/master/${master.key}/public-profile`} className="clientListItem clientListLink" key={master.id}>
-                <span className="masterAvatar">
-                  <BriefcaseBusiness size={23} strokeWidth={2.3} />
-                </span>
-                <div className="masterInfo">
-                  <h3>@{master.username || "master"}</h3>
-                  <p>Записей: {master.bookingsCount}</p>
-                  <span>Открыть профиль мастера</span>
-                </div>
-                <ChevronRight className="masterStatArrow" size={22} strokeWidth={2.4} />
-              </Link>
-            ))
-          )}
-        </div>
-      </section>
+      <UserMastersSection
+        title="Последние мастера"
+        masters={dashboard.masters.slice(0, 3)}
+        emptyText="Вы пока не записывались к мастерам"
+      />
 
       <UserBottomNav telegramId={dashboard.profile.telegramId} />
     </main>
+  )
+}
+
+function UserBookingsPage() {
+  const { dashboard, loading, error } = useUserDashboard()
+
+  if (loading) {
+    return <ComingSoon title="Загрузка..." subtitle="Получаем ваши записи" />
+  }
+
+  if (error || !dashboard) {
+    return <ComingSoon title="Доступ закрыт" subtitle={error || "Записи недоступны"} />
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Мои записи</h1>
+        <p>Все ваши записи у мастеров</p>
+      </header>
+
+      <UserBookingsSection
+        title="Все записи"
+        bookings={dashboard.bookings}
+        emptyText="Записей пока нет"
+      />
+
+      <UserBottomNav telegramId={dashboard.profile.telegramId} />
+    </main>
+  )
+}
+
+function UserMastersPage() {
+  const { dashboard, loading, error } = useUserDashboard()
+
+  if (loading) {
+    return <ComingSoon title="Загрузка..." subtitle="Получаем ваших мастеров" />
+  }
+
+  if (error || !dashboard) {
+    return <ComingSoon title="Доступ закрыт" subtitle={error || "Мастера недоступны"} />
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Мои мастера</h1>
+        <p>Мастера, к которым вы уже записывались</p>
+      </header>
+
+      <UserMastersSection
+        title="Все мастера"
+        masters={dashboard.masters}
+        emptyText="Вы пока не записывались к мастерам"
+      />
+
+      <UserBottomNav telegramId={dashboard.profile.telegramId} />
+    </main>
+  )
+}
+
+function UserBookingsSection({
+  title,
+  bookings,
+  emptyText,
+}: {
+  title: string
+  bookings: UserBooking[]
+  emptyText: string
+}) {
+  return (
+    <section className="adminCard clientSection">
+      <h2>{title}</h2>
+      <div className="clientList">
+        {bookings.length === 0 ? (
+          <div className="emptyLine">{emptyText}</div>
+        ) : (
+          bookings.map((booking) => (
+            <div className="clientListItem" key={booking.id}>
+              <span className="masterAvatar">
+                <CalendarCheck size={23} strokeWidth={2.3} />
+              </span>
+              <div className="masterInfo">
+                <div className="clientTitleRow">
+                  <h3>{booking.serviceName || "Услуга"}</h3>
+                  <StatusBadge status={booking.status} />
+                </div>
+                <p>@{booking.masterUsername || booking.masterKey}</p>
+                <span>{booking.dateTime}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  )
+}
+
+function UserMastersSection({
+  title,
+  masters,
+  emptyText,
+}: {
+  title: string
+  masters: UserMaster[]
+  emptyText: string
+}) {
+  return (
+    <section className="adminCard clientSection">
+      <h2>{title}</h2>
+      <div className="clientList">
+        {masters.length === 0 ? (
+          <div className="emptyLine">{emptyText}</div>
+        ) : (
+          masters.map((master) => (
+            <Link to={`/master/${master.key}/public-profile`} className="clientListItem clientListLink" key={master.id}>
+              <span className="masterAvatar">
+                <BriefcaseBusiness size={23} strokeWidth={2.3} />
+              </span>
+              <div className="masterInfo">
+                <h3>@{master.username || "master"}</h3>
+                <p>Записей: {master.bookingsCount}</p>
+                <span>Открыть профиль мастера</span>
+              </div>
+              <ChevronRight className="masterStatArrow" size={22} strokeWidth={2.4} />
+            </Link>
+          ))
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -1212,17 +1315,43 @@ function UserBottomNav({ telegramId }: { telegramId: number }) {
         <span><Home size={20} strokeWidth={2.2} /></span>
         <small>Главная</small>
       </Link>
-      <a href="#bookings" className="bottomNavItem">
+      <Link to={`/user/${telegramId}/bookings`} className="bottomNavItem">
         <span><CalendarCheck size={20} strokeWidth={2.2} /></span>
         <small>Записи</small>
-      </a>
+      </Link>
       <Link to={`/user/${telegramId}`} className="bottomNavMain">
         <Plus size={30} strokeWidth={2.4} />
       </Link>
-      <a href="#masters" className="bottomNavItem">
+      <Link to={`/user/${telegramId}/masters`} className="bottomNavItem">
         <span><BriefcaseBusiness size={20} strokeWidth={2.2} /></span>
         <small>Мастера</small>
-      </a>
+      </Link>
+      <Link to={`/user/${telegramId}`} className="bottomNavItem">
+        <span><User size={20} strokeWidth={2.2} /></span>
+        <small>Профиль</small>
+      </Link>
+    </nav>
+  )
+}
+
+function PublicProfileBottomNav({ telegramId }: { telegramId: string }) {
+  return (
+    <nav className="bottomNav">
+      <Link to={`/user/${telegramId}`} className="bottomNavItem">
+        <span><Home size={20} strokeWidth={2.2} /></span>
+        <small>Главная</small>
+      </Link>
+      <Link to={`/user/${telegramId}/bookings`} className="bottomNavItem">
+        <span><CalendarCheck size={20} strokeWidth={2.2} /></span>
+        <small>Записи</small>
+      </Link>
+      <Link to={`/user/${telegramId}`} className="bottomNavMain">
+        <Plus size={30} strokeWidth={2.4} />
+      </Link>
+      <Link to={`/user/${telegramId}/masters`} className="bottomNavItem">
+        <span><BriefcaseBusiness size={20} strokeWidth={2.2} /></span>
+        <small>Мастера</small>
+      </Link>
       <Link to={`/user/${telegramId}`} className="bottomNavItem">
         <span><User size={20} strokeWidth={2.2} /></span>
         <small>Профиль</small>
