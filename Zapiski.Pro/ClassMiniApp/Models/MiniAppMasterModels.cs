@@ -6,6 +6,8 @@
         public string Key { get; set; }
         public long TelegramId { get; set; }
         public string Username { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 
     public class MiniAppMasterClientDto
@@ -25,6 +27,35 @@
         public int Services { get; set; }
     }
 
+    public class MiniAppMasterBookingDto
+    {
+        public int Id { get; set; }
+        public long ClientTelegramId { get; set; }
+        public string ClientUsername { get; set; }
+        public string ServiceName { get; set; }
+        public string DateTime { get; set; }
+        public string Status { get; set; }
+        public int Price { get; set; }
+        public int PrepaymentPercent { get; set; }
+        public int PrepaymentAmount { get; set; }
+    }
+
+    public class MiniAppMasterScheduleDayDto
+    {
+        public int DayOfWeek { get; set; }
+        public string DayName { get; set; }
+        public string StartTime { get; set; }
+        public string EndTime { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class MiniAppUpdateScheduleDayRequest
+    {
+        public string StartTime { get; set; }
+        public string EndTime { get; set; }
+        public bool IsActive { get; set; }
+    }
+
     public class MiniAppMasterServiceDto
     {
         public int Id { get; set; }
@@ -41,6 +72,12 @@
         public int Price { get; set; }
         public int Duration { get; set; }
         public int PrepaymentPercent { get; set; }
+    }
+
+    public class MiniAppUpdateMasterProfileRequest
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
     }
 
     public class MiniAppMasterActionResult

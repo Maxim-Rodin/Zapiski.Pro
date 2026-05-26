@@ -42,6 +42,68 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.GetStats(key.Trim());
         }
 
+        public List<MiniAppMasterScheduleDayDto>? GetSchedule(string key, long telegramId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetSchedule(key.Trim(), telegramId);
+        }
+
+        public MiniAppMasterActionResult UpdateScheduleDay(string key, long telegramId, int day, MiniAppUpdateScheduleDayRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.UpdateScheduleDay(key.Trim(), telegramId, day, request);
+        }
+
+        public List<MiniAppMasterBookingDto>? GetBookings(string key, long telegramId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetBookings(key.Trim(), telegramId);
+        }
+
+        public async Task<MiniAppMasterActionResult> AcceptBooking(string key, long telegramId, int bookingId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.AcceptBooking(key.Trim(), telegramId, bookingId);
+        }
+
+        public async Task<MiniAppMasterActionResult> CancelBooking(string key, long telegramId, int bookingId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.CancelBooking(key.Trim(), telegramId, bookingId);
+        }
+
+        public async Task<MiniAppMasterActionResult> AcceptPayment(string key, long telegramId, int bookingId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.AcceptPayment(key.Trim(), telegramId, bookingId);
+        }
+
+        public async Task<MiniAppMasterActionResult> RejectPayment(string key, long telegramId, int bookingId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.RejectPayment(key.Trim(), telegramId, bookingId);
+        }
+
         public List<MiniAppMasterServiceDto>? GetServices(string key)
         {
             if (string.IsNullOrWhiteSpace(key))
@@ -51,6 +113,14 @@ namespace Zapiski.Pro.MiniApp.Services
                 return null;
 
             return repository.GetServices(key.Trim());
+        }
+
+        public MiniAppMasterActionResult UpdateProfile(string key, long telegramId, MiniAppUpdateMasterProfileRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.UpdateProfile(key.Trim(), telegramId, request);
         }
 
         public MiniAppMasterActionResult CreateService(string key, MiniAppCreateMasterServiceRequest request)

@@ -19,5 +19,37 @@ namespace Zapiski.Pro.ClassMiniApp.Services
 
             return repository.GetDashboard(telegramId);
         }
+
+        public async Task<bool> CancelBooking(long telegramId, int bookingId)
+        {
+            if (telegramId <= 0 || bookingId <= 0)
+                return false;
+
+            return await repository.CancelBooking(telegramId, bookingId);
+        }
+
+        public List<MiniAppBookingSlotDto> GetBookingSlots(string masterKey, int serviceId, string date)
+        {
+            if (string.IsNullOrWhiteSpace(masterKey) || serviceId <= 0 || string.IsNullOrWhiteSpace(date))
+                return new List<MiniAppBookingSlotDto>();
+
+            return repository.GetBookingSlots(masterKey.Trim(), serviceId, date.Trim());
+        }
+
+        public async Task<MiniAppCreateBookingResult> CreateBooking(long telegramId, MiniAppCreateBookingRequest request)
+        {
+            if (telegramId <= 0)
+                return new MiniAppCreateBookingResult { Success = false, Message = "Откройте запись из Telegram" };
+
+            return await repository.CreateBooking(telegramId, request);
+        }
+
+        public async Task<bool> MarkBookingPaid(long telegramId, int bookingId)
+        {
+            if (telegramId <= 0 || bookingId <= 0)
+                return false;
+
+            return await repository.MarkBookingPaid(telegramId, bookingId);
+        }
     }
 }

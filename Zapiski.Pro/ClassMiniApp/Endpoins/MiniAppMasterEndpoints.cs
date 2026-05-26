@@ -53,6 +53,105 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(stats);
             });
 
+            app.MapGet("/api/master/{key}/bookings", (HttpRequest httpRequest, string key) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var bookings = masterService.GetBookings(key, telegramId);
+
+                if (bookings == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(bookings);
+            });
+
+            app.MapGet("/api/master/{key}/schedule", (HttpRequest httpRequest, string key) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var schedule = masterService.GetSchedule(key, telegramId);
+
+                if (schedule == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(schedule);
+            });
+
+            app.MapPut("/api/master/{key}/schedule/{day:int}", (HttpRequest httpRequest, string key, int day, MiniAppUpdateScheduleDayRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.UpdateScheduleDay(key, telegramId, day, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPost("/api/master/{key}/bookings/{bookingId:int}/accept", async (HttpRequest httpRequest, string key, int bookingId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.AcceptBooking(key, telegramId, bookingId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPost("/api/master/{key}/bookings/{bookingId:int}/cancel", async (HttpRequest httpRequest, string key, int bookingId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.CancelBooking(key, telegramId, bookingId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPost("/api/master/{key}/bookings/{bookingId:int}/payment-accept", async (HttpRequest httpRequest, string key, int bookingId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.AcceptPayment(key, telegramId, bookingId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPost("/api/master/{key}/bookings/{bookingId:int}/payment-reject", async (HttpRequest httpRequest, string key, int bookingId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.RejectPayment(key, telegramId, bookingId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
             app.MapGet("/api/master/{key}/services", (string key) =>
             {
                 var services = masterService.GetServices(key);
@@ -65,6 +164,21 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     });
 
                 return Results.Ok(services);
+            });
+
+            app.MapPut("/api/master/{key}/profile", (HttpRequest httpRequest, string key, MiniAppUpdateMasterProfileRequest request) =>
+            {
+                var telegramHeader = httpRequest.Headers["X-Telegram-Id"].ToString();
+
+                if (!long.TryParse(telegramHeader, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте профиль из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.UpdateProfile(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
             });
 
             app.MapPost("/api/master/{key}/services", (string key, MiniAppCreateMasterServiceRequest request) =>
@@ -96,6 +210,12 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 return Results.Ok(result);
             });
+        }
+
+        private static bool TryGetTelegramId(HttpRequest httpRequest, out long telegramId)
+        {
+            var telegramHeader = httpRequest.Headers["X-Telegram-Id"].ToString();
+            return long.TryParse(telegramHeader, out telegramId);
         }
     }
 }

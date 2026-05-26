@@ -453,6 +453,233 @@ body {
   margin: 0 0 12px;
 }
 
+.masterLinkCard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.masterLinkCard strong,
+.masterLinkCard span {
+  display: block;
+}
+
+.masterLinkCard strong {
+  margin-bottom: 4px;
+}
+
+.masterLinkCard span {
+  color: #6b7888;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.masterLinkCard button,
+.inlineDangerButton {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.masterLinkCard button {
+  background: #4b8df7;
+  color: white;
+}
+
+.inlineDangerButton {
+  width: fit-content;
+  margin-top: 9px;
+  background: #ffecec;
+  color: #d93030;
+}
+
+.masterBookingsList {
+  display: grid;
+  gap: 12px;
+}
+
+.masterBookingCard {
+  border: 1px solid #e4edf8;
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 13px;
+}
+
+.bookingCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bookingCardHeader strong,
+.bookingCardHeader span {
+  display: block;
+}
+
+.bookingCardHeader strong {
+  margin-bottom: 4px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.bookingCardHeader span {
+  color: #6b7888;
+  font-size: 12px;
+}
+
+.bookingMetaGrid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bookingMetaGrid span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #516071;
+  font-size: 13px;
+}
+
+.bookingMetaGrid svg {
+  color: #4b8df7;
+  flex: 0 0 auto;
+}
+
+.bookingActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.bookingActions button {
+  border: none;
+  border-radius: 14px;
+  background: #4b8df7;
+  color: white;
+  padding: 12px;
+  font-weight: 800;
+}
+
+.bookingActions .dangerButton {
+  background: #e54848;
+}
+
+.scheduleModeSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.scheduleModeSwitch button {
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: #6b7888;
+  padding: 12px;
+  font-weight: 800;
+}
+
+.scheduleModeSwitch button.active {
+  background: #4b8df7;
+  color: white;
+  box-shadow: 0 8px 20px rgba(75, 141, 247, 0.28);
+}
+
+.scheduleList {
+  display: grid;
+  gap: 10px;
+}
+
+.scheduleDayCard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e4edf8;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.scheduleDayCard strong,
+.scheduleDayCard span {
+  display: block;
+}
+
+.scheduleDayCard strong {
+  margin-bottom: 4px;
+}
+
+.scheduleDayCard span {
+  color: #6b7888;
+  font-size: 13px;
+}
+
+.scheduleDayCard button,
+.saveButton {
+  border: none;
+  border-radius: 12px;
+  background: #4b8df7;
+  color: white;
+  padding: 11px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.modal {
+  width: 100%;
+  max-width: 360px;
+  background: white;
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+}
+
+.modal h2 {
+  margin: 0 0 14px;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: #263241;
+  font-weight: 800;
+}
+
+.toggleRow input {
+  width: 18px;
+  height: 18px;
+}
+
+.timeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.timeGrid label span {
+  display: block;
+  margin-bottom: 6px;
+  color: #6b7888;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .adminButton {
   width: 100%;
   border: none;
@@ -689,6 +916,485 @@ body {
   color: #102033;
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+.publicTopBar {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.publicTopBar h1 {
+  margin: 0;
+  font-size: 18px;
+  text-align: center;
+}
+
+.publicTopBar p {
+  margin: 2px 0 0;
+  color: #6b7888;
+  font-size: 12px;
+  text-align: center;
+}
+
+.publicBackButton,
+.publicMenuDot {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: white;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.publicBackButton {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.publicMenuDot {
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.publicProfileHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: white;
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.publicAvatar {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #e8f2ff, #f8fbff);
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid #dbeaff;
+}
+
+.publicMasterInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.publicMasterInfo h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.publicMasterInfo p {
+  margin: 0 0 8px;
+  color: #6b7888;
+  font-size: 14px;
+}
+
+.publicMasterInfo span {
+  display: inline-block;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #4b8df7;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.editableTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.editableTitle h2 {
+  flex: 1;
+}
+
+.editIconButton {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 12px;
+  background: #eef5ff;
+  color: #4b8df7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.profileMessage {
+  margin: 0 0 12px;
+  border: 1px solid #dbeaff;
+  border-radius: 14px;
+  background: #eef5ff;
+  color: #3b6fc9;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.publicInfoCard {
+  background: white;
+  border: 1px solid #e4edf8;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.06);
+}
+
+.publicInfoCard h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.publicInfoCard p {
+  margin: 0;
+  color: #6b7888;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.publicCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.publicCardHeader h3 {
+  margin: 0;
+}
+
+.publicCardHeader a {
+  color: #4b8df7;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.publicHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.publicEditBox {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.publicEditBox .adminInput {
+  margin-bottom: 0;
+}
+
+.publicTextarea {
+  min-height: 110px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.publicEditActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.publicEditActions button {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.publicEditActions button:first-child {
+  background: #4b8df7;
+  color: white;
+}
+
+.publicEditActions button:last-child {
+  background: #eef5ff;
+  color: #4b8df7;
+}
+
+.publicServicesList {
+  display: grid;
+  gap: 9px;
+}
+
+.publicServiceRow {
+  display: grid;
+  grid-template-columns: 42px 1fr 22px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e4edf8;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 10px;
+}
+
+.publicServiceRowWithAction {
+  grid-template-columns: 42px 1fr minmax(92px, auto);
+}
+
+.publicServiceIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.publicServiceRow strong,
+.publicServiceRow small {
+  display: block;
+}
+
+.publicServiceRow strong {
+  font-size: 14px;
+  margin-bottom: 3px;
+  overflow-wrap: anywhere;
+}
+
+.publicServiceRow small {
+  color: #6b7888;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.publicPrimaryButton {
+  display: block;
+  border-radius: 16px;
+  background: #4b8df7;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(75, 141, 247, 0.35);
+  margin-bottom: 12px;
+}
+
+.publicProfilePage {
+  padding-bottom: 104px;
+}
+
+.publicProfilePage.hasPublicBottomNav {
+  padding-bottom: 176px;
+}
+
+.publicActionBar {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  z-index: 20;
+  transform: translateX(-50%);
+  max-width: 430px;
+  width: 100%;
+  padding: 0 14px;
+  pointer-events: none;
+}
+
+.hasPublicBottomNav .publicActionBar {
+  bottom: 86px;
+}
+
+.publicProfileAction {
+  margin: 0;
+  pointer-events: auto;
+}
+
+.publicServiceBookButton {
+  align-self: center;
+  border-radius: 12px;
+  background: #4b8df7;
+  color: white;
+  padding: 10px 11px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.publicBookingStub {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.servicePicker {
+  display: grid;
+  gap: 9px;
+}
+
+.servicePicker button {
+  border: 1px solid #e4edf8;
+  border-radius: 15px;
+  background: #f8fbff;
+  color: #263241;
+  padding: 12px;
+  text-align: left;
+}
+
+.servicePicker button.active {
+  border-color: #4b8df7;
+  background: #eef5ff;
+  box-shadow: inset 0 0 0 1px #4b8df7;
+}
+
+.servicePicker strong,
+.servicePicker span {
+  display: block;
+}
+
+.servicePicker strong {
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.servicePicker span {
+  color: #6b7888;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.calendarStrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 62px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.calendarStrip button {
+  border: 1px solid #e4edf8;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #263241;
+  padding: 9px 6px;
+  min-height: 76px;
+}
+
+.calendarStrip button.active {
+  border-color: #4b8df7;
+  background: #4b8df7;
+  color: white;
+}
+
+.calendarStrip span,
+.calendarStrip strong,
+.calendarStrip small {
+  display: block;
+}
+
+.calendarStrip span,
+.calendarStrip small {
+  font-size: 11px;
+  opacity: 0.78;
+}
+
+.calendarStrip strong {
+  margin: 5px 0;
+  font-size: 22px;
+}
+
+.slotGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.slotGrid button {
+  border: 1px solid #dbe7f5;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: #263241;
+  padding: 12px 8px;
+  font-weight: 800;
+}
+
+.slotGrid button.active {
+  border-color: #4b8df7;
+  background: #4b8df7;
+  color: white;
+}
+
+.slotGrid button:disabled {
+  background: #f0f2f5;
+  color: #a0a8b3;
+  text-decoration: line-through;
+}
+
+.bookingSubmitButton {
+  width: 100%;
+  border: none;
+}
+
+.bookingSubmitButton:disabled {
+  opacity: 0.55;
+}
+
+.bookingResultCard {
+  display: grid;
+  gap: 11px;
+}
+
+.paymentBox {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbeaff;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.paymentBox strong,
+.paymentBox span {
+  display: block;
+}
+
+.paymentBox span {
+  color: #516071;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.paymentBox button {
+  border: none;
+  border-radius: 13px;
+  background: #4b8df7;
+  color: white;
+  padding: 12px;
+  font-weight: 800;
 }
 
 .addForm {

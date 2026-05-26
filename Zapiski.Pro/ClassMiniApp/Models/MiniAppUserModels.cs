@@ -39,4 +39,32 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public string Username { get; set; }
         public int BookingsCount { get; set; }
     }
+
+    public class MiniAppBookingSlotDto
+    {
+        public string Time { get; set; }
+        public bool IsBusy { get; set; }
+    }
+
+    public class MiniAppCreateBookingRequest
+    {
+        public string MasterKey { get; set; }
+        public int ServiceId { get; set; }
+        public string Date { get; set; }
+        public string Time { get; set; }
+        public string Username { get; set; }
+    }
+
+    public class MiniAppCreateBookingResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public int BookingId { get; set; }
+        public string Status { get; set; }
+        public string ServiceName { get; set; }
+        public int Price { get; set; }
+        public int PrepaymentPercent { get; set; }
+        public int PrepaymentAmount { get; set; }
+        public string PaymentDetails { get; set; }
+    }
 }

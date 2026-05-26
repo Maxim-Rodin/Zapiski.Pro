@@ -44,6 +44,8 @@ type Master = {
   key: string
   telegramId: number
   username: string
+  name: string
+  description: string
 }
 
 type MasterClient = {
@@ -59,6 +61,43 @@ type MasterStats = {
   clients: number
   activeBookings: number
   services: number
+}
+
+type MasterBooking = {
+  id: number
+  clientTelegramId: number
+  clientUsername: string
+  serviceName: string
+  dateTime: string
+  status: string
+  price: number
+  prepaymentPercent: number
+  prepaymentAmount: number
+}
+
+type MasterScheduleDay = {
+  dayOfWeek: number
+  dayName: string
+  startTime: string
+  endTime: string
+  isActive: boolean
+}
+
+type BookingSlot = {
+  time: string
+  isBusy: boolean
+}
+
+type BookingCreateResult = {
+  success: boolean
+  message: string
+  bookingId: number
+  status: string
+  serviceName: string
+  price: number
+  prepaymentPercent: number
+  prepaymentAmount: number
+  paymentDetails: string
 }
 
 type MasterServiceItem = {
@@ -111,6 +150,30 @@ type UserMaster = {
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
 
+const formatDateInput = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const buildCalendarDays = (count: number) => {
+  const weekdays = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+  const months = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date()
+    date.setDate(date.getDate() + index)
+
+    return {
+      value: formatDateInput(date),
+      weekday: weekdays[date.getDay()],
+      day: String(date.getDate()),
+      month: months[date.getMonth()],
+    }
+  })
+}
+
 function App() {
   return (
     <Routes>
@@ -121,12 +184,14 @@ function App() {
       <Route path="/admin/profile" element={<ComingSoon title="Профиль" subtitle="Раздел администратора" nav="admin" />} />
 
       <Route path="/master/:key" element={<MasterHomePage />} />
-      <Route path="/master/:key/bookings" element={<MasterComingSoon title="Записи" />} />
+      <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
       <Route path="/master/:key/services" element={<MasterServicesPage />} />
-      <Route path="/master/:key/schedule" element={<MasterComingSoon title="Расписание" />} />
+      <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/profile" element={<MasterComingSoon title="Профиль" />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
+      <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
+      <Route path="/master/:key/public-booking" element={<PublicBookingStub />} />
 
       <Route path="/user/:telegramId" element={<UserHomePage />} />
       <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
@@ -441,6 +506,7 @@ function MasterHomePage() {
   const [stats, setStats] = useState<MasterStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
+  const [copyMessage, setCopyMessage] = useState("")
 
   useEffect(() => {
     fetch(`${API_URL}/api/master/${key}`)
@@ -473,6 +539,14 @@ function MasterHomePage() {
     return <ComingSoon title="Доступ закрыт" subtitle="Мастер с таким ключом не найден" />
   }
 
+  const clientBotLink = `https://t.me/ZapisiProBot?start=${master.key}`
+
+  function copyPublicLink() {
+    navigator.clipboard?.writeText(clientBotLink)
+      .then(() => setCopyMessage("Ссылка скопирована"))
+      .catch(() => setCopyMessage("Не удалось скопировать ссылку"))
+  }
+
   return (
     <main className="app">
       <header className="top">
@@ -495,6 +569,15 @@ function MasterHomePage() {
       </section>
 
       <ClientCabinetBanner telegramId={master.telegramId} />
+
+      <section className="adminCard masterLinkCard">
+        <div>
+          <strong>Ваша ссылка</strong>
+          <span>{clientBotLink}</span>
+        </div>
+        <button type="button" onClick={copyPublicLink}>Скопировать</button>
+      </section>
+      {copyMessage && <div className="profileMessage">{copyMessage}</div>}
 
       <section className="grid">
         <Link to={`/master/${master.key}/bookings`} className="cardLink">
@@ -544,30 +627,887 @@ function MasterHomePage() {
 }
 
 function PublicProfileStub() {
+  const { key } = useParams()
   const currentTelegramId = telegramId()
   const clientCabinetUrl = currentTelegramId ? `/user/${currentTelegramId}` : "/"
+  const [master, setMaster] = useState<Master | null>(null)
+  const [services, setServices] = useState<MasterServiceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [editMode, setEditMode] = useState<"name" | "description" | null>(null)
+  const [draftName, setDraftName] = useState("")
+  const [draftDescription, setDraftDescription] = useState("")
+  const [profileMessage, setProfileMessage] = useState("")
+
+  useEffect(() => {
+    if (!key) return
+
+    Promise.all([
+      fetch(`${API_URL}/api/master/${key}`).then((res) => {
+        if (!res.ok) throw new Error("Мастер не найден")
+        return res.json()
+      }),
+      fetch(`${API_URL}/api/master/${key}/services`).then((res) => {
+        if (!res.ok) return []
+        return res.json()
+      }),
+    ])
+      .then(([masterData, servicesData]) => {
+        setMaster(masterData)
+        setDraftName(masterData.name || "")
+        setDraftDescription(masterData.description || "")
+        setServices(Array.isArray(servicesData) ? servicesData : [])
+      })
+      .catch(() => setError("Профиль мастера недоступен"))
+      .finally(() => setLoading(false))
+  }, [key])
+
+  if (loading) {
+    return <ComingSoon title="Загрузка..." subtitle="Открываем профиль мастера" />
+  }
+
+  if (error || !master) {
+    return <ComingSoon title="Профиль недоступен" subtitle={error || "Мастер не найден"} />
+  }
+
+  const visibleServices = services.slice(0, 3)
+  const description = master.description?.trim()
+  const displayName = master.name?.trim() || master.username || "Мастер"
+  const isOwner = currentTelegramId === String(master.telegramId)
+
+  function startEdit(field: "name" | "description") {
+    setDraftName(master?.name || "")
+    setDraftDescription(master?.description || "")
+    setProfileMessage("")
+    setEditMode(field)
+  }
+
+  function showProfileStub(section: string) {
+    setProfileMessage(`${section} скоро можно будет редактировать здесь`)
+  }
+
+  function saveProfile() {
+    if (!master || !currentTelegramId) return
+
+    setProfileMessage("Сохраняем...")
+
+    fetch(`${API_URL}/api/master/${master.key}/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        name: draftName,
+        description: draftDescription,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось сохранить профиль")
+        }
+
+        setMaster({
+          ...master,
+          name: draftName.trim(),
+          description: draftDescription.trim(),
+        })
+        setEditMode(null)
+        setProfileMessage("Профиль сохранён")
+      })
+      .catch((err) => setProfileMessage(err.message || "Ошибка сохранения"))
+  }
+
+  return (
+    <main className={`app publicProfilePage ${currentTelegramId ? "hasPublicBottomNav" : ""}`}>
+      <header className="publicTopBar">
+        <Link to={clientCabinetUrl} className="publicBackButton">
+          ‹
+        </Link>
+        <div>
+          <h1>Профиль мастера</h1>
+          <p>Zapisi.Pro</p>
+        </div>
+        <span className="publicMenuDot">•••</span>
+      </header>
+
+      <section className="publicProfileHero">
+        <div className="publicAvatar">
+          <User size={42} strokeWidth={2.1} />
+        </div>
+        <div className="publicMasterInfo">
+          {editMode === "name" ? (
+            <div className="publicEditBox">
+              <input
+                className="adminInput"
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                placeholder="Имя мастера"
+                maxLength={50}
+              />
+              <div className="publicEditActions">
+                <button type="button" onClick={saveProfile}>Сохранить</button>
+                <button type="button" onClick={() => setEditMode(null)}>Отмена</button>
+              </div>
+            </div>
+          ) : (
+            <div className="editableTitle">
+              <h2>{displayName}</h2>
+              {isOwner && (
+                <button type="button" className="editIconButton" onClick={() => startEdit("name")} aria-label="Редактировать имя">
+                  <Pencil size={16} strokeWidth={2.4} />
+                </button>
+              )}
+            </div>
+          )}
+          <p>@{master.username || "master"}</p>
+          <span>Профиль в разработке</span>
+        </div>
+      </section>
+
+      {profileMessage && <div className="profileMessage">{profileMessage}</div>}
+
+      <section className="publicInfoCard">
+        <div className="publicCardHeader">
+          <h3>О мастере</h3>
+          {isOwner && (
+            <button type="button" className="editIconButton" onClick={() => startEdit("description")} aria-label="Редактировать описание">
+              <Pencil size={16} strokeWidth={2.4} />
+            </button>
+          )}
+        </div>
+        {editMode === "description" ? (
+          <div className="publicEditBox">
+            <textarea
+              className="adminInput publicTextarea"
+              value={draftDescription}
+              onChange={(event) => setDraftDescription(event.target.value)}
+              placeholder="Описание мастера"
+              maxLength={1000}
+            />
+            <div className="publicEditActions">
+              <button type="button" onClick={saveProfile}>Сохранить</button>
+              <button type="button" onClick={() => setEditMode(null)}>Отмена</button>
+            </div>
+          </div>
+        ) : (
+          <p>{description || "Описание скоро появится. Здесь мастер сможет рассказать о себе, опыте и подходе к работе."}</p>
+        )}
+      </section>
+
+      <section className="publicInfoCard">
+        <div className="publicCardHeader">
+          <h3>Портфолио</h3>
+          {isOwner && (
+            <button type="button" className="editIconButton" onClick={() => showProfileStub("Портфолио")} aria-label="Редактировать портфолио">
+              <Pencil size={16} strokeWidth={2.4} />
+            </button>
+          )}
+        </div>
+        <p>Раздел в разработке. Скоро здесь появятся фотографии работ мастера.</p>
+      </section>
+
+      <section className="publicInfoCard">
+        <div className="publicCardHeader">
+          <h3>Услуги</h3>
+          <div className="publicHeaderActions">
+            {services.length > 3 && (
+              <Link to={`/master/${master.key}/public-services`}>Открыть все</Link>
+            )}
+            {isOwner && (
+              <button type="button" className="editIconButton" onClick={() => showProfileStub("Услуги")} aria-label="Редактировать услуги">
+                <Pencil size={16} strokeWidth={2.4} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="publicServicesList">
+          {services.length === 0 ? (
+            <div className="emptyLine">Услуги пока не добавлены</div>
+          ) : (
+            visibleServices.map((service) => (
+              <div className="publicServiceRow" key={service.id}>
+                <span className="publicServiceIcon">
+                  <BriefcaseBusiness size={20} strokeWidth={2.3} />
+                </span>
+                <div>
+                  <strong>{service.name || "Услуга"}</strong>
+                  <small>
+                    {service.price}₽
+                    {service.prepaymentPercent > 0
+                      ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
+                      : " · без предоплаты"}
+                  </small>
+                </div>
+                <ChevronRight size={21} strokeWidth={2.4} />
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="publicInfoCard">
+        <div className="publicCardHeader">
+          <h3>Ближайшее время</h3>
+          {isOwner && (
+            <button type="button" className="editIconButton" onClick={() => showProfileStub("Ближайшее время")} aria-label="Редактировать ближайшее время">
+              <Pencil size={16} strokeWidth={2.4} />
+            </button>
+          )}
+        </div>
+        <p>Скоро появится расписание и свободные слоты для записи.</p>
+      </section>
+
+      <div className="publicActionBar">
+        <Link to={`/master/${master.key}/public-booking`} className="publicPrimaryButton publicProfileAction">
+          Записаться
+        </Link>
+      </div>
+
+      {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
+    </main>
+  )
+}
+
+function PublicServicesPage() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const [services, setServices] = useState<MasterServiceItem[]>([])
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/services`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Не удалось загрузить услуги")
+        return res.json()
+      })
+      .then((data) => setServices(Array.isArray(data) ? data : []))
+      .catch(() => setError("Услуги пока недоступны"))
+      .finally(() => setLoading(false))
+  }, [key])
+
+  const query = search.trim().toLowerCase()
+  const filteredServices = query
+    ? services.filter((service) => service.name.toLowerCase().includes(query))
+    : services
+
+  return (
+    <main className="app">
+      <header className="publicTopBar">
+        <Link to={`/master/${key}/public-profile`} className="publicBackButton">
+          ‹
+        </Link>
+        <div>
+          <h1>Услуги</h1>
+          <p>Выберите услугу для записи</p>
+        </div>
+        <span className="publicMenuDot">•••</span>
+      </header>
+
+      <section className="publicInfoCard">
+        <input
+          className="adminInput searchInput"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Поиск по названию услуги"
+        />
+      </section>
+
+      <section className="publicInfoCard">
+        <div className="publicServicesList">
+          {loading ? (
+            <div className="emptyLine">Загружаем услуги...</div>
+          ) : error ? (
+            <div className="emptyLine">{error}</div>
+          ) : filteredServices.length === 0 ? (
+            <div className="emptyLine">Услуги не найдены</div>
+          ) : (
+            filteredServices.map((service) => (
+              <div className="publicServiceRow publicServiceRowWithAction" key={service.id}>
+                <span className="publicServiceIcon">
+                  <BriefcaseBusiness size={20} strokeWidth={2.3} />
+                </span>
+                <div>
+                  <strong>{service.name || "Услуга"}</strong>
+                  <small>
+                    {service.price}₽
+                    {service.prepaymentPercent > 0
+                      ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
+                      : " · без предоплаты"}
+                  </small>
+                </div>
+                <Link to={`/master/${key}/public-booking`} className="publicServiceBookButton">
+                  Записаться
+                </Link>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
+    </main>
+  )
+}
+
+function PublicBookingStub() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+  const [services, setServices] = useState<MasterServiceItem[]>([])
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null)
+  const [selectedDate, setSelectedDate] = useState(formatDateInput(new Date()))
+  const [selectedTime, setSelectedTime] = useState("")
+  const [slots, setSlots] = useState<BookingSlot[]>([])
+  const [loadingServices, setLoadingServices] = useState(true)
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [message, setMessage] = useState("")
+  const [bookingResult, setBookingResult] = useState<BookingCreateResult | null>(null)
+
+  useEffect(() => {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/services`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setServices(list)
+        setSelectedServiceId(list[0]?.id ?? null)
+      })
+      .catch(() => setMessage("Не удалось загрузить услуги"))
+      .finally(() => setLoadingServices(false))
+  }, [key])
+
+  useEffect(() => {
+    if (!key || !selectedServiceId || !selectedDate) return
+
+    setLoadingSlots(true)
+    setSelectedTime("")
+
+    fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${selectedServiceId}&date=${selectedDate}`)
+      .then((res) => res.json())
+      .then((data) => setSlots(Array.isArray(data) ? data : []))
+      .catch(() => setSlots([]))
+      .finally(() => setLoadingSlots(false))
+  }, [key, selectedServiceId, selectedDate])
+
+  const selectedService = services.find((service) => service.id === selectedServiceId) ?? null
+  const calendarDays = buildCalendarDays(21)
+
+  function createBooking() {
+    if (!key || !selectedServiceId || !selectedTime || !currentTelegramId) {
+      setMessage("Откройте запись из Telegram и выберите время")
+      return
+    }
+
+    setMessage("Создаём запись...")
+
+    fetch(`${API_URL}/api/user/${currentTelegramId}/bookings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        masterKey: key,
+        serviceId: selectedServiceId,
+        date: selectedDate,
+        time: selectedTime,
+        username: telegramUser?.username ?? "unknown",
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось создать запись")
+        }
+
+        setBookingResult(data)
+        setMessage(data.message || "Запись создана")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка создания записи"))
+  }
+
+  function markPaid() {
+    if (!bookingResult || !currentTelegramId) return
+
+    setMessage("Отправляем мастеру подтверждение оплаты...")
+
+    fetch(`${API_URL}/api/user/${currentTelegramId}/bookings/${bookingResult.bookingId}/paid`, {
+      method: "POST",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось отметить оплату")
+        }
+
+        setBookingResult({ ...bookingResult, status: "waiting_payment_confirm" })
+        setMessage(data.message || "Ожидаем подтверждение оплаты от мастера")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка подтверждения оплаты"))
+  }
+
+  return (
+    <main className="app">
+      <header className="publicTopBar">
+        <Link to={`/master/${key}/public-profile`} className="publicBackButton">
+          ‹
+        </Link>
+        <div>
+          <h1>Запись к мастеру</h1>
+          <p>Zapisi.Pro</p>
+        </div>
+        <span className="publicMenuDot">•••</span>
+      </header>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      {bookingResult ? (
+        <section className="publicInfoCard bookingResultCard">
+          <span className="publicServiceIcon">
+            <CalendarCheck size={24} strokeWidth={2.3} />
+          </span>
+          <h3>{bookingResult.status === "waiting_payment" ? "Нужна предоплата" : "Запись создана"}</h3>
+          <p>
+            {bookingResult.serviceName} · {selectedDate} · {selectedTime}
+          </p>
+          {bookingResult.status === "waiting_payment" && (
+            <div className="paymentBox">
+              <strong>Предоплата {bookingResult.prepaymentAmount}₽ ({bookingResult.prepaymentPercent}%)</strong>
+              <span>{bookingResult.paymentDetails || "Реквизиты не указаны"}</span>
+              <button type="button" onClick={markPaid}>Я оплатил</button>
+            </div>
+          )}
+          {bookingResult.status === "waiting_payment_confirm" && (
+            <p>Ожидаем подтверждение оплаты от мастера.</p>
+          )}
+          {bookingResult.status === "pending" && (
+            <p>Мастеру отправлено сообщение. Ожидайте подтверждения.</p>
+          )}
+        </section>
+      ) : (
+        <>
+          <section className="publicInfoCard">
+            <h3>Услуга</h3>
+            {loadingServices ? (
+              <div className="emptyLine">Загружаем услуги...</div>
+            ) : services.length === 0 ? (
+              <div className="emptyLine">У мастера пока нет услуг</div>
+            ) : (
+              <div className="servicePicker">
+                {services.map((service) => (
+                  <button
+                    type="button"
+                    className={selectedServiceId === service.id ? "active" : ""}
+                    key={service.id}
+                    onClick={() => setSelectedServiceId(service.id)}
+                  >
+                    <strong>{service.name}</strong>
+                    <span>
+                      {service.price}₽ · {service.duration} мин
+                      {service.prepaymentPercent > 0 ? ` · предоплата ${service.prepaymentAmount}₽` : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="publicInfoCard">
+            <h3>Дата</h3>
+            <div className="calendarStrip">
+              {calendarDays.map((day) => (
+                <button
+                  type="button"
+                  className={selectedDate === day.value ? "active" : ""}
+                  key={day.value}
+                  onClick={() => setSelectedDate(day.value)}
+                >
+                  <span>{day.weekday}</span>
+                  <strong>{day.day}</strong>
+                  <small>{day.month}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="publicInfoCard">
+            <h3>Время</h3>
+            {loadingSlots ? (
+              <div className="emptyLine">Ищем свободное время...</div>
+            ) : slots.length === 0 ? (
+              <div className="emptyLine">На эту дату свободного времени нет</div>
+            ) : (
+              <div className="slotGrid">
+                {slots.map((slot) => (
+                  <button
+                    type="button"
+                    disabled={slot.isBusy}
+                    className={selectedTime === slot.time ? "active" : ""}
+                    key={slot.time}
+                    onClick={() => setSelectedTime(slot.time)}
+                  >
+                    {slot.time}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <button
+            type="button"
+            className="publicPrimaryButton bookingSubmitButton"
+            disabled={!selectedService || !selectedTime}
+            onClick={createBooking}
+          >
+            Записаться
+          </button>
+        </>
+      )}
+
+      <Link to={`/master/${key}/public-profile`} className="publicPrimaryButton">
+        Вернуться в профиль
+      </Link>
+
+      {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
+    </main>
+  )
+}
+
+function MasterBookingsPage() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const [bookings, setBookings] = useState<MasterBooking[]>([])
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("")
+
+  function loadBookings() {
+    if (!key) return
+
+    setLoading(true)
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}/bookings`, {
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok) {
+          setBookings([])
+          setMessage(data.message || "Не удалось загрузить записи")
+          return
+        }
+
+        setBookings(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        setBookings([])
+        setMessage("Ошибка соединения с сервером")
+      })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadBookings()
+  }, [key])
+
+  function updateBooking(bookingId: number, action: "accept" | "cancel" | "payment-accept" | "payment-reject") {
+    if (!key) return
+
+    const loadingTextByAction = {
+      accept: "Подтверждаем запись...",
+      cancel: "Отменяем запись...",
+      "payment-accept": "Подтверждаем оплату...",
+      "payment-reject": "Отклоняем оплату...",
+    }
+
+    setMessage(loadingTextByAction[action])
+
+    fetch(`${API_URL}/api/master/${key}/bookings/${bookingId}/${action}`, {
+      method: "POST",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось обновить запись")
+        }
+
+        setMessage(data.message || "Запись обновлена")
+        loadBookings()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка обновления записи"))
+  }
 
   return (
     <main className="app">
       <header className="adminHeader">
-        <h1>Публичный профиль</h1>
-        <p>Так эту страницу будут видеть клиенты</p>
+        <h1>Записи</h1>
+        <p>Заявки клиентов и активные записи</p>
       </header>
 
-      <section className="stubScreen">
-        <div className="stubIcon">
-          <Globe size={38} strokeWidth={2.2} />
-        </div>
-        <h2>Скоро здесь будет профиль мастера</h2>
-        <p>
-          Тут появятся фото, описание, услуги, контакты и кнопка записи для клиентов.
-        </p>
-        <Link to={clientCabinetUrl} className="inlineButton">
-          Назад
-        </Link>
+      {message && <div className="profileMessage">{message}</div>}
+
+      <section className="adminCard masterBookingsList">
+        {loading ? (
+          <div className="emptyLine">Загружаем записи...</div>
+        ) : bookings.length === 0 ? (
+          <div className="emptyLine">Записей пока нет</div>
+        ) : (
+          bookings.map((booking) => (
+            <div className="masterBookingCard" key={booking.id}>
+              <div className="bookingCardHeader">
+                <div>
+                  <strong>{booking.serviceName || "Услуга"}</strong>
+                  <span>@{booking.clientUsername || booking.clientTelegramId}</span>
+                </div>
+                <StatusBadge status={booking.status} />
+              </div>
+
+              <div className="bookingMetaGrid">
+                <span>
+                  <CalendarCheck size={17} strokeWidth={2.2} />
+                  {booking.dateTime}
+                </span>
+                <span>
+                  <Banknote size={17} strokeWidth={2.2} />
+                  {booking.price}₽
+                </span>
+                <span>
+                  <BadgePercent size={17} strokeWidth={2.2} />
+                  {booking.prepaymentPercent > 0
+                    ? `${booking.prepaymentAmount}₽ (${booking.prepaymentPercent}%)`
+                    : "без предоплаты"}
+                </span>
+              </div>
+
+              {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "waiting_payment_confirm") && (
+                <div className="bookingActions">
+                  {booking.status === "pending" && (
+                    <button type="button" onClick={() => updateBooking(booking.id, "accept")}>
+                      Подтвердить
+                    </button>
+                  )}
+                  {booking.status === "waiting_payment_confirm" && (
+                    <>
+                      <button type="button" onClick={() => updateBooking(booking.id, "payment-accept")}>
+                        Деньги пришли
+                      </button>
+                      <button type="button" className="dangerButton" onClick={() => updateBooking(booking.id, "payment-reject")}>
+                        Не пришли
+                      </button>
+                    </>
+                  )}
+                  <button type="button" className="dangerButton" onClick={() => updateBooking(booking.id, "cancel")}>
+                    Отменить
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </section>
 
-      {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
+function MasterSchedulePage() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const [mode, setMode] = useState<"stable" | "manual">("stable")
+  const [schedule, setSchedule] = useState<MasterScheduleDay[]>([])
+  const [editingDay, setEditingDay] = useState<MasterScheduleDay | null>(null)
+  const [startTime, setStartTime] = useState("")
+  const [endTime, setEndTime] = useState("")
+  const [isActive, setIsActive] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("")
+
+  function loadSchedule() {
+    if (!key) return
+
+    setLoading(true)
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}/schedule`, {
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok) {
+          setSchedule([])
+          setMessage(data.message || "Не удалось загрузить расписание")
+          return
+        }
+
+        setSchedule(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        setSchedule([])
+        setMessage("Ошибка соединения с сервером")
+      })
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadSchedule()
+  }, [key])
+
+  function startEditDay(day: MasterScheduleDay) {
+    setEditingDay(day)
+    setStartTime(day.startTime || "09:00")
+    setEndTime(day.endTime || "18:00")
+    setIsActive(day.isActive)
+    setMessage("")
+  }
+
+  function saveDay() {
+    if (!key || !editingDay) return
+
+    setMessage("Сохраняем расписание...")
+
+    fetch(`${API_URL}/api/master/${key}/schedule/${editingDay.dayOfWeek}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        startTime,
+        endTime,
+        isActive,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось сохранить расписание")
+        }
+
+        setEditingDay(null)
+        setMessage(data.message || "Расписание обновлено")
+        loadSchedule()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка сохранения"))
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Расписание</h1>
+        <p>Настройка графика работы мастера</p>
+      </header>
+
+      <section className="scheduleModeSwitch">
+        <button
+          type="button"
+          className={mode === "stable" ? "active" : ""}
+          onClick={() => setMode("stable")}
+        >
+          Стабильное
+        </button>
+        <button
+          type="button"
+          className={mode === "manual" ? "active" : ""}
+          onClick={() => setMode("manual")}
+        >
+          Ручное
+        </button>
+      </section>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      {mode === "manual" ? (
+        <section className="stubScreen">
+          <div className="stubIcon">
+            <CalendarDays size={38} strokeWidth={2.2} />
+          </div>
+          <h2>Ручной режим в разработке</h2>
+          <p>Позже здесь будет календарь месяца, редактирование дней, промежутков и отдельных ячеек времени.</p>
+        </section>
+      ) : (
+        <section className="adminCard scheduleList">
+          {loading ? (
+            <div className="emptyLine">Загружаем расписание...</div>
+          ) : schedule.length === 0 ? (
+            <div className="emptyLine">Расписание пока не настроено</div>
+          ) : (
+            schedule.map((day) => (
+              <div className="scheduleDayCard" key={day.dayOfWeek}>
+                <div>
+                  <strong>{day.dayName}</strong>
+                  <span>{day.isActive ? `${day.startTime} - ${day.endTime}` : "Выходной"}</span>
+                </div>
+                <button type="button" onClick={() => startEditDay(day)}>
+                  Редактировать
+                </button>
+              </div>
+            ))
+          )}
+        </section>
+      )}
+
+      {editingDay && (
+        <div className="modalOverlay">
+          <div className="modal">
+            <h2>{editingDay.dayName}</h2>
+            <label className="toggleRow">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(event) => setIsActive(event.target.checked)}
+              />
+              Рабочий день
+            </label>
+            <div className="timeGrid">
+              <label>
+                <span>Начало</span>
+                <input
+                  className="adminInput"
+                  type="time"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Конец</span>
+                <input
+                  className="adminInput"
+                  type="time"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="modalActions">
+              <button type="button" className="cancelButton" onClick={() => setEditingDay(null)}>
+                Отмена
+              </button>
+              <button type="button" className="saveButton" onClick={saveDay}>
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <MasterBottomNav masterKey={key ?? ""} />
     </main>
   )
 }
@@ -673,6 +1613,8 @@ function UserHomePage() {
 
 function UserBookingsPage() {
   const { dashboard, loading, error } = useUserDashboard()
+  const [message, setMessage] = useState("")
+  const [hiddenBookingIds, setHiddenBookingIds] = useState<number[]>([])
 
   if (loading) {
     return <ComingSoon title="Загрузка..." subtitle="Получаем ваши записи" />
@@ -682,6 +1624,30 @@ function UserBookingsPage() {
     return <ComingSoon title="Доступ закрыт" subtitle={error || "Записи недоступны"} />
   }
 
+  const userTelegramId = dashboard.profile.telegramId
+
+  function cancelBooking(bookingId: number) {
+    setMessage("Отменяем запись...")
+
+    fetch(`${API_URL}/api/user/${userTelegramId}/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      headers: { "X-Telegram-Id": String(userTelegramId) },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось отменить запись")
+        }
+
+        setHiddenBookingIds((ids) => [...ids, bookingId])
+        setMessage(data.message || "Запись отменена")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка отмены записи"))
+  }
+
+  const visibleBookings = dashboard.bookings.filter((booking) => !hiddenBookingIds.includes(booking.id))
+
   return (
     <main className="app">
       <header className="adminHeader">
@@ -689,10 +1655,13 @@ function UserBookingsPage() {
         <p>Все ваши записи у мастеров</p>
       </header>
 
+      {message && <div className="profileMessage">{message}</div>}
+
       <UserBookingsSection
         title="Все записи"
-        bookings={dashboard.bookings}
+        bookings={visibleBookings}
         emptyText="Записей пока нет"
+        onCancel={cancelBooking}
       />
 
       <UserBottomNav telegramId={dashboard.profile.telegramId} />
@@ -733,10 +1702,12 @@ function UserBookingsSection({
   title,
   bookings,
   emptyText,
+  onCancel,
 }: {
   title: string
   bookings: UserBooking[]
   emptyText: string
+  onCancel?: (bookingId: number) => void
 }) {
   return (
     <section className="adminCard clientSection">
@@ -757,6 +1728,11 @@ function UserBookingsSection({
                 </div>
                 <p>@{booking.masterUsername || booking.masterKey}</p>
                 <span>{booking.dateTime}</span>
+                {onCancel && booking.status !== "cancelled" && booking.status !== "completed" && (
+                  <button type="button" className="inlineDangerButton" onClick={() => onCancel(booking.id)}>
+                    Отменить запись
+                  </button>
+                )}
               </div>
             </div>
           ))

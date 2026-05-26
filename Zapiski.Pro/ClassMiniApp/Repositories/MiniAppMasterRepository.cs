@@ -1,6 +1,9 @@
 ﻿using System.Data;
 using Npgsql;
+using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro;
+using Zapiski.Pro.BasedClasses;
 using Zapiski.Pro.MiniApp.Models;
 
 namespace Zapiski.Pro.MiniApp.Repositories
@@ -22,6 +25,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 SELECT
                     m.""idMaster"",
                     m.""Key"",
+                    COALESCE(m.""Name"", '') AS ""Name"",
+                    COALESCE(m.""Description"", '') AS ""Description"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -40,8 +45,46 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 Id = Convert.ToInt32(row["idMaster"]),
                 Key = row["Key"].ToString(),
                 TelegramId = Convert.ToInt64(row["TelegrammId"]),
-                Username = row["UserName"]?.ToString()
+                Username = row["UserName"]?.ToString(),
+                Name = row["Name"]?.ToString(),
+                Description = row["Description"]?.ToString()
             };
+        }
+
+        public MiniAppMasterActionResult UpdateProfile(string key, long telegramId, MiniAppUpdateMasterProfileRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
+
+            var name = request.Name?.Trim();
+            var description = request.Description?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(name))
+                return Failed("Введите имя мастера");
+
+            if (name.Length > 50)
+                return Failed("Имя слишком длинное");
+
+            if (description.Length > 1000)
+                return Failed("Описание слишком длинное");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Masters""
+                SET
+                    ""Name"" = @name,
+                    ""Description"" = @description
+                WHERE ""idMaster"" = @masterId
+            ",
+                new NpgsqlParameter("name", name),
+                new NpgsqlParameter("description", description),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return Ok("Профиль обновлён");
         }
 
         public List<MiniAppMasterClientDto> GetClients(string key)
@@ -126,6 +169,294 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     WHERE m.""Key"" = '{safeKey}'
                 "))
             };
+        }
+
+        public List<MiniAppMasterScheduleDayDto> GetSchedule(string key, long telegramId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return new List<MiniAppMasterScheduleDayDto>();
+
+            EnsureSchedule(master.Id);
+
+            var table = db.ExecuteQuery(@"
+                SELECT ""DayOfWeek"", ""StartTime"", ""EndTime"", ""IsActive""
+                FROM ""MasterSchedule""
+                WHERE ""MasterId"" = @masterId
+                ORDER BY ""DayOfWeek""
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            var schedule = new List<MiniAppMasterScheduleDayDto>();
+
+            foreach (DataRow row in table.Rows)
+            {
+                schedule.Add(new MiniAppMasterScheduleDayDto
+                {
+                    DayOfWeek = Convert.ToInt32(row["DayOfWeek"]),
+                    DayName = GetDayName(Convert.ToInt32(row["DayOfWeek"])),
+                    StartTime = FormatTime(row["StartTime"]),
+                    EndTime = FormatTime(row["EndTime"]),
+                    IsActive = Convert.ToBoolean(row["IsActive"])
+                });
+            }
+
+            return schedule;
+        }
+
+        public MiniAppMasterActionResult UpdateScheduleDay(string key, long telegramId, int day, MiniAppUpdateScheduleDayRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому расписанию");
+
+            if (day < 1 || day > 7)
+                return Failed("Неверный день недели");
+
+            var startText = NormalizeTime(request.StartTime);
+            var endText = NormalizeTime(request.EndTime);
+
+            if (!TimeSpan.TryParse(startText, out var start) || !TimeSpan.TryParse(endText, out var end))
+                return Failed("Время введено неверно");
+
+            if (start >= end)
+                return Failed("Время начала должно быть раньше конца");
+
+            EnsureSchedule(master.Id);
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""MasterSchedule""
+                SET
+                    ""StartTime"" = @startTime,
+                    ""EndTime"" = @endTime,
+                    ""IsActive"" = @isActive
+                WHERE ""MasterId"" = @masterId
+                AND ""DayOfWeek"" = @day
+            ",
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end),
+                new NpgsqlParameter("isActive", request.IsActive),
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("day", day));
+
+            return Ok("Расписание обновлено");
+        }
+
+        public List<MiniAppMasterBookingDto> GetBookings(string key, long telegramId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return new List<MiniAppMasterBookingDto>();
+
+            var dt = db.ExecuteQuery(@"
+                SELECT
+                    b.""idBooking"",
+                    b.""Date"",
+                    b.""Time"",
+                    b.""Status"",
+                    u.""TelegrammId"",
+                    u.""UserName"",
+                    s.""Name"" AS ""ServiceName"",
+                    COALESCE(s.""Price"", 0) AS ""Price"",
+                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent""
+                FROM ""Bookings"" b
+                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""MasterId"" = @masterId
+                AND b.""Status"" != 'completed'
+                ORDER BY b.""Date"" ASC, b.""Time"" ASC
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            var bookings = new List<MiniAppMasterBookingDto>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                var price = Convert.ToInt32(row["Price"]);
+                var percent = Convert.ToInt32(row["PrepaymentPercent"]);
+
+                bookings.Add(new MiniAppMasterBookingDto
+                {
+                    Id = Convert.ToInt32(row["idBooking"]),
+                    ClientTelegramId = Convert.ToInt64(row["TelegrammId"]),
+                    ClientUsername = row["UserName"]?.ToString(),
+                    ServiceName = row["ServiceName"]?.ToString(),
+                    DateTime = FormatBookingDateTime(row["Date"], row["Time"]),
+                    Status = row["Status"]?.ToString(),
+                    Price = price,
+                    PrepaymentPercent = percent,
+                    PrepaymentAmount = (price * percent) / 100
+                });
+            }
+
+            return bookings;
+        }
+
+        public async Task<MiniAppMasterActionResult> AcceptBooking(string key, long telegramId, int bookingId)
+        {
+            var booking = GetBookingForAction(key, telegramId, bookingId);
+
+            if (booking == null)
+                return Failed("Запись не найдена");
+
+            var status = booking["Status"]?.ToString();
+
+            if (status != "pending")
+                return Failed("Эту запись уже нельзя подтвердить");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Bookings""
+                SET ""Status"" = 'confirmed'
+                WHERE ""idBooking"" = @bookingId
+            ", new NpgsqlParameter("bookingId", bookingId));
+
+            var clientId = Convert.ToInt64(booking["TelegrammId"]);
+            var date = (DateOnly)booking["Date"];
+            var time = (TimeOnly)booking["Time"];
+            var appointmentTime = date.ToDateTime(time);
+            var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var durationMinutes = Convert.ToInt32(booking["Duration"]);
+
+            await BookingJobs.BotClient.SendMessage(
+                clientId,
+                "✅ Ваша запись подтверждена",
+                replyMarkup: ClientMenuKeyboard());
+
+            BookingJobs.ScheduleAllReminders(
+                bookingId,
+                clientId,
+                appointmentTime,
+                serviceName,
+                durationMinutes);
+
+            return Ok("Запись подтверждена");
+        }
+
+        public async Task<MiniAppMasterActionResult> CancelBooking(string key, long telegramId, int bookingId)
+        {
+            var booking = GetBookingForAction(key, telegramId, bookingId);
+
+            if (booking == null)
+                return Failed("Запись не найдена");
+
+            var status = booking["Status"]?.ToString();
+
+            if (status == "cancelled" || status == "completed")
+                return Failed("Эту запись уже нельзя отменить");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Bookings""
+                SET ""Status"" = 'cancelled'
+                WHERE ""idBooking"" = @bookingId
+            ", new NpgsqlParameter("bookingId", bookingId));
+
+            var clientId = Convert.ToInt64(booking["TelegrammId"]);
+
+            await BookingJobs.BotClient.SendMessage(
+                clientId,
+                "❌ Ваша запись отменена мастером",
+                replyMarkup: ClientMenuKeyboard());
+
+            return Ok("Запись отменена");
+        }
+
+        public async Task<MiniAppMasterActionResult> AcceptPayment(string key, long telegramId, int bookingId)
+        {
+            var booking = GetBookingForAction(key, telegramId, bookingId);
+
+            if (booking == null)
+                return Failed("Запись не найдена");
+
+            if (booking["Status"]?.ToString() != "waiting_payment_confirm")
+                return Failed("Эта запись не ожидает подтверждения оплаты");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Bookings""
+                SET ""Status"" = 'confirmed'
+                WHERE ""idBooking"" = @bookingId
+            ", new NpgsqlParameter("bookingId", bookingId));
+
+            var clientId = Convert.ToInt64(booking["TelegrammId"]);
+            var date = (DateOnly)booking["Date"];
+            var time = (TimeOnly)booking["Time"];
+            var appointmentTime = date.ToDateTime(time);
+            var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var durationMinutes = Convert.ToInt32(booking["Duration"]);
+
+            await BookingJobs.BotClient.SendMessage(
+                clientId,
+                "✅ Предоплата подтверждена\n\n🎉 Запись успешно подтверждена",
+                replyMarkup: ClientMenuKeyboard());
+
+            BookingJobs.ScheduleAllReminders(
+                bookingId,
+                clientId,
+                appointmentTime,
+                serviceName,
+                durationMinutes);
+
+            return Ok("Предоплата подтверждена");
+        }
+
+        public async Task<MiniAppMasterActionResult> RejectPayment(string key, long telegramId, int bookingId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Запись не найдена");
+
+            var table = db.ExecuteQuery(@"
+                SELECT
+                    u.""TelegrammId"",
+                    s.""Name"" AS ""ServiceName"",
+                    s.""Price"",
+                    s.""PrepaymentPercent"",
+                    m.""PaymentDetails""
+                FROM ""Bookings"" b
+                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+                WHERE b.""idBooking"" = @bookingId
+                AND b.""MasterId"" = @masterId
+                AND b.""Status"" = 'waiting_payment_confirm'
+                LIMIT 1
+            ",
+                new NpgsqlParameter("bookingId", bookingId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            if (table.Rows.Count == 0)
+                return Failed("Эта запись не ожидает подтверждения оплаты");
+
+            var row = table.Rows[0];
+            var clientId = Convert.ToInt64(row["TelegrammId"]);
+            var serviceName = row["ServiceName"]?.ToString() ?? "Услуга";
+            var price = Convert.ToInt32(row["Price"]);
+            var percent = Convert.ToInt32(row["PrepaymentPercent"]);
+            var prepaymentAmount = (price * percent) / 100;
+            var paymentDetails = row["PaymentDetails"] != DBNull.Value
+                ? row["PaymentDetails"]?.ToString()
+                : "Реквизиты не указаны";
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Bookings""
+                SET ""Status"" = 'waiting_payment'
+                WHERE ""idBooking"" = @bookingId
+            ", new NpgsqlParameter("bookingId", bookingId));
+
+            await BookingJobs.BotClient.SendMessage(
+                clientId,
+                $"❌ Мастер не подтвердил оплату\n\n" +
+                $"💼 {serviceName}\n" +
+                $"💸 Предоплата: {prepaymentAmount}₽\n\n" +
+                $"Проверьте перевод и попробуйте снова\n\n" +
+                $"Реквизиты:\n{paymentDetails}",
+                replyMarkup: PaymentKeyboard(bookingId));
+
+            return Ok("Оплата отклонена");
         }
 
         public List<MiniAppMasterServiceDto> GetServices(string key)
@@ -284,6 +615,128 @@ namespace Zapiski.Pro.MiniApp.Repositories
         private static MiniAppMasterActionResult Failed(string message)
         {
             return new MiniAppMasterActionResult { Success = false, Message = message };
+        }
+
+        private DataRow? GetBookingForAction(string key, long telegramId, int bookingId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return null;
+
+            var dt = db.ExecuteQuery(@"
+                SELECT
+                    b.""idBooking"",
+                    b.""Date"",
+                    b.""Time"",
+                    b.""Status"",
+                    u.""TelegrammId"",
+                    s.""Name"" AS ""ServiceName"",
+                    s.""Duration""
+                FROM ""Bookings"" b
+                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""idBooking"" = @bookingId
+                AND b.""MasterId"" = @masterId
+                LIMIT 1
+            ",
+                new NpgsqlParameter("bookingId", bookingId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return dt.Rows.Count == 0 ? null : dt.Rows[0];
+        }
+
+        private static InlineKeyboardMarkup ClientMenuKeyboard()
+        {
+            return new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
+                }
+            });
+        }
+
+        private static InlineKeyboardMarkup PaymentKeyboard(int bookingId)
+        {
+            return new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("✅ Я оплатил", $"client:paid_booking:{bookingId}")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
+                }
+            });
+        }
+
+        private void EnsureSchedule(int masterId)
+        {
+            var count = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""MasterSchedule""
+                WHERE ""MasterId"" = @masterId
+            ", new NpgsqlParameter("masterId", masterId)));
+
+            if (count > 0)
+                return;
+
+            for (var day = 1; day <= 7; day++)
+            {
+                var isWorkDay = day <= 5;
+
+                db.ExecuteNonQuery(@"
+                    INSERT INTO ""MasterSchedule""
+                        (""MasterId"", ""DayOfWeek"", ""StartTime"", ""EndTime"", ""IsActive"")
+                    VALUES
+                        (@masterId, @day, @startTime, @endTime, @isActive)
+                ",
+                    new NpgsqlParameter("masterId", masterId),
+                    new NpgsqlParameter("day", day),
+                    new NpgsqlParameter("startTime", TimeSpan.Parse("09:00")),
+                    new NpgsqlParameter("endTime", TimeSpan.Parse("18:00")),
+                    new NpgsqlParameter("isActive", isWorkDay));
+            }
+        }
+
+        private static string FormatTime(object value)
+        {
+            if (value == DBNull.Value)
+                return "";
+
+            if (value is TimeOnly timeOnly)
+                return timeOnly.ToString("HH:mm");
+
+            if (TimeSpan.TryParse(value.ToString(), out var timeSpan))
+                return timeSpan.ToString(@"hh\:mm");
+
+            return "";
+        }
+
+        private static string NormalizeTime(string value)
+        {
+            return (value ?? string.Empty)
+                .Trim()
+                .Replace(" ", "")
+                .Replace("–", "-")
+                .Replace("—", "-");
+        }
+
+        private static string GetDayName(int day)
+        {
+            return day switch
+            {
+                1 => "Понедельник",
+                2 => "Вторник",
+                3 => "Среда",
+                4 => "Четверг",
+                5 => "Пятница",
+                6 => "Суббота",
+                7 => "Воскресенье",
+                _ => "День"
+            };
         }
 
         private static string? FormatBookingDateTime(object dateValue, object timeValue)
