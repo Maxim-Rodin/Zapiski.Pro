@@ -497,6 +497,150 @@ body {
   color: #d93030;
 }
 
+.bookingTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #edf5ff;
+}
+
+.bookingTabs button {
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #59697c;
+  padding: 10px;
+  font-weight: 800;
+}
+
+.bookingTabs button.active {
+  background: #ffffff;
+  color: #102033;
+  box-shadow: 0 6px 16px rgba(15, 52, 96, 0.08);
+}
+
+.bookingTabs span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #4b8df7;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.bookingToolbar {
+  display: grid;
+  grid-template-columns: 1fr 52px;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bookingModeSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #edf5ff;
+}
+
+.bookingModeSwitch button,
+.historyIconButton {
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+}
+
+.bookingModeSwitch button {
+  background: transparent;
+  color: #59697c;
+  padding: 10px;
+}
+
+.bookingModeSwitch button.active,
+.historyIconButton.active {
+  background: #ffffff;
+  color: #102033;
+  box-shadow: 0 6px 16px rgba(15, 52, 96, 0.08);
+}
+
+.historyIconButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid #dce8f6;
+  background: #edf5ff;
+  color: #4b8df7;
+}
+
+.historyIconButton span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 21px;
+  height: 21px;
+  border-radius: 999px;
+  background: #4b8df7;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 21px;
+}
+
+.calendarBookingsView {
+  display: grid;
+  gap: 12px;
+}
+
+.calendarDayColumn {
+  border: 1px solid #e4edf8;
+  border-radius: 18px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.calendarDayHeader {
+  padding: 12px;
+  background: #eaf3ff;
+  color: #102033;
+  font-weight: 900;
+}
+
+.calendarBookingRow {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid #e4edf8;
+}
+
+.calendarBookingRow > span {
+  color: #4b8df7;
+  font-weight: 900;
+}
+
+.calendarBookingRow strong,
+.calendarBookingRow small {
+  display: block;
+}
+
+.calendarBookingRow small {
+  margin-top: 2px;
+  color: #6b7888;
+  font-size: 12px;
+}
+
 .masterBookingsList {
   display: grid;
   gap: 12px;
@@ -1071,6 +1215,54 @@ body {
   line-height: 1.45;
 }
 
+.publicSlotsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.publicSlotChip {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  border: 1px solid #cdebd9;
+  border-radius: 16px;
+  background: #f4fff8;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.publicSlotChip svg {
+  grid-row: 1 / 3;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #dcf8e7;
+  color: #1f9d55;
+  box-sizing: border-box;
+}
+
+.publicSlotChip span {
+  min-width: 0;
+  color: #6b7888;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.publicSlotChip strong {
+  color: #102033;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .publicCardHeader {
   display: flex;
   align-items: center;
@@ -1153,6 +1345,8 @@ body {
   border-radius: 14px;
   background: #f8fbff;
   padding: 10px;
+  color: inherit;
+  text-decoration: none;
 }
 
 .publicServiceRowWithAction {
@@ -1472,6 +1666,96 @@ body {
   padding: 14px;
   font-size: 15px;
   font-weight: 700;
+}
+
+.primaryButton:disabled {
+  opacity: 0.7;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.broadcastTextarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.broadcastClientList {
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.broadcastClientButton {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 12px;
+  color: #102033;
+  text-align: left;
+}
+
+.broadcastClientButton.active {
+  border-color: #4b8df7;
+  background: #eef5ff;
+  box-shadow: 0 10px 24px rgba(75, 141, 247, 0.15);
+}
+
+.broadcastClientButton strong,
+.broadcastClientButton small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.broadcastClientButton small {
+  margin-top: 4px;
+  color: #6b7888;
+  font-size: 12px;
+}
+
+.broadcastPreview {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.broadcastPreview > span {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #eaf3ff;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.broadcastPreview strong,
+.broadcastPreview p {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.broadcastPreview p {
+  margin: 5px 0 0;
+  color: #5e6d80;
+  font-size: 13px;
 }
 
 .deleteButton {

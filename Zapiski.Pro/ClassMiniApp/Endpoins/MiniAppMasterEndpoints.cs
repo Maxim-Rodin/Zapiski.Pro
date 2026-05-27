@@ -210,6 +210,19 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 return Results.Ok(result);
             });
+
+            app.MapPost("/api/master/{key}/broadcast", async (HttpRequest httpRequest, string key, MiniAppMasterBroadcastRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.SendBroadcast(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
         }
 
         private static bool TryGetTelegramId(HttpRequest httpRequest, out long telegramId)

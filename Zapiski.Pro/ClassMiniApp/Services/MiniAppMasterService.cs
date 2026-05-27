@@ -146,5 +146,21 @@ namespace Zapiski.Pro.MiniApp.Services
 
             return repository.UpdateService(key.Trim(), serviceId, request);
         }
+
+        public async Task<MiniAppMasterActionResult> SendBroadcast(string key, long telegramId, MiniAppMasterBroadcastRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.SendBroadcast(key.Trim(), telegramId, request);
+        }
+
+        public async Task<MiniAppMasterActionResult> SendPersonalBroadcast(string key, long telegramId, long clientTelegramId, MiniAppMasterBroadcastRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return await repository.SendPersonalBroadcast(key.Trim(), telegramId, clientTelegramId, request);
+        }
     }
 }

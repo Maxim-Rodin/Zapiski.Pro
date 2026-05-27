@@ -80,6 +80,12 @@
         public string Description { get; set; }
     }
 
+    public class MiniAppMasterBroadcastRequest
+    {
+        public string Title { get; set; }
+        public string Text { get; set; }
+    }
+
     public class MiniAppMasterActionResult
     {
         public bool Success { get; set; }

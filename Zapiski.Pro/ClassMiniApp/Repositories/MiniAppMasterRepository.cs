@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using Npgsql;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using Zapisi.Pro;
 using Zapiski.Pro.BasedClasses;
@@ -268,8 +269,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                 JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
                 WHERE b.""MasterId"" = @masterId
-                AND b.""Status"" != 'completed'
-                ORDER BY b.""Date"" ASC, b.""Time"" ASC
+                ORDER BY b.""Date"" DESC, b.""Time"" DESC
             ", new NpgsqlParameter("masterId", master.Id));
 
             var bookings = new List<MiniAppMasterBookingDto>();
@@ -320,10 +320,16 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
+            var masterName = GetMasterByKey(key)?.Name;
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
-                "✅ Ваша запись подтверждена",
+                $"✅ Запись подтверждена мастером\n\n" +
+                $"👤 Мастер: {masterName ?? key}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Ждём вас в назначенное время.",
                 replyMarkup: ClientMenuKeyboard());
 
             BookingJobs.ScheduleAllReminders(
@@ -355,10 +361,18 @@ namespace Zapiski.Pro.MiniApp.Repositories
             ", new NpgsqlParameter("bookingId", bookingId));
 
             var clientId = Convert.ToInt64(booking["TelegrammId"]);
+            var date = (DateOnly)booking["Date"];
+            var time = (TimeOnly)booking["Time"];
+            var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var masterName = GetMasterByKey(key)?.Name;
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
-                "❌ Ваша запись отменена мастером",
+                $"❌ Запись отменена мастером\n\n" +
+                $"👤 Мастер: {masterName ?? key}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
                 replyMarkup: ClientMenuKeyboard());
 
             return Ok("Запись отменена");
@@ -386,10 +400,16 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
+            var masterName = GetMasterByKey(key)?.Name;
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
-                "✅ Предоплата подтверждена\n\n🎉 Запись успешно подтверждена",
+                $"✅ Предоплата подтверждена мастером\n\n" +
+                $"🎉 Запись успешно подтверждена\n\n" +
+                $"👤 Мастер: {masterName ?? key}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
                 replyMarkup: ClientMenuKeyboard());
 
             BookingJobs.ScheduleAllReminders(
@@ -412,6 +432,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var table = db.ExecuteQuery(@"
                 SELECT
                     u.""TelegrammId"",
+                    b.""Date"",
+                    b.""Time"",
                     s.""Name"" AS ""ServiceName"",
                     s.""Price"",
                     s.""PrepaymentPercent"",
@@ -434,6 +456,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var row = table.Rows[0];
             var clientId = Convert.ToInt64(row["TelegrammId"]);
             var serviceName = row["ServiceName"]?.ToString() ?? "Услуга";
+            var date = (DateOnly)row["Date"];
+            var time = (TimeOnly)row["Time"];
             var price = Convert.ToInt32(row["Price"]);
             var percent = Convert.ToInt32(row["PrepaymentPercent"]);
             var prepaymentAmount = (price * percent) / 100;
@@ -451,6 +475,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 clientId,
                 $"❌ Мастер не подтвердил оплату\n\n" +
                 $"💼 {serviceName}\n" +
+                $"📅 {date:dd.MM.yyyy}\n" +
+                $"⏰ {time:HH:mm}\n" +
                 $"💸 Предоплата: {prepaymentAmount}₽\n\n" +
                 $"Проверьте перевод и попробуйте снова\n\n" +
                 $"Реквизиты:\n{paymentDetails}",
@@ -607,6 +633,151 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Услуга удалена");
         }
 
+        public async Task<MiniAppMasterActionResult> SendBroadcast(string key, long telegramId, MiniAppMasterBroadcastRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
+
+            var title = request.Title?.Trim();
+            var text = request.Text?.Trim();
+
+            if (string.IsNullOrWhiteSpace(title))
+                return Failed("Введите заголовок рассылки");
+
+            if (string.IsNullOrWhiteSpace(text))
+                return Failed("Введите текст рассылки");
+
+            if (title.Length > 80)
+                return Failed("Заголовок слишком длинный");
+
+            if (text.Length > 900)
+                return Failed("Текст слишком длинный");
+
+            var clients = db.ExecuteQuery(@"
+                SELECT DISTINCT u.""TelegrammId""
+                FROM ""Bookings"" b
+                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                WHERE b.""MasterId"" = @masterId
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            if (clients.Rows.Count == 0)
+                return Failed("У мастера пока нет клиентов для рассылки");
+
+            var miniAppBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
+            var profileUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{master.Key}/public-profile";
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp("Открыть профиль мастера", new WebAppInfo(profileUrl))
+                }
+            });
+
+            var sent = 0;
+            var failed = 0;
+            var message =
+                $"📣 {title}\n\n" +
+                $"{text}\n\n" +
+                $"Мастер: @{master.Username}";
+
+            foreach (DataRow row in clients.Rows)
+            {
+                try
+                {
+                    await BookingJobs.BotClient.SendMessage(
+                        Convert.ToInt64(row["TelegrammId"]),
+                        message,
+                        replyMarkup: keyboard);
+
+                    sent++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            return Ok(failed == 0
+                ? $"Рассылка отправлена: {sent}"
+                : $"Рассылка отправлена: {sent}, не доставлено: {failed}");
+        }
+
+        public async Task<MiniAppMasterActionResult> SendPersonalBroadcast(string key, long telegramId, long clientTelegramId, MiniAppMasterBroadcastRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
+
+            var title = request.Title?.Trim();
+            var text = request.Text?.Trim();
+
+            if (string.IsNullOrWhiteSpace(title))
+                return Failed("Введите заголовок сообщения");
+
+            if (string.IsNullOrWhiteSpace(text))
+                return Failed("Введите текст сообщения");
+
+            if (title.Length > 80)
+                return Failed("Заголовок слишком длинный");
+
+            if (text.Length > 900)
+                return Failed("Текст слишком длинный");
+
+            var client = db.ExecuteQuery(@"
+                SELECT DISTINCT u.""TelegrammId"", u.""UserName""
+                FROM ""Bookings"" b
+                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                WHERE b.""MasterId"" = @masterId
+                AND u.""TelegrammId"" = @clientTelegramId
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("clientTelegramId", clientTelegramId));
+
+            if (client.Rows.Count == 0)
+                return Failed("Клиент не найден у этого мастера");
+
+            var miniAppBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
+            var profileUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{master.Key}/public-profile";
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithWebApp("Открыть профиль мастера", new WebAppInfo(profileUrl))
+                }
+            });
+
+            var username = client.Rows[0]["UserName"]?.ToString() ?? "client";
+            var message =
+                $"📩 Личное сообщение от мастера\n\n" +
+                $"📣 {title}\n\n" +
+                $"{text}\n\n" +
+                $"Мастер: @{master.Username}";
+
+            try
+            {
+                await BookingJobs.BotClient.SendMessage(
+                    clientTelegramId,
+                    message,
+                    replyMarkup: keyboard);
+            }
+            catch
+            {
+                return Failed("Не удалось доставить сообщение клиенту");
+            }
+
+            return Ok($"Сообщение отправлено @{username}");
+        }
+
         private static MiniAppMasterActionResult Ok(string message)
         {
             return new MiniAppMasterActionResult { Success = true, Message = message };
@@ -631,6 +802,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     b.""Time"",
                     b.""Status"",
                     u.""TelegrammId"",
+                    u.""UserName"",
                     s.""Name"" AS ""ServiceName"",
                     s.""Duration""
                 FROM ""Bookings"" b

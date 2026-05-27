@@ -113,6 +113,11 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (!DateTime.TryParse(dateText, out var date))
                 return new List<MiniAppBookingSlotDto>();
 
+            var now = GetCurrentBusinessTime();
+
+            if (date.Date < now.Date)
+                return new List<MiniAppBookingSlotDto>();
+
             var masterId = db.GetMasterIdByKey(masterKey);
             var day = ToScheduleDay(date.DayOfWeek);
 
@@ -159,6 +164,9 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             for (var time = start; time + TimeSpan.FromMinutes(duration) <= end; time += TimeSpan.FromMinutes(duration))
             {
+                if (date.Date == now.Date && time <= now.TimeOfDay)
+                    continue;
+
                 slots.Add(new MiniAppBookingSlotDto
                 {
                     Time = time.ToString(@"hh\:mm"),
@@ -174,11 +182,16 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (!DateTime.TryParse(request.Date, out var date))
                 return FailedBooking("Неверная дата");
 
-            if (date.Date < DateTime.Today)
+            var now = GetCurrentBusinessTime();
+
+            if (date.Date < now.Date)
                 return FailedBooking("Нельзя записаться на прошедшую дату");
 
             if (!TimeSpan.TryParse(request.Time, out var time))
                 return FailedBooking("Неверное время");
+
+            if (date.Date == now.Date && time <= now.TimeOfDay)
+                return FailedBooking("Это время уже прошло");
 
             var safeMasterKey = (request.MasterKey ?? string.Empty).Replace("'", "''");
             var masterTable = db.ExecuteQuery($@"
@@ -316,7 +329,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             {
                 await BookingJobs.BotClient.SendMessage(
                     telegramId,
-                    $"💳 Для подтверждения записи требуется предоплата\n\n" +
+                    $"💳 Запись создана, нужна предоплата\n\n" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"💰 Стоимость: {price}₽\n" +
                     $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n\n" +
@@ -330,17 +343,22 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             {
                 await BookingJobs.BotClient.SendMessage(
                     telegramId,
-                    "✅ Запись создана!\n⏳ Ожидает подтверждения мастера",
+                    $"✅ Запись создана\n\n" +
+                    $"💼 Услуга: {serviceName}\n" +
+                    $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {timeText}\n\n" +
+                    $"⏳ Ожидает подтверждения мастера.",
                     replyMarkup: ClientMenuKeyboard());
 
                 await BookingJobs.BotClient.SendMessage(
                     masterTelegramId,
-                    $"📥 Новая запись!\n\n" +
-                    $"👤 @{username}\n" +
-                    $"💼 {serviceName}\n" +
-                    $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {timeText}\n\n" +
-                    $"Подтвердить?",
+                    $"📥 Новая запись от клиента\n\n" +
+                    $"👤 Клиент: @{username}\n" +
+                    $"🆔 Telegram ID: {telegramId}\n" +
+                    $"💼 Услуга: {serviceName}\n" +
+                    $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {timeText}\n\n" +
+                    $"Подтвердить запись?",
                     replyMarkup: MasterBookingKeyboard(request.MasterKey, bookingId));
             }
 
@@ -365,6 +383,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     b.""Date"",
                     b.""Time"",
                     b.""Status"",
+                    u.""UserName"",
                     s.""Name"" AS ""ServiceName"",
                     s.""Price"",
                     s.""PrepaymentPercent"",
@@ -396,6 +415,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var masterTelegramId = Convert.ToInt64(record["MasterTelegramId"]);
             var masterKey = record["MasterKey"]?.ToString() ?? "";
+            var username = record["UserName"]?.ToString() ?? "unknown";
             var serviceName = record["ServiceName"]?.ToString() ?? "Услуга";
             var price = Convert.ToInt32(record["Price"]);
             var percent = Convert.ToInt32(record["PrepaymentPercent"]);
@@ -405,13 +425,19 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             await BookingJobs.BotClient.SendMessage(
                 telegramId,
-                "⏳ Ожидаем подтверждение оплаты от мастера",
+                $"⏳ Оплата отправлена мастеру на проверку\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Мастер подтвердит получение оплаты.",
                 replyMarkup: ClientMenuKeyboard());
 
             await BookingJobs.BotClient.SendMessage(
                 masterTelegramId,
-                $"💸 Клиент отправил предоплату\n\n" +
-                $"💼 {serviceName}\n" +
+                $"💸 Клиент отметил предоплату\n\n" +
+                $"👤 Клиент: @{username}\n" +
+                $"🆔 Telegram ID: {telegramId}\n" +
+                $"💼 Услуга: {serviceName}\n" +
                 $"💰 Сумма: {prepaymentAmount}₽\n" +
                 $"📅 {date:dd.MM.yyyy}\n" +
                 $"⏰ {time:HH:mm}\n\n" +
@@ -467,7 +493,6 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
                 JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
                 WHERE b.""UserId"" = {userId}
-                AND b.""Status"" != 'cancelled'
                 ORDER BY b.""Date"" DESC, b.""Time"" DESC
             ");
 
@@ -615,6 +640,29 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 DayOfWeek.Sunday => 7,
                 _ => 0
             };
+        }
+
+        private static DateTime GetCurrentBusinessTime()
+        {
+            try
+            {
+                return TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow"));
+            }
+            catch
+            {
+                try
+                {
+                    return TimeZoneInfo.ConvertTimeFromUtc(
+                        DateTime.UtcNow,
+                        TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time"));
+                }
+                catch
+                {
+                    return DateTime.Now;
+                }
+            }
         }
     }
 }
