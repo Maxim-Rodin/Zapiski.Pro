@@ -619,6 +619,129 @@ body {
   scroll-snap-type: x proximity;
 }
 
+.bookingCalendarPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.bookingDateStrip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scroll-snap-type: x proximity;
+}
+
+.bookingDateStrip button {
+  flex: 0 0 66px;
+  min-height: 76px;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+  color: #59697c;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 9px 8px;
+  scroll-snap-align: start;
+}
+
+.bookingDateStrip button.active {
+  border-color: #4b8df7;
+  background: #4b8df7;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(75, 141, 247, 0.28);
+}
+
+.bookingDateStrip span {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.bookingDateStrip strong {
+  color: #102033;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.bookingDateStrip button.active strong {
+  color: #ffffff;
+}
+
+.bookingDateStrip small {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bookingDayTimeline {
+  border: 1px solid #e4edf8;
+  border-radius: 18px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+
+.bookingDayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  background: #eaf3ff;
+}
+
+.bookingDayHeader span {
+  color: #4b8df7;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.bookingDayHeader strong {
+  color: #102033;
+  font-size: 16px;
+}
+
+.bookingTimelineRow {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e4edf8;
+}
+
+.bookingTimelineRow time {
+  color: #4b8df7;
+  font-size: 15px;
+  font-weight: 900;
+  padding-top: 11px;
+}
+
+.bookingTimelineCard {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 52, 96, 0.06);
+}
+
+.bookingTimelineCard strong,
+.bookingTimelineCard small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.bookingTimelineCard small {
+  margin-top: 4px;
+  color: #6b7888;
+  font-size: 12px;
+}
+
 .calendarDayColumn {
   border: 1px solid #e4edf8;
   border-radius: 18px;

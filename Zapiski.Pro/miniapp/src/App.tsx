@@ -1306,6 +1306,7 @@ function MasterBookingsPage() {
   const [message, setMessage] = useState("")
   const [bookingMode, setBookingMode] = useState<"list" | "calendar">("list")
   const [showHistory, setShowHistory] = useState(false)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState("")
 
   function loadBookings() {
     if (!key) return
@@ -1376,6 +1377,19 @@ function MasterBookingsPage() {
     return groups
   }, {})
   const calendarDates = Object.keys(calendarGroups).sort(compareBookingDates)
+  const calendarDatesKey = calendarDates.join("|")
+  const selectedDayBookings = selectedCalendarDate ? calendarGroups[selectedCalendarDate] ?? [] : []
+
+  useEffect(() => {
+    if (calendarDates.length === 0) {
+      setSelectedCalendarDate("")
+      return
+    }
+
+    if (!selectedCalendarDate || !calendarDates.includes(selectedCalendarDate)) {
+      setSelectedCalendarDate(calendarDates[0])
+    }
+  }, [calendarDatesKey, selectedCalendarDate])
 
   function renderMasterBookingCard(booking: MasterBooking) {
     return (
@@ -1480,31 +1494,55 @@ function MasterBookingsPage() {
         ) : visibleBookings.length === 0 ? (
           <div className="emptyLine">{showHistory ? "История пока пустая" : "Активных записей пока нет"}</div>
         ) : !showHistory && bookingMode === "calendar" ? (
-          <div className="calendarBookingsView">
-            {calendarDates.map((date) => (
-              <div className="calendarDayColumn" key={date}>
-                <div className="calendarDayHeader">
-                  <span>{getWeekdayLabel(date)}</span>
-                  <strong>{date}</strong>
-                </div>
-                {calendarGroups[date]
+          <div className="bookingCalendarPanel">
+            <div className="bookingDateStrip">
+              {calendarDates.map((date) => {
+                const [day, month] = date.split(".")
+
+                return (
+                  <button
+                    type="button"
+                    className={selectedCalendarDate === date ? "active" : ""}
+                    key={date}
+                    onClick={() => setSelectedCalendarDate(date)}
+                  >
+                    <span>{getWeekdayLabel(date)}</span>
+                    <strong>{day}</strong>
+                    <small>{month}</small>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="bookingDayTimeline">
+              <div className="bookingDayHeader">
+                <span>{selectedCalendarDate ? getWeekdayLabel(selectedCalendarDate) : ""}</span>
+                <strong>{selectedCalendarDate || "Выберите дату"}</strong>
+              </div>
+
+              {selectedDayBookings.length === 0 ? (
+                <div className="emptyLine">На этот день записей нет</div>
+              ) : (
+                selectedDayBookings
                   .slice()
                   .sort((first, second) => splitBookingDateTime(first.dateTime).time.localeCompare(splitBookingDateTime(second.dateTime).time))
                   .map((booking) => {
                     const { time } = splitBookingDateTime(booking.dateTime)
                     return (
-                      <div className="calendarBookingRow" key={booking.id}>
-                        <span>{time}</span>
-                        <div>
-                          <strong>@{booking.clientUsername || booking.clientTelegramId}</strong>
-                          <small>{booking.serviceName || "Услуга"}</small>
+                      <div className="bookingTimelineRow" key={booking.id}>
+                        <time>{time}</time>
+                        <div className="bookingTimelineCard">
+                          <div>
+                            <strong>@{booking.clientUsername || booking.clientTelegramId}</strong>
+                            <small>{booking.serviceName || "Услуга"}</small>
+                          </div>
+                          <StatusBadge status={booking.status} />
                         </div>
-                        <StatusBadge status={booking.status} />
                       </div>
                     )
-                  })}
-              </div>
-            ))}
+                  })
+              )}
+            </div>
           </div>
         ) : (
           visibleBookings.map((booking) => renderMasterBookingCard(booking))
