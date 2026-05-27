@@ -421,6 +421,14 @@ namespace Zapisi.Pro.CallBacks
             }
 
             var record = row.Rows[0];
+            var status = record["Status"]?.ToString();
+
+            if (status == "cancelled" || status == "completed")
+            {
+                await botClient.AnswerCallbackQuery(query.Id, "Запись уже обработана");
+                await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, "Эта запись уже обработана");
+                return;
+            }
 
             string username = record["UserName"]?.ToString() ?? "без username";
             string service = record["ServiceName"].ToString();

@@ -8,6 +8,7 @@
         public string Username { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string PaymentDetails { get; set; } = string.Empty;
     }
 
     public class MiniAppMasterClientDto
@@ -78,6 +79,7 @@
     {
         public string Name { get; set; }
         public string Description { get; set; }
+        public string PaymentDetails { get; set; }
     }
 
     public class MiniAppMasterBroadcastRequest

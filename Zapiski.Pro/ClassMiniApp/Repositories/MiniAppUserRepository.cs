@@ -315,6 +315,9 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 ? masterData["PaymentDetails"]?.ToString()
                 : "Реквизиты не указаны";
 
+            if (prepaymentPercent > 0 && string.IsNullOrWhiteSpace(paymentDetails))
+                return FailedBooking("Мастер еще не указал реквизиты для предоплаты");
+
             var bookingTable = db.ExecuteQuery($@"
                 INSERT INTO ""Bookings""
                     (""MasterId"", ""ServiceId"", ""UserId"", ""Date"", ""Time"", ""Status"")

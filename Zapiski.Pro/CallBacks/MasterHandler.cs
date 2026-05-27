@@ -183,6 +183,15 @@ namespace Zapisi.Pro.CallBacks
         {
             int bookingId = int.Parse(data.SubAction);
 
+            var currentStatus = db.ExecuteScalar($@"SELECT ""Status"" FROM ""Bookings"" WHERE ""idBooking"" = {bookingId}")?.ToString();
+
+            if (currentStatus != "waiting_payment_confirm")
+            {
+                await botClient.AnswerCallbackQuery(query.Id, "Запись уже обработана");
+                await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, "Эта запись уже обработана");
+                return;
+            }
+
             // ─────────────────────────────
             // ПОЛУЧАЕМ ДАННЫЕ
             // ─────────────────────────────
@@ -297,6 +306,15 @@ namespace Zapisi.Pro.CallBacks
             CallBackData data)
         {
             int bookingId = int.Parse(data.SubAction);
+
+            var currentStatus = db.ExecuteScalar($@"SELECT ""Status"" FROM ""Bookings"" WHERE ""idBooking"" = {bookingId}")?.ToString();
+
+            if (currentStatus != "waiting_payment_confirm")
+            {
+                await botClient.AnswerCallbackQuery(query.Id, "Запись уже обработана");
+                await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, "Эта запись уже обработана");
+                return;
+            }
 
             // ─────────────────────────────
             // ДАННЫЕ
@@ -1464,8 +1482,17 @@ namespace Zapisi.Pro.CallBacks
         {
             InlineKeyboardButton.WithCallbackData("🏠 В меню", "client:menu")
         }
-    });
+            });
             int bookingId = int.Parse(data.SubAction);
+
+            var currentStatus = db.ExecuteScalar($@"SELECT ""Status"" FROM ""Bookings"" WHERE ""idBooking"" = {bookingId}")?.ToString();
+
+            if (currentStatus != "pending")
+            {
+                await botClient.AnswerCallbackQuery(query.Id, "Запись уже обработана");
+                await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, "Эта запись уже обработана");
+                return;
+            }
 
             db.ExecuteNonQuery($@"
                         UPDATE ""Bookings""
@@ -1527,6 +1554,15 @@ namespace Zapisi.Pro.CallBacks
         }
     });
             int bookingId = int.Parse(data.SubAction);
+
+            var currentStatus = db.ExecuteScalar($@"SELECT ""Status"" FROM ""Bookings"" WHERE ""idBooking"" = {bookingId}")?.ToString();
+
+            if (currentStatus == "cancelled" || currentStatus == "completed")
+            {
+                await botClient.AnswerCallbackQuery(query.Id, "Запись уже обработана");
+                await botClient.EditMessageText(query.Message.Chat.Id, query.Message.MessageId, "Эта запись уже обработана");
+                return;
+            }
 
             db.ExecuteNonQuery($@"
                         UPDATE ""Bookings""

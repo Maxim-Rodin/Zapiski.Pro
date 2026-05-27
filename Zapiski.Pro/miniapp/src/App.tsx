@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react"
-import { Link, Route, Routes, useParams } from "react-router-dom"
+import { Link, Route, Routes, useParams, useSearchParams } from "react-router-dom"
 import {
   Bot,
   BriefcaseBusiness,
@@ -24,6 +24,7 @@ import {
   User,
   Users,
   X,
+  XCircle,
 } from "lucide-react"
 import { API_URL } from "./config"
 import "./App.css"
@@ -48,6 +49,7 @@ type Master = {
   username: string
   name: string
   description: string
+  paymentDetails: string
 }
 
 type MasterClient = {
@@ -91,6 +93,7 @@ type BookingSlot = {
 }
 
 type PublicAvailableSlot = {
+  serviceId: number
   date: string
   label: string
   time: string
@@ -190,6 +193,19 @@ const splitBookingDateTime = (dateTime: string | null) => {
   return { date, time }
 }
 
+const getWeekdayLabel = (dateText: string) => {
+  const [day, month, year] = dateText.split(".").map(Number)
+  const date = new Date(year, month - 1, day)
+  const weekdays = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+  return weekdays[date.getDay()] ?? ""
+}
+
+const compareBookingDates = (first: string, second: string) => {
+  const [firstDay, firstMonth, firstYear] = first.split(".").map(Number)
+  const [secondDay, secondMonth, secondYear] = second.split(".").map(Number)
+  return new Date(firstYear, firstMonth - 1, firstDay).getTime() - new Date(secondYear, secondMonth - 1, secondDay).getTime()
+}
+
 function App() {
   return (
     <Routes>
@@ -205,7 +221,7 @@ function App() {
       <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
-      <Route path="/master/:key/profile" element={<MasterComingSoon title="Профиль" />} />
+      <Route path="/master/:key/profile" element={<MasterProfilePage />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
       <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
       <Route path="/master/:key/public-booking" element={<PublicBookingStub />} />
@@ -710,6 +726,7 @@ function PublicProfileStub() {
         const nextSlots = items
           .flatMap(({ day, slots }) =>
             slots.map((slot: BookingSlot) => ({
+              serviceId: firstService.id,
               date: day.value,
               label: `${day.weekday}, ${day.day} ${day.month}`,
               time: slot.time,
@@ -760,6 +777,7 @@ function PublicProfileStub() {
       body: JSON.stringify({
         name: draftName,
         description: draftDescription,
+        paymentDetails: master.paymentDetails || "",
       }),
     })
       .then(async (res) => {
@@ -888,7 +906,7 @@ function PublicProfileStub() {
             <div className="emptyLine">Услуги пока не добавлены</div>
           ) : (
             visibleServices.map((service) => (
-              <Link to={`/master/${master.key}/public-booking`} className="publicServiceRow" key={service.id}>
+              <Link to={`/master/${master.key}/public-booking?serviceId=${service.id}`} className="publicServiceRow" key={service.id}>
                 <span className="publicServiceIcon">
                   <BriefcaseBusiness size={20} strokeWidth={2.3} />
                 </span>
@@ -927,7 +945,7 @@ function PublicProfileStub() {
           <div className="publicSlotsGrid">
             {availableSlots.map((slot) => (
               <Link
-                to={`/master/${master.key}/public-booking`}
+                to={`/master/${master.key}/public-booking?serviceId=${slot.serviceId}&date=${slot.date}&time=${slot.time}`}
                 className="publicSlotChip"
                 key={`${slot.date}-${slot.time}`}
               >
@@ -1022,7 +1040,7 @@ function PublicServicesPage() {
                       : " · без предоплаты"}
                   </small>
                 </div>
-                <Link to={`/master/${key}/public-booking`} className="publicServiceBookButton">
+                <Link to={`/master/${key}/public-booking?serviceId=${service.id}`} className="publicServiceBookButton">
                   Записаться
                 </Link>
               </div>
@@ -1038,12 +1056,13 @@ function PublicServicesPage() {
 
 function PublicBookingStub() {
   const { key } = useParams()
+  const [searchParams] = useSearchParams()
   const currentTelegramId = telegramId()
   const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user
   const [services, setServices] = useState<MasterServiceItem[]>([])
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null)
-  const [selectedDate, setSelectedDate] = useState(formatDateInput(new Date()))
-  const [selectedTime, setSelectedTime] = useState("")
+  const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || formatDateInput(new Date()))
+  const [selectedTime, setSelectedTime] = useState(searchParams.get("time") || "")
   const [slots, setSlots] = useState<BookingSlot[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -1057,8 +1076,11 @@ function PublicBookingStub() {
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : []
+        const serviceFromUrl = Number(searchParams.get("serviceId"))
+        const hasServiceFromUrl = list.some((service: MasterServiceItem) => service.id === serviceFromUrl)
+
         setServices(list)
-        setSelectedServiceId(list[0]?.id ?? null)
+        setSelectedServiceId(hasServiceFromUrl ? serviceFromUrl : list[0]?.id ?? null)
       })
       .catch(() => setMessage("Не удалось загрузить услуги"))
       .finally(() => setLoadingServices(false))
@@ -1068,11 +1090,23 @@ function PublicBookingStub() {
     if (!key || !selectedServiceId || !selectedDate) return
 
     setLoadingSlots(true)
-    setSelectedTime("")
+    const timeFromUrl = searchParams.get("time") || ""
+    setSelectedTime((currentTime) => (timeFromUrl && selectedDate === searchParams.get("date") ? timeFromUrl : currentTime))
 
     fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${selectedServiceId}&date=${selectedDate}`)
       .then((res) => res.json())
-      .then((data) => setSlots(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const nextSlots = Array.isArray(data) ? data : []
+        setSlots(nextSlots)
+
+        if (timeFromUrl && selectedDate === searchParams.get("date")) {
+          const exists = nextSlots.some((slot: BookingSlot) => slot.time === timeFromUrl && !slot.isBusy)
+          setSelectedTime(exists ? timeFromUrl : "")
+          return
+        }
+
+        setSelectedTime("")
+      })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false))
   }, [key, selectedServiceId, selectedDate])
@@ -1341,6 +1375,7 @@ function MasterBookingsPage() {
     groups[date] = [...(groups[date] ?? []), booking]
     return groups
   }, {})
+  const calendarDates = Object.keys(calendarGroups).sort(compareBookingDates)
 
   function renderMasterBookingCard(booking: MasterBooking) {
     return (
@@ -1446,10 +1481,13 @@ function MasterBookingsPage() {
           <div className="emptyLine">{showHistory ? "История пока пустая" : "Активных записей пока нет"}</div>
         ) : !showHistory && bookingMode === "calendar" ? (
           <div className="calendarBookingsView">
-            {Object.entries(calendarGroups).map(([date, dayBookings]) => (
+            {calendarDates.map((date) => (
               <div className="calendarDayColumn" key={date}>
-                <div className="calendarDayHeader">{date}</div>
-                {dayBookings
+                <div className="calendarDayHeader">
+                  <span>{getWeekdayLabel(date)}</span>
+                  <strong>{date}</strong>
+                </div>
+                {calendarGroups[date]
                   .slice()
                   .sort((first, second) => splitBookingDateTime(first.dateTime).time.localeCompare(splitBookingDateTime(second.dateTime).time))
                   .map((booking) => {
@@ -1910,7 +1948,8 @@ function UserBookingsSection({
                 <span>{booking.dateTime}</span>
                 {onCancel && booking.status !== "cancelled" && booking.status !== "completed" && (
                   <button type="button" className="inlineDangerButton" onClick={() => onCancel(booking.id)}>
-                    Отменить запись
+                    <XCircle size={15} strokeWidth={2.4} />
+                    <span>Отменить</span>
                   </button>
                 )}
               </div>
@@ -2246,6 +2285,7 @@ function MasterServicesPage() {
   const [message, setMessage] = useState("")
   const [loadError, setLoadError] = useState("")
   const [editingService, setEditingService] = useState<MasterServiceItem | null>(null)
+  const [hasPaymentDetails, setHasPaymentDetails] = useState(false)
 
   function loadServices() {
     setLoading(true)
@@ -2279,6 +2319,11 @@ function MasterServicesPage() {
 
   useEffect(() => {
     loadServices()
+
+    fetch(`${API_URL}/api/master/${key}`)
+      .then((res) => res.json())
+      .then((data) => setHasPaymentDetails(Boolean(data.paymentDetails?.trim())))
+      .catch(() => setHasPaymentDetails(false))
   }, [key])
 
   function resetServiceForm() {
@@ -2329,6 +2374,11 @@ function MasterServicesPage() {
 
     if (!Number.isInteger(prepaymentValue) || prepaymentValue < 0 || prepaymentValue > 100) {
       setMessage("Предоплата должна быть от 0 до 100%")
+      return
+    }
+
+    if (prepaymentValue > 0 && !hasPaymentDetails) {
+      setMessage("Сначала добавьте реквизиты в профиле мастера, потом можно включить предоплату")
       return
     }
 
@@ -2527,6 +2577,127 @@ function ServiceMeta({
   )
 }
 
+function MasterProfilePage() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const [master, setMaster] = useState<Master | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
+  const [paymentDetails, setPaymentDetails] = useState("")
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/master/${key}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Мастер не найден")
+
+        const data = await res.json()
+        setMaster(data)
+        setName(data.name || "")
+        setDescription(data.description || "")
+        setPaymentDetails(data.paymentDetails || "")
+      })
+      .catch((err) => setMessage(err.message || "Не удалось загрузить профиль"))
+      .finally(() => setLoading(false))
+  }, [key])
+
+  function saveProfile() {
+    if (!master) return
+
+    setMessage("Сохраняем...")
+
+    fetch(`${API_URL}/api/master/${key}/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        name,
+        description,
+        paymentDetails,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось сохранить профиль")
+        }
+
+        setMaster({
+          ...master,
+          name: name.trim(),
+          description: description.trim(),
+          paymentDetails: paymentDetails.trim(),
+        })
+        setMessage("Профиль сохранён")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка сохранения"))
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Профиль</h1>
+        <p>Основные данные мастера и реквизиты для предоплаты</p>
+      </header>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      <section className="adminCard serviceFormCard">
+        {loading ? (
+          <div className="emptyLine">Загружаем профиль...</div>
+        ) : !master ? (
+          <div className="emptyLine">Профиль не найден</div>
+        ) : (
+          <div className="addForm">
+            <label className="fieldLabel" htmlFor="masterName">Имя в публичном профиле</label>
+            <input
+              id="masterName"
+              className="adminInput"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Например: Анна Смирнова"
+            />
+
+            <label className="fieldLabel" htmlFor="masterDescription">Описание</label>
+            <textarea
+              id="masterDescription"
+              className="adminInput broadcastTextarea"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Расскажите клиентам о себе"
+            />
+
+            <div className="paymentDetailsNotice">
+              <CreditCard size={22} strokeWidth={2.4} />
+              <div>
+                <strong>Реквизиты для предоплаты</strong>
+                <p>Если хотите делать услуги с предоплатой, сначала заполните это поле.</p>
+              </div>
+            </div>
+
+            <textarea
+              className="adminInput broadcastTextarea"
+              value={paymentDetails}
+              onChange={(event) => setPaymentDetails(event.target.value)}
+              placeholder="Например: СБП +7..., банк, получатель"
+            />
+
+            <button className="primaryButton" type="button" onClick={saveProfile}>
+              Сохранить профиль
+            </button>
+          </div>
+        )}
+      </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
 function MasterComingSoon({ title }: { title: string }) {
   const { key } = useParams()
 
@@ -2552,6 +2723,8 @@ function MasterComingSoon({ title }: { title: string }) {
     </main>
   )
 }
+
+void MasterComingSoon
 
 function ComingSoon({
   title,

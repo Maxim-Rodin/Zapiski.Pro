@@ -492,9 +492,21 @@ body {
 
 .inlineDangerButton {
   width: fit-content;
-  margin-top: 9px;
-  background: #ffecec;
-  color: #d93030;
+  min-height: 34px;
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #f0b8b8;
+  background: #fff8f8;
+  color: #c83b3b;
+  padding: 8px 11px;
+  box-shadow: none;
+}
+
+.inlineDangerButton svg {
+  flex: 0 0 auto;
 }
 
 .bookingTabs {
@@ -599,7 +611,12 @@ body {
 
 .calendarBookingsView {
   display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(210px, 1fr);
   gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
 }
 
 .calendarDayColumn {
@@ -607,22 +624,44 @@ body {
   border-radius: 18px;
   background: #f8fbff;
   overflow: hidden;
+  min-width: 210px;
+  scroll-snap-align: start;
 }
 
 .calendarDayHeader {
+  display: grid;
+  gap: 3px;
   padding: 12px;
   background: #eaf3ff;
   color: #102033;
   font-weight: 900;
+  position: sticky;
+  top: 0;
+}
+
+.calendarDayHeader span {
+  color: #4b8df7;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.calendarDayHeader strong {
+  font-size: 16px;
 }
 
 .calendarBookingRow {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
-  align-items: center;
+  grid-template-columns: 52px 1fr;
+  align-items: start;
   gap: 10px;
   padding: 11px 12px;
   border-top: 1px solid #e4edf8;
+}
+
+.calendarBookingRow .statusBadge {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 6px;
 }
 
 .calendarBookingRow > span {
@@ -1754,6 +1793,32 @@ body {
 
 .broadcastPreview p {
   margin: 5px 0 0;
+  color: #5e6d80;
+  font-size: 13px;
+}
+
+.paymentDetailsNotice {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.paymentDetailsNotice svg {
+  color: #4b8df7;
+}
+
+.paymentDetailsNotice strong,
+.paymentDetailsNotice p {
+  display: block;
+}
+
+.paymentDetailsNotice p {
+  margin: 4px 0 0;
   color: #5e6d80;
   font-size: 13px;
 }

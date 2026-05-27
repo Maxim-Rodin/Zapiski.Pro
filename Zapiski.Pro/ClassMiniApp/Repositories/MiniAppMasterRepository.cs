@@ -28,6 +28,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     m.""Key"",
                     COALESCE(m.""Name"", '') AS ""Name"",
                     COALESCE(m.""Description"", '') AS ""Description"",
+                    COALESCE(m.""PaymentDetails"", '') AS ""PaymentDetails"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -48,7 +49,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 TelegramId = Convert.ToInt64(row["TelegrammId"]),
                 Username = row["UserName"]?.ToString(),
                 Name = row["Name"]?.ToString(),
-                Description = row["Description"]?.ToString()
+                Description = row["Description"]?.ToString(),
+                PaymentDetails = row["PaymentDetails"]?.ToString()
             };
         }
 
@@ -64,6 +66,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
             var name = request.Name?.Trim();
             var description = request.Description?.Trim() ?? string.Empty;
+            var paymentDetails = request.PaymentDetails?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(name))
                 return Failed("Введите имя мастера");
@@ -74,15 +77,20 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (description.Length > 1000)
                 return Failed("Описание слишком длинное");
 
+            if (paymentDetails.Length > 1000)
+                return Failed("Реквизиты слишком длинные");
+
             db.ExecuteNonQuery(@"
                 UPDATE ""Masters""
                 SET
                     ""Name"" = @name,
-                    ""Description"" = @description
+                    ""Description"" = @description,
+                    ""PaymentDetails"" = @paymentDetails
                 WHERE ""idMaster"" = @masterId
             ",
                 new NpgsqlParameter("name", name),
                 new NpgsqlParameter("description", description),
+                new NpgsqlParameter("paymentDetails", string.IsNullOrWhiteSpace(paymentDetails) ? DBNull.Value : paymentDetails),
                 new NpgsqlParameter("masterId", master.Id));
 
             return Ok("Профиль обновлён");
@@ -544,6 +552,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (request.PrepaymentPercent < 0 || request.PrepaymentPercent > 100)
                 return Failed("Предоплата должна быть от 0 до 100%");
 
+            if (request.PrepaymentPercent > 0 && string.IsNullOrWhiteSpace(master.PaymentDetails))
+                return Failed("Вы можете сделать предоплату после добавления реквизитов в профиле");
+
             db.ExecuteNonQuery(@"
                 INSERT INTO ""Services""
                     (""MasterId"", ""Name"", ""Price"", ""Duration"", ""PrepaymentPercent"")
@@ -579,6 +590,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
             if (request.PrepaymentPercent < 0 || request.PrepaymentPercent > 100)
                 return Failed("Предоплата должна быть от 0 до 100%");
+
+            if (request.PrepaymentPercent > 0 && string.IsNullOrWhiteSpace(master.PaymentDetails))
+                return Failed("Вы можете сделать предоплату после добавления реквизитов в профиле");
 
             var updated = db.ExecuteNonQuery(@"
                 UPDATE ""Services""
