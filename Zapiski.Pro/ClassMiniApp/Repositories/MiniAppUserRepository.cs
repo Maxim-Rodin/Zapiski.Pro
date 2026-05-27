@@ -136,7 +136,9 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (serviceTable.Rows.Count == 0)
                 return new List<MiniAppBookingSlotDto>();
 
-            var duration = Convert.ToInt32(serviceTable.Rows[0]["Duration"]);
+            var duration = serviceTable.Rows[0]["Duration"] == DBNull.Value
+                ? 60
+                : Convert.ToInt32(serviceTable.Rows[0]["Duration"]);
             var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
             var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
 
@@ -178,7 +180,18 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (!TimeSpan.TryParse(request.Time, out var time))
                 return FailedBooking("Неверное время");
 
-            var masterId = db.GetMasterIdByKey(request.MasterKey);
+            var safeMasterKey = (request.MasterKey ?? string.Empty).Replace("'", "''");
+            var masterTable = db.ExecuteQuery($@"
+                SELECT ""idMaster""
+                FROM ""Masters""
+                WHERE ""Key"" = '{safeMasterKey}'
+                LIMIT 1
+            ");
+
+            if (masterTable.Rows.Count == 0)
+                return FailedBooking("Мастер не найден");
+
+            var masterId = Convert.ToInt32(masterTable.Rows[0]["idMaster"]);
             var day = ToScheduleDay(date.DayOfWeek);
 
             var schedule = db.ExecuteQuery($@"
@@ -202,7 +215,9 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 return FailedBooking("Услуга не найдена");
 
             var service = serviceTable.Rows[0];
-            var duration = Convert.ToInt32(service["Duration"]);
+            var duration = service["Duration"] == DBNull.Value
+                ? 60
+                : Convert.ToInt32(service["Duration"]);
             var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
             var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
 
@@ -224,12 +239,28 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var safeUsername = (request.Username ?? "unknown").Replace("'", "''");
 
-            db.ExecuteNonQuery($@"
-                INSERT INTO ""Users"" (""TelegrammId"", ""UserName"")
-                VALUES ({telegramId}, '{safeUsername}')
-                ON CONFLICT (""TelegrammId"") DO UPDATE
-                SET ""UserName"" = EXCLUDED.""UserName""
+            var existingUser = db.ExecuteQuery($@"
+                SELECT ""idUser""
+                FROM ""Users""
+                WHERE ""TelegrammId"" = {telegramId}
+                LIMIT 1
             ");
+
+            if (existingUser.Rows.Count == 0)
+            {
+                db.ExecuteNonQuery($@"
+                    INSERT INTO ""Users"" (""TelegrammId"", ""UserName"")
+                    VALUES ({telegramId}, '{safeUsername}')
+                ");
+            }
+            else
+            {
+                db.ExecuteNonQuery($@"
+                    UPDATE ""Users""
+                    SET ""UserName"" = '{safeUsername}'
+                    WHERE ""TelegrammId"" = {telegramId}
+                ");
+            }
 
             var userTable = db.ExecuteQuery($@"
                 SELECT ""idUser"", ""UserName""
@@ -244,8 +275,12 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var userId = Convert.ToInt32(userTable.Rows[0]["idUser"]);
             var username = userTable.Rows[0]["UserName"]?.ToString() ?? "no_username";
             var serviceName = service["Name"]?.ToString() ?? "Услуга";
-            var price = Convert.ToInt32(service["Price"]);
-            var prepaymentPercent = Convert.ToInt32(service["PrepaymentPercent"]);
+            var price = service["Price"] == DBNull.Value
+                ? 0
+                : Convert.ToInt32(service["Price"]);
+            var prepaymentPercent = service["PrepaymentPercent"] == DBNull.Value
+                ? 0
+                : Convert.ToInt32(service["PrepaymentPercent"]);
             var prepaymentAmount = (price * prepaymentPercent) / 100;
             var status = prepaymentPercent > 0 ? "waiting_payment" : "pending";
 

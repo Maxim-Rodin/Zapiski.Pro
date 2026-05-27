@@ -662,13 +662,22 @@ namespace Zapisi.Pro.CallBacks
             }
             else
             {
+                var miniAppProfileUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{key}/public-profile";
+
                 keyboard = new InlineKeyboardMarkup(new[]
                 {
             new[]
             {
+                InlineKeyboardButton.WithWebApp(
+                    "📱 Открыть профиль",
+                    new WebAppInfo(miniAppProfileUrl)
+                )
+            },
+            new[]
+            {
                 InlineKeyboardButton.WithCallbackData("💼 Услуги", $"master:profile_services:{key}")
             }
-           
+            
         });
             }
 
