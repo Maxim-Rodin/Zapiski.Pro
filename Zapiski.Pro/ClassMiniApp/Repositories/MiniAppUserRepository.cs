@@ -224,12 +224,15 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (time < start || time + TimeSpan.FromMinutes(duration) > end)
                 return FailedBooking("Это время недоступно");
 
+            var timeSql = time.ToString(@"hh\:mm\:ss");
+            var timeText = time.ToString(@"hh\:mm");
+
             var check = db.ExecuteQuery($@"
                 SELECT 1
                 FROM ""Bookings""
                 WHERE ""MasterId"" = {masterId}
                 AND ""Date"" = '{date:yyyy-MM-dd}'
-                AND ""Time"" = '{time:hh\\:mm\\:ss}'
+                AND ""Time"" = '{timeSql}'
                 AND ""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
                 LIMIT 1
             ");
@@ -303,7 +306,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 INSERT INTO ""Bookings""
                     (""MasterId"", ""ServiceId"", ""UserId"", ""Date"", ""Time"", ""Status"")
                 VALUES
-                    ({masterId}, {request.ServiceId}, {userId}, '{date:yyyy-MM-dd}', '{time:hh\\:mm\\:ss}', '{status}')
+                    ({masterId}, {request.ServiceId}, {userId}, '{date:yyyy-MM-dd}', '{timeSql}', '{status}')
                 RETURNING ""idBooking""
             ");
 
@@ -318,7 +321,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"💰 Стоимость: {price}₽\n" +
                     $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n\n" +
                     $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {time:hh\\:mm}\n\n" +
+                    $"⏰ {timeText}\n\n" +
                     $"Реквизиты мастера:\n\n{paymentDetails}\n\n" +
                     $"После оплаты нажмите кнопку в mini app или ниже 👇",
                     replyMarkup: PaymentKeyboard(bookingId));
@@ -336,7 +339,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"👤 @{username}\n" +
                     $"💼 {serviceName}\n" +
                     $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {time:hh\\:mm}\n\n" +
+                    $"⏰ {timeText}\n\n" +
                     $"Подтвердить?",
                     replyMarkup: MasterBookingKeyboard(request.MasterKey, bookingId));
             }
