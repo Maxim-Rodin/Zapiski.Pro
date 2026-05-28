@@ -17,6 +17,7 @@ import {
   BadgePercent,
   Banknote,
   Pencil,
+  Phone,
   Trash2,
   Settings,
   ShieldCheck,
@@ -846,6 +847,12 @@ function PublicProfileStub() {
             </div>
           )}
           <p>@{master.username || "master"}</p>
+          {master.phoneNumber && (
+            <a className="publicPhoneLink" href={`tel:${master.phoneNumber}`}>
+              <Phone size={15} strokeWidth={2.3} />
+              {master.phoneNumber}
+            </a>
+          )}
           <span>Профиль в разработке</span>
         </div>
       </section>

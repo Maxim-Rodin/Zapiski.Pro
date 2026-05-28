@@ -1320,6 +1320,17 @@ body {
   font-size: 14px;
 }
 
+.publicPhoneLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: #3f86ef;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .publicMasterInfo span {
   display: inline-block;
   border-radius: 999px;
