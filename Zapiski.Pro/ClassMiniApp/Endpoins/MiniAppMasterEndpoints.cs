@@ -100,6 +100,19 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(result);
             });
 
+            app.MapPost("/api/master/{key}/time-blocks", (HttpRequest httpRequest, string key, MiniAppCreateTimeBlockRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.CreateTimeBlock(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
             app.MapPost("/api/master/{key}/bookings/{bookingId:int}/accept", async (HttpRequest httpRequest, string key, int bookingId) =>
             {
                 if (!TryGetTelegramId(httpRequest, out var telegramId))

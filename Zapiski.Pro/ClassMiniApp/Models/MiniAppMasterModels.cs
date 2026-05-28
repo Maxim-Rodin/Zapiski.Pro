@@ -9,6 +9,7 @@
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string PaymentDetails { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
     }
 
     public class MiniAppMasterClientDto
@@ -39,6 +40,15 @@
         public int Price { get; set; }
         public int PrepaymentPercent { get; set; }
         public int PrepaymentAmount { get; set; }
+        public bool IsManualBlock { get; set; }
+    }
+
+    public class MiniAppCreateTimeBlockRequest
+    {
+        public string Title { get; set; }
+        public string Date { get; set; }
+        public string StartTime { get; set; }
+        public string EndTime { get; set; }
     }
 
     public class MiniAppMasterScheduleDayDto
@@ -80,6 +90,7 @@
         public string Name { get; set; }
         public string Description { get; set; }
         public string PaymentDetails { get; set; }
+        public string PhoneNumber { get; set; }
     }
 
     public class MiniAppMasterBroadcastRequest

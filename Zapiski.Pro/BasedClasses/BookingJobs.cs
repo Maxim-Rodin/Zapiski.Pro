@@ -61,7 +61,7 @@ namespace Zapiski.Pro.BasedClasses
                 await BotClient.SendMessage(
                     clientId,
                     $"✨ Спасибо за визит!\n\n" +
-                    $"💼 {serviceName}\n\n" +
+                    $"💼 Услуга: {serviceName}\n\n" +
                     $"Будем рады видеть вас снова 💙", replyMarkup:keyboard
                 );
             }
@@ -91,12 +91,6 @@ namespace Zapiski.Pro.BasedClasses
             BackgroundJob.Schedule(
                 () => SendSimpleReminder(clientId, appointmentTime, serviceName, "2 часа"),
                 GetDelay(appointmentTime.AddHours(-2))
-            );
-
-            // ───── 1h ─────
-            BackgroundJob.Schedule(
-                () => SendSimpleReminder(clientId, appointmentTime, serviceName, "1 час"),
-                GetDelay(appointmentTime.AddHours(-1))
             );
 
             // ───── auto complete ─────
@@ -131,9 +125,9 @@ namespace Zapiski.Pro.BasedClasses
                     clientId,
                     $"⏰ Напоминание!\n\n" +
                     $"Через {label} у вас запись\n\n" +
-                    $"💼 {serviceName}\n" +
-                    $"📅 {appointmentTime:dd.MM.yyyy}\n" +
-                    $"⏰ {appointmentTime:HH:mm}", replyMarkup: keyboard
+                    $"💼 Услуга: {serviceName}\n" +
+                    $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {appointmentTime:HH:mm}", replyMarkup: keyboard
                 );
             }
             catch (Exception ex)
@@ -189,9 +183,9 @@ namespace Zapiski.Pro.BasedClasses
                     clientId,
                     $"📅 Напоминание\n\n" +
                     $"Завтра у вас запись:\n\n" +
-                    $"💼 {serviceName}\n" +
-                    $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {time:HH:mm}\n\n" +
+                    $"💼 Услуга: {serviceName}\n" +
+                    $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {time:HH:mm}\n\n" +
                     $"Вы придёте?",
                     replyMarkup: keyboard
                 );

@@ -29,6 +29,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     COALESCE(m.""Name"", '') AS ""Name"",
                     COALESCE(m.""Description"", '') AS ""Description"",
                     COALESCE(m.""PaymentDetails"", '') AS ""PaymentDetails"",
+                    COALESCE(m.""PhoneNumber"", '') AS ""PhoneNumber"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -50,7 +51,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 Username = row["UserName"]?.ToString(),
                 Name = row["Name"]?.ToString(),
                 Description = row["Description"]?.ToString(),
-                PaymentDetails = row["PaymentDetails"]?.ToString()
+                PaymentDetails = row["PaymentDetails"]?.ToString(),
+                PhoneNumber = row["PhoneNumber"]?.ToString()
             };
         }
 
@@ -67,6 +69,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var name = request.Name?.Trim();
             var description = request.Description?.Trim() ?? string.Empty;
             var paymentDetails = request.PaymentDetails?.Trim() ?? string.Empty;
+            var phoneNumber = request.PhoneNumber?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(name))
                 return Failed("Введите имя мастера");
@@ -80,17 +83,22 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (paymentDetails.Length > 1000)
                 return Failed("Реквизиты слишком длинные");
 
+            if (phoneNumber.Length > 30)
+                return Failed("Телефон слишком длинный");
+
             db.ExecuteNonQuery(@"
                 UPDATE ""Masters""
                 SET
                     ""Name"" = @name,
                     ""Description"" = @description,
-                    ""PaymentDetails"" = @paymentDetails
+                    ""PaymentDetails"" = @paymentDetails,
+                    ""PhoneNumber"" = @phoneNumber
                 WHERE ""idMaster"" = @masterId
             ",
                 new NpgsqlParameter("name", name),
                 new NpgsqlParameter("description", description),
                 new NpgsqlParameter("paymentDetails", string.IsNullOrWhiteSpace(paymentDetails) ? DBNull.Value : paymentDetails),
+                new NpgsqlParameter("phoneNumber", string.IsNullOrWhiteSpace(phoneNumber) ? DBNull.Value : phoneNumber),
                 new NpgsqlParameter("masterId", master.Id));
 
             return Ok("Профиль обновлён");
@@ -297,11 +305,130 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     Status = row["Status"]?.ToString(),
                     Price = price,
                     PrepaymentPercent = percent,
-                    PrepaymentAmount = (price * percent) / 100
+                    PrepaymentAmount = (price * percent) / 100,
+                    IsManualBlock = false
+                });
+            }
+
+            var blocks = db.ExecuteQuery(@"
+                SELECT
+                    ""idBlock"",
+                    ""Title"",
+                    ""Date"",
+                    ""StartTime"",
+                    ""EndTime""
+                FROM ""MasterTimeBlocks""
+                WHERE ""MasterId"" = @masterId
+                AND ""IsActive"" = true
+                ORDER BY ""Date"" DESC, ""StartTime"" DESC
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            foreach (DataRow row in blocks.Rows)
+            {
+                var start = TimeSpan.Parse(row["StartTime"].ToString());
+                var end = TimeSpan.Parse(row["EndTime"].ToString());
+                var title = row["Title"]?.ToString() ?? "Занято";
+
+                bookings.Add(new MiniAppMasterBookingDto
+                {
+                    Id = -Convert.ToInt32(row["idBlock"]),
+                    ClientTelegramId = 0,
+                    ClientUsername = "Блокировка",
+                    ServiceName = $"{title} ({start:hh\\:mm}-{end:hh\\:mm})",
+                    DateTime = FormatBookingDateTime(row["Date"], row["StartTime"]),
+                    Status = "blocked",
+                    Price = 0,
+                    PrepaymentPercent = 0,
+                    PrepaymentAmount = 0,
+                    IsManualBlock = true
                 });
             }
 
             return bookings;
+        }
+
+        public MiniAppMasterActionResult CreateTimeBlock(string key, long telegramId, MiniAppCreateTimeBlockRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Мастер не найден");
+
+            var title = request.Title?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(title))
+                return Failed("Введите название события");
+
+            if (title.Length > 100)
+                return Failed("Название слишком длинное");
+
+            if (!DateTime.TryParse(request.Date, out var date))
+                return Failed("Неверная дата");
+
+            if (!TimeSpan.TryParse(request.StartTime, out var start))
+                return Failed("Неверное время начала");
+
+            if (!TimeSpan.TryParse(request.EndTime, out var end))
+                return Failed("Неверное время окончания");
+
+            if (end <= start)
+                return Failed("Время окончания должно быть позже начала");
+
+            var now = DateTime.Now;
+
+            if (date.Date < now.Date || (date.Date == now.Date && start <= now.TimeOfDay))
+                return Failed("Нельзя блокировать прошедшее время");
+
+            var bookingConflict = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""Bookings"" b
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""MasterId"" = @masterId
+                AND b.""Date"" = @date
+                AND b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
+                AND b.""Time"" < @endTime
+                AND (b.""Time"" + (COALESCE(s.""Duration"", 60) * interval '1 minute')) > @startTime
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            if (bookingConflict.Rows.Count > 0)
+                return Failed("В это время уже есть запись клиента");
+
+            var blockConflict = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""MasterTimeBlocks""
+                WHERE ""MasterId"" = @masterId
+                AND ""Date"" = @date
+                AND ""IsActive"" = true
+                AND ""StartTime"" < @endTime
+                AND ""EndTime"" > @startTime
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            if (blockConflict.Rows.Count > 0)
+                return Failed("Это время уже заблокировано");
+
+            db.ExecuteNonQuery(@"
+                INSERT INTO ""MasterTimeBlocks""
+                    (""MasterId"", ""Title"", ""Date"", ""StartTime"", ""EndTime"", ""IsActive"")
+                VALUES
+                    (@masterId, @title, @date, @startTime, @endTime, true)
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("title", title),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            return Ok("Время заблокировано");
         }
 
         public async Task<MiniAppMasterActionResult> AcceptBooking(string key, long telegramId, int bookingId)
@@ -328,7 +455,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
-            var masterName = GetMasterByKey(key)?.Name;
+            var masterProfile = GetMasterByKey(key);
+            var masterName = masterProfile?.Name;
+            var masterPhone = string.IsNullOrWhiteSpace(masterProfile?.PhoneNumber) ? "" : $"\n☎️ Телефон мастера: {masterProfile.PhoneNumber}";
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
@@ -336,8 +465,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"👤 Мастер: {masterName ?? key}\n" +
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                $"⏰ Время: {time:HH:mm}\n\n" +
-                $"Ждём вас в назначенное время.",
+                $"⏰ Время: {time:HH:mm}" +
+                $"{masterPhone}",
                 replyMarkup: ClientMenuKeyboard());
 
             BookingJobs.ScheduleAllReminders(
@@ -372,7 +501,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var date = (DateOnly)booking["Date"];
             var time = (TimeOnly)booking["Time"];
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
-            var masterName = GetMasterByKey(key)?.Name;
+            var masterProfile = GetMasterByKey(key);
+            var masterName = masterProfile?.Name;
+            var masterPhone = string.IsNullOrWhiteSpace(masterProfile?.PhoneNumber) ? "" : $"\n☎️ Телефон мастера: {masterProfile.PhoneNumber}";
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
@@ -380,7 +511,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"👤 Мастер: {masterName ?? key}\n" +
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                $"⏰ Время: {time:HH:mm}",
+                $"⏰ Время: {time:HH:mm}" +
+                $"{masterPhone}\n\n" +
+                $"Ждём вас в назначенное время.",
                 replyMarkup: ClientMenuKeyboard());
 
             return Ok("Запись отменена");
@@ -408,7 +541,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
-            var masterName = GetMasterByKey(key)?.Name;
+            var masterProfile = GetMasterByKey(key);
+            var masterName = masterProfile?.Name;
+            var masterPhone = string.IsNullOrWhiteSpace(masterProfile?.PhoneNumber) ? "" : $"\n☎️ Телефон мастера: {masterProfile.PhoneNumber}";
 
             await BookingJobs.BotClient.SendMessage(
                 clientId,
@@ -417,7 +552,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"👤 Мастер: {masterName ?? key}\n" +
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                $"⏰ Время: {time:HH:mm}",
+                $"⏰ Время: {time:HH:mm}" +
+                $"{masterPhone}\n\n" +
+                $"Ждём вас в назначенное время.",
                 replyMarkup: ClientMenuKeyboard());
 
             BookingJobs.ScheduleAllReminders(
@@ -482,12 +619,12 @@ namespace Zapiski.Pro.MiniApp.Repositories
             await BookingJobs.BotClient.SendMessage(
                 clientId,
                 $"❌ Мастер не подтвердил оплату\n\n" +
-                $"💼 {serviceName}\n" +
-                $"📅 {date:dd.MM.yyyy}\n" +
-                $"⏰ {time:HH:mm}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n" +
                 $"💸 Предоплата: {prepaymentAmount}₽\n\n" +
-                $"Проверьте перевод и попробуйте снова\n\n" +
-                $"Реквизиты:\n{paymentDetails}",
+                $"Проверьте перевод и попробуйте снова.\n\n" +
+                $"Реквизиты мастера:\n{paymentDetails}",
                 replyMarkup: PaymentKeyboard(bookingId));
 
             return Ok("Оплата отклонена");

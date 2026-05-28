@@ -20,6 +20,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public int Id { get; set; }
         public long TelegramId { get; set; }
         public string Username { get; set; }
+        public string PhoneNumber { get; set; }
     }
 
     public class MiniAppUserBookingDto
@@ -53,6 +54,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public string Date { get; set; }
         public string Time { get; set; }
         public string Username { get; set; }
+        public string PhoneNumber { get; set; }
     }
 
     public class MiniAppCreateBookingResult

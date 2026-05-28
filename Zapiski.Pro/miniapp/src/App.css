@@ -1108,6 +1108,16 @@ body {
   color: #2474aa;
 }
 
+.status-blocked {
+  background: #f0f5ff;
+  color: #4b6fc9;
+}
+
+.manualBlockCard {
+  border-color: #d9e6ff;
+  background: #f8fbff;
+}
+
 .masterInfo p {
   margin: 0 0 4px;
   color: #6b7888;
@@ -1773,6 +1783,29 @@ body {
 }
 
 .serviceFormCard {
+  margin-bottom: 12px;
+}
+
+.serviceFormCard input,
+.serviceFormCard textarea {
+  width: 100%;
+  border: 1px solid #dbe7f5;
+  border-radius: 14px;
+  background: #f8fbff;
+  color: #263241;
+  padding: 13px 12px;
+  font: inherit;
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.serviceFormCard input:focus,
+.serviceFormCard textarea:focus {
+  border-color: #4b8df7;
+  box-shadow: 0 0 0 3px rgba(75, 141, 247, 0.12);
+}
+
+.blockDateStrip {
   margin-bottom: 12px;
 }
 

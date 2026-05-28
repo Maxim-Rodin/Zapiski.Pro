@@ -19,7 +19,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
         public MiniAppUserDashboardDto? GetDashboard(long telegramId)
         {
             var userTable = db.ExecuteQuery($@"
-                SELECT ""idUser"", ""TelegrammId"", ""UserName""
+                SELECT ""idUser"", ""TelegrammId"", ""UserName"", COALESCE(""PhoneNumber"", '') AS ""PhoneNumber""
                 FROM ""Users""
                 WHERE ""TelegrammId"" = {telegramId}
                 LIMIT 1
@@ -37,7 +37,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 {
                     Id = userId,
                     TelegramId = Convert.ToInt64(userRow["TelegrammId"]),
-                    Username = userRow["UserName"]?.ToString()
+                    Username = userRow["UserName"]?.ToString(),
+                    PhoneNumber = userRow["PhoneNumber"]?.ToString()
                 },
                 Roles = GetRoles(userId),
                 Bookings = GetBookings(userId),
@@ -93,16 +94,19 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             await BookingJobs.BotClient.SendMessage(
                 telegramId,
                 $"❌ Вы отменили запись\n\n" +
-                $"💼 {service}\n" +
-                $"📅 {date:dd.MM.yyyy} {time:hh\\:mm}",
+                $"💼 Услуга: {service}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:hh\\:mm}",
                 replyMarkup: ClientMenuKeyboard());
 
             await BookingJobs.BotClient.SendMessage(
                 masterTelegramId,
                 $"❌ Клиент отменил запись\n\n" +
-                $"👤 @{username}\n" +
-                $"💼 {service}\n" +
-                $"📅 {date:dd.MM.yyyy} {time:hh\\:mm}",
+                $"👤 Клиент: @{username}\n" +
+                $"🆔 Telegram ID: {telegramId}\n" +
+                $"💼 Услуга: {service}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:hh\\:mm}",
                 replyMarkup: MasterProfileKeyboard(masterKey));
 
             return true;
@@ -147,18 +151,38 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
             var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
 
-            var busy = db.ExecuteQuery($@"
-                SELECT ""Time""
-                FROM ""Bookings""
-                WHERE ""MasterId"" = {masterId}
-                AND ""Date"" = '{date:yyyy-MM-dd}'
-                AND ""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
+            var busyBookings = db.ExecuteQuery($@"
+                SELECT b.""Time"", COALESCE(s.""Duration"", 60) AS ""Duration""
+                FROM ""Bookings"" b
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""MasterId"" = {masterId}
+                AND b.""Date"" = '{date:yyyy-MM-dd}'
+                AND b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
             ");
 
-            var busyTimes = new HashSet<TimeSpan>();
+            var busyBlocks = db.ExecuteQuery($@"
+                SELECT ""StartTime"", ""EndTime""
+                FROM ""MasterTimeBlocks""
+                WHERE ""MasterId"" = {masterId}
+                AND ""Date"" = '{date:yyyy-MM-dd}'
+                AND ""IsActive"" = true
+            ");
 
-            foreach (DataRow row in busy.Rows)
-                busyTimes.Add(TimeSpan.Parse(row["Time"].ToString()));
+            var busyIntervals = new List<(TimeSpan Start, TimeSpan End)>();
+
+            foreach (DataRow row in busyBookings.Rows)
+            {
+                var bookingStart = TimeSpan.Parse(row["Time"].ToString());
+                var bookingEnd = bookingStart + TimeSpan.FromMinutes(Convert.ToInt32(row["Duration"]));
+                busyIntervals.Add((bookingStart, bookingEnd));
+            }
+
+            foreach (DataRow row in busyBlocks.Rows)
+            {
+                busyIntervals.Add((
+                    TimeSpan.Parse(row["StartTime"].ToString()),
+                    TimeSpan.Parse(row["EndTime"].ToString())));
+            }
 
             var slots = new List<MiniAppBookingSlotDto>();
 
@@ -167,10 +191,12 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 if (date.Date == now.Date && time <= now.TimeOfDay)
                     continue;
 
+                var slotEnd = time + TimeSpan.FromMinutes(duration);
+
                 slots.Add(new MiniAppBookingSlotDto
                 {
                     Time = time.ToString(@"hh\:mm"),
-                    IsBusy = busyTimes.Contains(time)
+                    IsBusy = busyIntervals.Any(interval => time < interval.End && slotEnd > interval.Start)
                 });
             }
 
@@ -242,18 +268,35 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var check = db.ExecuteQuery($@"
                 SELECT 1
-                FROM ""Bookings""
-                WHERE ""MasterId"" = {masterId}
-                AND ""Date"" = '{date:yyyy-MM-dd}'
-                AND ""Time"" = '{timeSql}'
-                AND ""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
+                FROM ""Bookings"" b
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""MasterId"" = {masterId}
+                AND b.""Date"" = '{date:yyyy-MM-dd}'
+                AND b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
+                AND b.""Time"" < '{(time + TimeSpan.FromMinutes(duration)).ToString(@"hh\:mm\:ss")}'::time
+                AND (b.""Time"" + (COALESCE(s.""Duration"", 60) * interval '1 minute')) > '{timeSql}'::time
                 LIMIT 1
             ");
 
             if (check.Rows.Count > 0)
                 return FailedBooking("Это время уже занято");
 
+            var blockCheck = db.ExecuteQuery($@"
+                SELECT 1
+                FROM ""MasterTimeBlocks""
+                WHERE ""MasterId"" = {masterId}
+                AND ""Date"" = '{date:yyyy-MM-dd}'
+                AND ""IsActive"" = true
+                AND ""StartTime"" < '{(time + TimeSpan.FromMinutes(duration)).ToString(@"hh\:mm\:ss")}'::time
+                AND ""EndTime"" > '{timeSql}'::time
+                LIMIT 1
+            ");
+
+            if (blockCheck.Rows.Count > 0)
+                return FailedBooking("Это время заблокировано мастером");
+
             var safeUsername = (request.Username ?? "unknown").Replace("'", "''");
+            var safePhoneNumber = (request.PhoneNumber ?? string.Empty).Trim().Replace("'", "''");
 
             var existingUser = db.ExecuteQuery($@"
                 SELECT ""idUser""
@@ -265,21 +308,23 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             if (existingUser.Rows.Count == 0)
             {
                 db.ExecuteNonQuery($@"
-                    INSERT INTO ""Users"" (""TelegrammId"", ""UserName"")
-                    VALUES ({telegramId}, '{safeUsername}')
+                    INSERT INTO ""Users"" (""TelegrammId"", ""UserName"", ""PhoneNumber"")
+                    VALUES ({telegramId}, '{safeUsername}', NULLIF('{safePhoneNumber}', ''))
                 ");
             }
             else
             {
                 db.ExecuteNonQuery($@"
                     UPDATE ""Users""
-                    SET ""UserName"" = '{safeUsername}'
+                    SET
+                        ""UserName"" = '{safeUsername}',
+                        ""PhoneNumber"" = NULLIF('{safePhoneNumber}', '')
                     WHERE ""TelegrammId"" = {telegramId}
                 ");
             }
 
             var userTable = db.ExecuteQuery($@"
-                SELECT ""idUser"", ""UserName""
+                SELECT ""idUser"", ""UserName"", COALESCE(""PhoneNumber"", '') AS ""PhoneNumber""
                 FROM ""Users""
                 WHERE ""TelegrammId"" = {telegramId}
                 LIMIT 1
@@ -290,6 +335,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var userId = Convert.ToInt32(userTable.Rows[0]["idUser"]);
             var username = userTable.Rows[0]["UserName"]?.ToString() ?? "no_username";
+            var clientPhone = userTable.Rows[0]["PhoneNumber"]?.ToString() ?? "";
             var serviceName = service["Name"]?.ToString() ?? "Услуга";
             var price = service["Price"] == DBNull.Value
                 ? 0
@@ -315,6 +361,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 ? masterData["PaymentDetails"]?.ToString()
                 : "Реквизиты не указаны";
 
+            var clientPhoneLine = string.IsNullOrWhiteSpace(clientPhone) ? "" : $"☎️ Телефон: {clientPhone}\n";
+
             if (prepaymentPercent > 0 && string.IsNullOrWhiteSpace(paymentDetails))
                 return FailedBooking("Мастер еще не указал реквизиты для предоплаты");
 
@@ -335,11 +383,11 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"💳 Запись создана, нужна предоплата\n\n" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"💰 Стоимость: {price}₽\n" +
-                    $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n\n" +
-                    $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {timeText}\n\n" +
-                    $"Реквизиты мастера:\n\n{paymentDetails}\n\n" +
-                    $"После оплаты нажмите кнопку в mini app или ниже 👇",
+                    $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n" +
+                    $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {timeText}\n\n" +
+                    $"Реквизиты мастера:\n{paymentDetails}\n\n" +
+                    $"После оплаты нажмите кнопку в mini app или ниже.",
                     replyMarkup: PaymentKeyboard(bookingId));
             }
             else
@@ -350,7 +398,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
                     $"⏰ Время: {timeText}\n\n" +
-                    $"⏳ Ожидает подтверждения мастера.",
+                    $"⏳ Ожидайте подтверждения от мастера.",
                     replyMarkup: ClientMenuKeyboard());
 
                 await BookingJobs.BotClient.SendMessage(
@@ -358,6 +406,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"📥 Новая запись от клиента\n\n" +
                     $"👤 Клиент: @{username}\n" +
                     $"🆔 Telegram ID: {telegramId}\n" +
+                    $"{clientPhoneLine}" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
                     $"⏰ Время: {timeText}\n\n" +
@@ -387,6 +436,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     b.""Time"",
                     b.""Status"",
                     u.""UserName"",
+                    COALESCE(u.""PhoneNumber"", '') AS ""PhoneNumber"",
                     s.""Name"" AS ""ServiceName"",
                     s.""Price"",
                     s.""PrepaymentPercent"",
@@ -419,6 +469,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var masterTelegramId = Convert.ToInt64(record["MasterTelegramId"]);
             var masterKey = record["MasterKey"]?.ToString() ?? "";
             var username = record["UserName"]?.ToString() ?? "unknown";
+            var clientPhone = record["PhoneNumber"]?.ToString() ?? "";
             var serviceName = record["ServiceName"]?.ToString() ?? "Услуга";
             var price = Convert.ToInt32(record["Price"]);
             var percent = Convert.ToInt32(record["PrepaymentPercent"]);
@@ -440,11 +491,12 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 $"💸 Клиент отметил предоплату\n\n" +
                 $"👤 Клиент: @{username}\n" +
                 $"🆔 Telegram ID: {telegramId}\n" +
+                $"{(string.IsNullOrWhiteSpace(clientPhone) ? "" : $"☎️ Телефон: {clientPhone}\n")}" +
                 $"💼 Услуга: {serviceName}\n" +
                 $"💰 Сумма: {prepaymentAmount}₽\n" +
-                $"📅 {date:dd.MM.yyyy}\n" +
-                $"⏰ {time:HH:mm}\n\n" +
-                $"Подтвердить получение?",
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Проверьте поступление и подтвердите получение.",
                 replyMarkup: MasterPaymentKeyboard(masterKey, bookingId));
 
             return true;

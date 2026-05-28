@@ -143,7 +143,12 @@ namespace Zapisi.Pro.CallBacks
             await botClient.EditMessageText(
                 query.Message.Chat.Id,
                 query.Message.MessageId,
-                "⏳ Ожидаем подтверждение оплаты от мастера", replyMarkup: new InlineKeyboardMarkup(new[]
+                $"⏳ Оплата отправлена мастеру на проверку\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"💸 Предоплата: {prepaymentAmount}₽\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Мастер подтвердит получение оплаты.", replyMarkup: new InlineKeyboardMarkup(new[]
                             {
                                 new[]
                                 {
@@ -174,12 +179,14 @@ namespace Zapisi.Pro.CallBacks
 
             await botClient.SendMessage(
                 masterTelegramId,
-                $"💸 Клиент отправил предоплату\n\n" +
-                $"💼 {serviceName}\n" +
+                $"💸 Клиент отметил предоплату\n\n" +
+                $"👤 Клиент: @{query.From.Username ?? "без username"}\n" +
+                $"🆔 Telegram ID: {query.From.Id}\n" +
+                $"💼 Услуга: {serviceName}\n" +
                 $"💰 Сумма: {prepaymentAmount}₽\n" +
-                $"📅 {date:dd.MM.yyyy}\n" +
-                $"⏰ {time}\n\n" +
-                $"Подтвердить получение?",
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Проверьте поступление и подтвердите получение.",
                 replyMarkup: keyboard
             );
         }
@@ -190,10 +197,15 @@ namespace Zapisi.Pro.CallBacks
             var row = db.ExecuteQuery($@"
         SELECT 
             b.""MasterId"",
+            b.""Date"",
+            b.""Time"",
+            u.""UserName"",
+            u.""TelegrammId"",
             s.""Name"" AS ServiceName,
             m.""Key"",
             mu.""TelegrammId"" AS MasterTelegramId
         FROM ""Bookings"" b
+        JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
         JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
         JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
         JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
@@ -203,6 +215,10 @@ namespace Zapisi.Pro.CallBacks
             long masterTelegramId = Convert.ToInt64(row["MasterTelegramId"]);
             string serviceName = row["ServiceName"].ToString();
             string masterKey = row["Key"].ToString();
+            string username = row["UserName"]?.ToString() ?? "без username";
+            long clientTelegramId = Convert.ToInt64(row["TelegrammId"]);
+            DateOnly date = (DateOnly)row["Date"];
+            TimeOnly time = (TimeOnly)row["Time"];
 
             db.ExecuteNonQuery($@"
         UPDATE ""Bookings""
@@ -215,14 +231,21 @@ namespace Zapisi.Pro.CallBacks
             await botClient.EditMessageText(
                 query.Message.Chat.Id,
                 query.Message.MessageId,
-                "❌ Вы отменили запись"
+                $"❌ Вы отменили запись\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}"
             );
 
             // 📩 уведомление мастеру
             await botClient.SendMessage(
                 masterTelegramId,
-                $"❌ Клиент отменил запись за день\n\n" +
-                $"💼 {serviceName}"
+                $"❌ Клиент отменил запись после напоминания\n\n" +
+                $"👤 Клиент: @{username}\n" +
+                $"🆔 Telegram ID: {clientTelegramId}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}"
             );
         }
         public async Task PreConfirmYes(CallbackQuery query, CallBackData data)
@@ -263,7 +286,10 @@ namespace Zapisi.Pro.CallBacks
             await botClient.EditMessageText(
                             query.Message.Chat.Id,
                             query.Message.MessageId,
-                            "✅ Вы подтвердили запись",
+                            $"✅ Вы подтвердили запись\n\n" +
+                            $"💼 Услуга: {serviceName}\n" +
+                            $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                            $"⏰ Время: {time:HH:mm}",
                             replyMarkup: new InlineKeyboardMarkup(new[]
                             {
                                 new[]
@@ -277,8 +303,11 @@ namespace Zapisi.Pro.CallBacks
             await botClient.SendMessage(
                 masterTelegramId,
                 $"✅ Клиент подтвердил запись\n\n" +
-                $"💼 {serviceName}\n" +
-                $"📅 {date:dd.MM.yyyy} {time}",
+                $"👤 Клиент: @{query.From.Username ?? "без username"}\n" +
+                $"🆔 Telegram ID: {query.From.Id}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
 
                 replyMarkup: new InlineKeyboardMarkup(new[]
                 {
@@ -463,8 +492,9 @@ namespace Zapisi.Pro.CallBacks
                 query.Message.Chat.Id,
                 query.Message.MessageId,
                 $"❌ Вы отменили запись\n\n" +
-                $"💼 {service}\n" +
-                $"📅 {date:dd.MM.yyyy} {time}",
+                $"💼 Услуга: {service}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:hh\\:mm}",
                 replyMarkup: clientKeyboard
             );
 
@@ -487,9 +517,11 @@ namespace Zapisi.Pro.CallBacks
             await botClient.SendMessage(
                 masterTelegramId,
                 $"❌ Клиент отменил запись\n\n" +
-                $"👤 @{username}\n" +
-                $"💼 {service}\n" +
-                $"📅 {date:dd.MM.yyyy} {time}",
+                $"👤 Клиент: @{username}\n" +
+                $"🆔 Telegram ID: {query.From.Id}\n" +
+                $"💼 Услуга: {service}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:hh\\:mm}",
                 replyMarkup: masterKeyboard
             );
         }
@@ -912,8 +944,8 @@ namespace Zapisi.Pro.CallBacks
                     $"💼 Услуга: {serviceName}\n" +
                     $"💰 Стоимость: {price}₽\n" +
                     $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n\n" +
-                    $"📅 {date:dd.MM.yyyy}\n" +
-                    $"⏰ {time}\n\n" +
+                    $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                    $"⏰ Время: {time:HH:mm}\n\n" +
                     $"Реквизиты мастера:\n\n" +
                     $"{paymentDetails}\n\n" +
                     $"После оплаты нажмите кнопку ниже 👇",
@@ -929,7 +961,11 @@ namespace Zapisi.Pro.CallBacks
 
             await botClient.SendMessage(
                 chatId,
-                "✅ Запись создана!\n⏳ Ожидает подтверждения мастера",
+                $"✅ Запись создана\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"⏳ Ожидайте подтверждения от мастера.",
                 replyMarkup: clientKeyboard
             );
 
@@ -951,12 +987,13 @@ namespace Zapisi.Pro.CallBacks
 
             await botClient.SendMessage(
                 masterTelegramId,
-                $"📥 Новая запись!\n\n" +
-                $"👤 @{username}\n" +
-                $"💼 {serviceName}\n" +
-                $"📅 {date:dd.MM.yyyy}\n" +
-                $"⏰ {time}\n\n" +
-                $"Подтвердить?",
+                $"📥 Новая запись от клиента\n\n" +
+                $"👤 Клиент: @{username}\n" +
+                $"🆔 Telegram ID: {chatId}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Подтвердить запись?",
                 replyMarkup: keyboard
             );
         }

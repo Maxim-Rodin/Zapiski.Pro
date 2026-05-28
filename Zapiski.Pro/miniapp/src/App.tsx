@@ -50,6 +50,7 @@ type Master = {
   name: string
   description: string
   paymentDetails: string
+  phoneNumber: string
 }
 
 type MasterClient = {
@@ -77,6 +78,7 @@ type MasterBooking = {
   price: number
   prepaymentPercent: number
   prepaymentAmount: number
+  isManualBlock?: boolean
 }
 
 type MasterScheduleDay = {
@@ -132,6 +134,7 @@ type UserDashboard = {
     id: number
     telegramId: number
     username: string
+    phoneNumber: string
   }
   roles: {
     isAdmin: boolean
@@ -217,6 +220,7 @@ function App() {
 
       <Route path="/master/:key" element={<MasterHomePage />} />
       <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
+      <Route path="/master/:key/block-time" element={<MasterTimeBlockPage />} />
       <Route path="/master/:key/services" element={<MasterServicesPage />} />
       <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
@@ -778,6 +782,7 @@ function PublicProfileStub() {
         name: draftName,
         description: draftDescription,
         paymentDetails: master.paymentDetails || "",
+        phoneNumber: master.phoneNumber || "",
       }),
     })
       .then(async (res) => {
@@ -1063,6 +1068,7 @@ function PublicBookingStub() {
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState(searchParams.get("date") || formatDateInput(new Date()))
   const [selectedTime, setSelectedTime] = useState(searchParams.get("time") || "")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [slots, setSlots] = useState<BookingSlot[]>([])
   const [loadingServices, setLoadingServices] = useState(true)
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -1112,7 +1118,7 @@ function PublicBookingStub() {
   }, [key, selectedServiceId, selectedDate])
 
   const selectedService = services.find((service) => service.id === selectedServiceId) ?? null
-  const calendarDays = buildCalendarDays(21)
+  const calendarDays = buildCalendarDays(45)
 
   function createBooking() {
     if (!key || !selectedServiceId || !selectedTime || !currentTelegramId) {
@@ -1134,6 +1140,7 @@ function PublicBookingStub() {
         date: selectedDate,
         time: selectedTime,
         username: telegramUser?.username ?? "unknown",
+        phoneNumber: phoneNumber.trim(),
       }),
     })
       .then(async (res) => {
@@ -1278,6 +1285,17 @@ function PublicBookingStub() {
             )}
           </section>
 
+          <section className="publicInfoCard">
+            <h3>Телефон</h3>
+            <input
+              className="adminInput"
+              inputMode="tel"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              placeholder="+7..."
+            />
+          </section>
+
           <button
             type="button"
             className="publicPrimaryButton bookingSubmitButton"
@@ -1392,6 +1410,33 @@ function MasterBookingsPage() {
   }, [calendarDatesKey, selectedCalendarDate])
 
   function renderMasterBookingCard(booking: MasterBooking) {
+    if (booking.isManualBlock) {
+      const { time } = splitBookingDateTime(booking.dateTime)
+
+      return (
+        <div className="masterBookingCard manualBlockCard" key={`block-${booking.id}`}>
+          <div className="bookingCardHeader">
+            <div>
+              <strong>{booking.serviceName || "Занято"}</strong>
+              <span>Закрыто вручную</span>
+            </div>
+            <StatusBadge status={booking.status} />
+          </div>
+
+          <div className="bookingMetaGrid">
+            <span>
+              <CalendarCheck size={17} strokeWidth={2.2} />
+              {booking.dateTime}
+            </span>
+            <span>
+              <Clock size={17} strokeWidth={2.2} />
+              c {time}
+            </span>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="masterBookingCard" key={booking.id}>
         <div className="bookingCardHeader">
@@ -1533,8 +1578,10 @@ function MasterBookingsPage() {
                         <time>{time}</time>
                         <div className="bookingTimelineCard">
                           <div>
-                            <strong>@{booking.clientUsername || booking.clientTelegramId}</strong>
-                            <small>{booking.serviceName || "Услуга"}</small>
+                            <strong>
+                              {booking.isManualBlock ? booking.serviceName || "Занято" : `@${booking.clientUsername || booking.clientTelegramId}`}
+                            </strong>
+                            <small>{booking.isManualBlock ? "Закрыто вручную" : booking.serviceName || "Услуга"}</small>
                           </div>
                           <StatusBadge status={booking.status} />
                         </div>
@@ -1547,6 +1594,125 @@ function MasterBookingsPage() {
         ) : (
           visibleBookings.map((booking) => renderMasterBookingCard(booking))
         )}
+      </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
+function MasterTimeBlockPage() {
+  const { key } = useParams()
+  const currentTelegramId = telegramId()
+  const [title, setTitle] = useState("")
+  const [selectedDate, setSelectedDate] = useState(formatDateInput(new Date()))
+  const [startTime, setStartTime] = useState("09:00")
+  const [endTime, setEndTime] = useState("10:00")
+  const [message, setMessage] = useState("")
+  const [saving, setSaving] = useState(false)
+  const calendarDays = buildCalendarDays(45)
+
+  function createBlock() {
+    if (!key) return
+
+    if (!title.trim()) {
+      setMessage("Введите название события")
+      return
+    }
+
+    if (!startTime || !endTime || endTime <= startTime) {
+      setMessage("Время окончания должно быть позже начала")
+      return
+    }
+
+    setSaving(true)
+    setMessage("Проверяем время...")
+
+    fetch(`${API_URL}/api/master/${key}/time-blocks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        title: title.trim(),
+        date: selectedDate,
+        startTime,
+        endTime,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось заблокировать время")
+        }
+
+        setMessage(data.message || "Время заблокировано")
+        setTitle("")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка соединения с сервером"))
+      .finally(() => setSaving(false))
+  }
+
+  return (
+    <main className="app">
+      <header className="adminHeader">
+        <h1>Заблокировать время</h1>
+        <p>Закройте окно, если клиент записался вне бота</p>
+      </header>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      <section className="adminCard serviceFormCard">
+        <label>
+          <span className="fieldLabel">Дата</span>
+          <div className="calendarStrip blockDateStrip">
+            {calendarDays.map((day) => (
+              <button
+                type="button"
+                className={selectedDate === day.value ? "active" : ""}
+                key={day.value}
+                onClick={() => setSelectedDate(day.value)}
+              >
+                <span>{day.weekday}</span>
+                <strong>{day.day}</strong>
+                <small>{day.month}</small>
+              </button>
+            ))}
+          </div>
+        </label>
+
+        <label>
+          <span className="fieldLabel">Название события</span>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Например: запись из WhatsApp"
+            maxLength={100}
+          />
+        </label>
+
+        <div className="formGrid">
+          <label>
+            <span className="fieldLabel">Начало</span>
+            <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+          </label>
+          <label>
+            <span className="fieldLabel">Конец</span>
+            <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+          </label>
+        </div>
+
+        <button type="button" className="primaryButton iconButton" onClick={createBlock} disabled={saving}>
+          <Plus size={19} strokeWidth={2.4} />
+          {saving ? "Сохраняем..." : "Заблокировать время"}
+        </button>
+      </section>
+
+      <section className="publicInfoCard">
+        <h3>Как это работает</h3>
+        <p>Это время станет занятым для клиентов и появится в календаре мастера как ручная блокировка.</p>
       </section>
 
       <MasterBottomNav masterKey={key ?? ""} />
@@ -2623,6 +2789,7 @@ function MasterProfilePage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [paymentDetails, setPaymentDetails] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [message, setMessage] = useState("")
 
   useEffect(() => {
@@ -2635,6 +2802,7 @@ function MasterProfilePage() {
         setName(data.name || "")
         setDescription(data.description || "")
         setPaymentDetails(data.paymentDetails || "")
+        setPhoneNumber(data.phoneNumber || "")
       })
       .catch((err) => setMessage(err.message || "Не удалось загрузить профиль"))
       .finally(() => setLoading(false))
@@ -2655,6 +2823,7 @@ function MasterProfilePage() {
         name,
         description,
         paymentDetails,
+        phoneNumber,
       }),
     })
       .then(async (res) => {
@@ -2669,6 +2838,7 @@ function MasterProfilePage() {
           name: name.trim(),
           description: description.trim(),
           paymentDetails: paymentDetails.trim(),
+          phoneNumber: phoneNumber.trim(),
         })
         setMessage("Профиль сохранён")
       })
@@ -2707,6 +2877,16 @@ function MasterProfilePage() {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Расскажите клиентам о себе"
+            />
+
+            <label className="fieldLabel" htmlFor="masterPhone">Телефон мастера</label>
+            <input
+              id="masterPhone"
+              className="adminInput"
+              inputMode="tel"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(event.target.value)}
+              placeholder="+7..."
             />
 
             <div className="paymentDetailsNotice">
@@ -2797,6 +2977,7 @@ function StatusBadge({ status }: { status: string | null }) {
     waiting_payment_confirm: "Предоплата",
     cancelled: "Отменен",
     completed: "Завершен",
+    blocked: "Занято",
   }
 
   return (
@@ -2867,7 +3048,7 @@ function MasterBottomNav({ masterKey }: { masterKey: string }) {
         <span><CalendarCheck size={20} strokeWidth={2.2} /></span>
         <small>Записи</small>
       </Link>
-      <Link to={`/master/${masterKey}`} className="bottomNavMain">
+      <Link to={`/master/${masterKey}/block-time`} className="bottomNavMain">
         <Plus size={30} strokeWidth={2.4} />
       </Link>
       <Link to={`/master/${masterKey}/clients`} className="bottomNavItem">

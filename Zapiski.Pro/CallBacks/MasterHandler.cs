@@ -260,8 +260,11 @@ namespace Zapisi.Pro.CallBacks
 
             await botClient.SendMessage(
                 clientId,
-                $"✅ Предоплата подтверждена\n\n" +
-                $"🎉 Запись успешно подтверждена",
+                $"✅ Предоплата подтверждена мастером\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Запись подтверждена. Ждём вас в назначенное время.",
                 replyMarkup: clientKeyboard
             );
 
@@ -284,7 +287,10 @@ namespace Zapisi.Pro.CallBacks
             await botClient.EditMessageText(
                 query.Message.Chat.Id,
                 query.Message.MessageId,
-                "✅ Предоплата подтверждена",
+                $"✅ Предоплата подтверждена\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
                 replyMarkup: masterKeyboard
             );
 
@@ -323,6 +329,8 @@ namespace Zapisi.Pro.CallBacks
             var row = db.ExecuteQuery($@"
         SELECT
             u.""TelegrammId"",
+            b.""Date"",
+            b.""Time"",
             s.""Name"" AS ""ServiceName"",
             s.""Price"",
             s.""PrepaymentPercent"",
@@ -347,6 +355,12 @@ namespace Zapisi.Pro.CallBacks
 
             string serviceName =
                 row["ServiceName"].ToString();
+
+            DateOnly date =
+                (DateOnly)row["Date"];
+
+            TimeOnly time =
+                (TimeOnly)row["Time"];
 
             int price =
                 Convert.ToInt32(row["Price"]);
@@ -394,7 +408,10 @@ namespace Zapisi.Pro.CallBacks
             await botClient.EditMessageText(
                 query.Message.Chat.Id,
                 query.Message.MessageId,
-                "❌ Оплата отклонена",
+                $"❌ Оплата отклонена\n\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
                 replyMarkup: masterKeyboard
             );
 
@@ -424,10 +441,12 @@ namespace Zapisi.Pro.CallBacks
             await botClient.SendMessage(
                 clientId,
                 $"❌ Мастер не подтвердил оплату\n\n" +
-                $"💼 {serviceName}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n" +
                 $"💸 Предоплата: {prepaymentAmount}₽\n\n" +
-                $"Проверьте перевод и попробуйте снова\n\n" +
-                $"Реквизиты:\n{paymentDetails}",
+                $"Проверьте перевод и попробуйте снова.\n\n" +
+                $"Реквизиты мастера:\n{paymentDetails}",
                 replyMarkup: keyboard
             );
         }
@@ -1502,12 +1521,13 @@ namespace Zapisi.Pro.CallBacks
 
 
             var booking = db.ExecuteQuery($@"
-                            SELECT 
-                                b.""Date"",
-                                b.""Time"",
-                                u.""TelegrammId"",
-                                s.""Name"" as ""ServiceName"",
-                                s.""Duration""
+                SELECT 
+                    b.""Date"",
+                    b.""Time"",
+                    u.""TelegrammId"",
+                    u.""UserName"",
+                    s.""Name"" as ""ServiceName"",
+                    s.""Duration""
                             FROM ""Bookings"" b
                             JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                             JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
@@ -1515,6 +1535,7 @@ namespace Zapisi.Pro.CallBacks
                         ").Rows[0];
 
             long clientId = Convert.ToInt64(booking["TelegrammId"]);
+            string clientUsername = booking["UserName"]?.ToString() ?? "без username";
             DateOnly date = (DateOnly)booking["Date"];
             TimeOnly time = (TimeOnly)booking["Time"];
             DateTime appointmentTime = date.ToDateTime(time);
@@ -1523,13 +1544,26 @@ namespace Zapisi.Pro.CallBacks
 
 
 
-            await botClient.SendMessage(clientId, "✅ Ваша запись подтверждена", replyMarkup: clientKeyboard);
+            await botClient.SendMessage(
+                clientId,
+                $"✅ Запись подтверждена мастером\n\n" +
+                $"👤 Мастер: {key}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}\n\n" +
+                $"Ждём вас в назначенное время.",
+                replyMarkup: clientKeyboard);
 
 
             await botClient.EditMessageText(
                      query.Message.Chat.Id,
                      query.Message.MessageId,
-                     "✅ Запись подтверждена"
+                     $"✅ Запись подтверждена\n\n" +
+                     $"👤 Клиент: @{clientUsername}\n" +
+                     $"🆔 Telegram ID: {clientId}\n" +
+                     $"💼 Услуга: {serviceName}\n" +
+                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                     $"⏰ Время: {time:HH:mm}"
                  );
 
             BookingJobs.ScheduleAllReminders(
@@ -1571,23 +1605,43 @@ namespace Zapisi.Pro.CallBacks
                     ");
 
             var user = db.ExecuteQuery($@"
-                SELECT u.""TelegrammId""
+                SELECT
+                    u.""TelegrammId"",
+                    u.""UserName"",
+                    b.""Date"",
+                    b.""Time"",
+                    s.""Name"" AS ""ServiceName""
                 FROM ""Bookings"" b
                 JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
                 WHERE b.""idBooking"" = {bookingId}
             ").Rows[0];
 
             long clientId = Convert.ToInt64(user["TelegrammId"]);
+            string clientUsername = user["UserName"]?.ToString() ?? "без username";
+            DateOnly date = (DateOnly)user["Date"];
+            TimeOnly time = (TimeOnly)user["Time"];
+            string serviceName = user["ServiceName"]?.ToString() ?? "Услуга";
 
             await botClient.SendMessage(
                 clientId,
-                $"❌ Ваша запись отменена мастером",replyMarkup:clientKeyboard
+                $"❌ Запись отменена мастером\n\n" +
+                $"👤 Мастер: {data.Id}\n" +
+                $"💼 Услуга: {serviceName}\n" +
+                $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                $"⏰ Время: {time:HH:mm}",
+                replyMarkup: clientKeyboard
             );
 
             await botClient.EditMessageText(
                      query.Message.Chat.Id,
                      query.Message.MessageId,
-                     "❌ Запись отменена"
+                     $"❌ Запись отменена\n\n" +
+                     $"👤 Клиент: @{clientUsername}\n" +
+                     $"🆔 Telegram ID: {clientId}\n" +
+                     $"💼 Услуга: {serviceName}\n" +
+                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
+                     $"⏰ Время: {time:HH:mm}"
                  );
         }
 
