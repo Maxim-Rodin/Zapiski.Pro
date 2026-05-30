@@ -1407,6 +1407,29 @@ function MasterBookingsPage() {
       .catch((err) => setMessage(err.message || "Ошибка обновления записи"))
   }
 
+  function deleteTimeBlock(blockBookingId: number) {
+    if (!key) return
+
+    const blockId = Math.abs(blockBookingId)
+    setMessage("Удаляем блокировку...")
+
+    fetch(`${API_URL}/api/master/${key}/time-blocks/${blockId}`, {
+      method: "DELETE",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось удалить блокировку")
+        }
+
+        setMessage(data.message || "Блокировка удалена")
+        loadBookings()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка удаления блокировки"))
+  }
+
   const activeBookings = bookings.filter((booking) => !isHistoryStatus(booking.status))
   const historyBookings = bookings.filter((booking) => isHistoryStatus(booking.status))
   const visibleBookings = showHistory ? historyBookings : activeBookings
@@ -1453,6 +1476,13 @@ function MasterBookingsPage() {
               <Clock size={17} strokeWidth={2.2} />
               c {time}
             </span>
+          </div>
+
+          <div className="bookingActions singleAction">
+            <button type="button" className="dangerButton" onClick={() => deleteTimeBlock(booking.id)}>
+              <Trash2 size={17} strokeWidth={2.3} />
+              Удалить блокировку
+            </button>
           </div>
         </div>
       )
@@ -1604,7 +1634,14 @@ function MasterBookingsPage() {
                             </strong>
                             <small>{booking.isManualBlock ? "Закрыто вручную" : booking.serviceName || "Услуга"}</small>
                           </div>
-                          <StatusBadge status={booking.status} />
+                          <div className="timelineCardActions">
+                            <StatusBadge status={booking.status} />
+                            {booking.isManualBlock && (
+                              <button type="button" aria-label="Удалить блокировку" onClick={() => deleteTimeBlock(booking.id)}>
+                                <Trash2 size={17} strokeWidth={2.4} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )

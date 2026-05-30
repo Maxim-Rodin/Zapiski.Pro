@@ -742,6 +742,25 @@ body {
   font-size: 12px;
 }
 
+.timelineCardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.timelineCardActions button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  color: #e54848;
+  background: #ffe8e8;
+}
+
 .calendarDayColumn {
   border: 1px solid #e4edf8;
   border-radius: 18px;
@@ -875,6 +894,15 @@ body {
 
 .bookingActions .dangerButton {
   background: #e54848;
+}
+
+.bookingActions.singleAction {
+  grid-template-columns: 1fr;
+}
+
+.bookingActions button svg {
+  margin-right: 6px;
+  vertical-align: -3px;
 }
 
 .scheduleModeSwitch {

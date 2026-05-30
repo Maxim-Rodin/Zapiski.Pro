@@ -643,6 +643,29 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Время заблокировано");
         }
 
+        public MiniAppMasterActionResult DeleteTimeBlock(string key, long telegramId, int blockId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к этой блокировке");
+
+            if (blockId <= 0)
+                return Failed("Блокировка не найдена");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""MasterTimeBlocks""
+                SET ""IsActive"" = false
+                WHERE ""idBlock"" = @blockId
+                AND ""MasterId"" = @masterId
+                AND ""IsActive"" = true
+            ",
+                new NpgsqlParameter("blockId", blockId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return Ok("Блокировка удалена");
+        }
+
         public async Task<MiniAppMasterActionResult> AcceptBooking(string key, long telegramId, int bookingId)
         {
             var booking = GetBookingForAction(key, telegramId, bookingId);

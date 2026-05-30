@@ -134,6 +134,14 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.CreateTimeBlock(key.Trim(), telegramId, request);
         }
 
+        public MiniAppMasterActionResult DeleteTimeBlock(string key, long telegramId, int blockId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.DeleteTimeBlock(key.Trim(), telegramId, blockId);
+        }
+
         public async Task<MiniAppMasterActionResult> AcceptBooking(string key, long telegramId, int bookingId)
         {
             if (string.IsNullOrWhiteSpace(key))
