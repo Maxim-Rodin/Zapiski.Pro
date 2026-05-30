@@ -194,19 +194,19 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     var slotStart = TimeSpan.Parse(row["StartTime"].ToString());
                     var slotEnd = TimeSpan.Parse(row["EndTime"].ToString());
 
-                    if (date.Date == now.Date && slotStart <= now.TimeOfDay)
-                        continue;
-
-                    if (slotStart + slotDuration > slotEnd)
-                        continue;
-
-                    var bookingEnd = slotStart + slotDuration;
-
-                    slots.Add(new MiniAppBookingSlotDto
+                    for (var time = slotStart; time + slotDuration <= slotEnd; time += slotDuration)
                     {
-                        Time = slotStart.ToString(@"hh\:mm"),
-                        IsBusy = busyIntervals.Any(interval => slotStart < interval.End && bookingEnd > interval.Start)
-                    });
+                        if (date.Date == now.Date && time <= now.TimeOfDay)
+                            continue;
+
+                        var bookingEnd = time + slotDuration;
+
+                        slots.Add(new MiniAppBookingSlotDto
+                        {
+                            Time = time.ToString(@"hh\:mm"),
+                            IsBusy = busyIntervals.Any(interval => time < interval.End && bookingEnd > interval.Start)
+                        });
+                    }
                 }
 
                 return slots;
@@ -317,7 +317,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     WHERE ""MasterId"" = {masterId}
                     AND ""Date"" = '{date:yyyy-MM-dd}'
                     AND ""IsActive"" = true
-                    AND ""StartTime"" = '{timeSql}'::time
+                    AND ""StartTime"" <= '{timeSql}'::time
                     AND ""EndTime"" >= '{bookingEndSql}'::time
                     LIMIT 1
                 ");
