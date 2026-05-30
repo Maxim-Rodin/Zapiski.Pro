@@ -61,6 +61,60 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.UpdateScheduleDay(key.Trim(), telegramId, day, request);
         }
 
+        public MiniAppMasterScheduleModeDto? GetScheduleMode(string key, long telegramId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetScheduleMode(key.Trim(), telegramId);
+        }
+
+        public MiniAppMasterActionResult UpdateScheduleMode(string key, long telegramId, MiniAppUpdateScheduleModeRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.UpdateScheduleMode(key.Trim(), telegramId, request);
+        }
+
+        public List<MiniAppManualSlotDto>? GetManualSlots(string key, long telegramId, string date)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetManualSlots(key.Trim(), telegramId, date);
+        }
+
+        public MiniAppMasterActionResult CreateManualSlot(string key, long telegramId, MiniAppCreateManualSlotRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.CreateManualSlot(key.Trim(), telegramId, request);
+        }
+
+        public MiniAppMasterActionResult DeleteManualSlot(string key, long telegramId, int slotId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.DeleteManualSlot(key.Trim(), telegramId, slotId);
+        }
+
+        public MiniAppMasterActionResult ClearManualSlotsDay(string key, long telegramId, string date)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.ClearManualSlotsDay(key.Trim(), telegramId, date);
+        }
+
         public List<MiniAppMasterBookingDto>? GetBookings(string key, long telegramId)
         {
             if (string.IsNullOrWhiteSpace(key))

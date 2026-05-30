@@ -100,6 +100,84 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(result);
             });
 
+            app.MapGet("/api/master/{key}/schedule-mode", (HttpRequest httpRequest, string key) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var mode = masterService.GetScheduleMode(key, telegramId);
+
+                if (mode == null)
+                    return Results.NotFound(new { success = false, message = "Мастер не найден" });
+
+                return Results.Ok(mode);
+            });
+
+            app.MapPut("/api/master/{key}/schedule-mode", (HttpRequest httpRequest, string key, MiniAppUpdateScheduleModeRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.UpdateScheduleMode(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapGet("/api/master/{key}/manual-slots", (HttpRequest httpRequest, string key, string date) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var slots = masterService.GetManualSlots(key, telegramId, date);
+
+                if (slots == null)
+                    return Results.NotFound(new { success = false, message = "Мастер не найден" });
+
+                return Results.Ok(slots);
+            });
+
+            app.MapPost("/api/master/{key}/manual-slots", (HttpRequest httpRequest, string key, MiniAppCreateManualSlotRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.CreateManualSlot(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapDelete("/api/master/{key}/manual-slots/{slotId:int}", (HttpRequest httpRequest, string key, int slotId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.DeleteManualSlot(key, telegramId, slotId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapDelete("/api/master/{key}/manual-slots", (HttpRequest httpRequest, string key, string date) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.ClearManualSlotsDay(key, telegramId, date);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
             app.MapPost("/api/master/{key}/time-blocks", (HttpRequest httpRequest, string key, MiniAppCreateTimeBlockRequest request) =>
             {
                 if (!TryGetTelegramId(httpRequest, out var telegramId))

@@ -111,6 +111,22 @@ namespace Zapiski.Pro.BasedClasses
         {
             try
             {
+                var activeBooking = Db.ExecuteQuery($@"
+                    SELECT 1
+                    FROM ""Bookings"" b
+                    JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                    JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                    WHERE u.""TelegrammId"" = {clientId}
+                    AND b.""Date"" = '{appointmentTime:yyyy-MM-dd}'
+                    AND b.""Time"" = '{appointmentTime:HH:mm:ss}'
+                    AND s.""Name"" = @serviceName
+                    AND b.""Status"" = 'confirmed'
+                    LIMIT 1
+                ", new Npgsql.NpgsqlParameter("serviceName", serviceName));
+
+                if (activeBooking.Rows.Count == 0)
+                    return;
+
                 var keyboard = new InlineKeyboardMarkup(new[]
         {
             new[]
@@ -161,7 +177,7 @@ namespace Zapiski.Pro.BasedClasses
 
                 var row = booking.Rows[0];
 
-                if (row["Status"].ToString() == "cancelled")
+                if (row["Status"].ToString() != "confirmed")
                     return;
 
                 long clientId = Convert.ToInt64(row["ClientTelegramId"]);

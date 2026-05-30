@@ -60,6 +60,31 @@
         public bool IsActive { get; set; }
     }
 
+    public class MiniAppMasterScheduleModeDto
+    {
+        public string Mode { get; set; } = "stable";
+    }
+
+    public class MiniAppUpdateScheduleModeRequest
+    {
+        public string Mode { get; set; }
+    }
+
+    public class MiniAppManualSlotDto
+    {
+        public int Id { get; set; }
+        public string Date { get; set; }
+        public string StartTime { get; set; }
+        public string EndTime { get; set; }
+    }
+
+    public class MiniAppCreateManualSlotRequest
+    {
+        public string Date { get; set; }
+        public string StartTime { get; set; }
+        public string EndTime { get; set; }
+    }
+
     public class MiniAppUpdateScheduleDayRequest
     {
         public string StartTime { get; set; }
@@ -72,6 +97,8 @@
         public int Id { get; set; }
         public string Name { get; set; }
         public int Price { get; set; }
+        public bool IsVariablePrice { get; set; }
+        public int? MaxPrice { get; set; }
         public int Duration { get; set; }
         public int PrepaymentPercent { get; set; }
         public int PrepaymentAmount { get; set; }
@@ -81,6 +108,8 @@
     {
         public string Name { get; set; }
         public int Price { get; set; }
+        public bool IsVariablePrice { get; set; }
+        public int? MaxPrice { get; set; }
         public int Duration { get; set; }
         public int PrepaymentPercent { get; set; }
     }

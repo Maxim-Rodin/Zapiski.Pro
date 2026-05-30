@@ -221,6 +221,218 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return schedule;
         }
 
+        public MiniAppMasterScheduleModeDto GetScheduleMode(string key, long telegramId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return new MiniAppMasterScheduleModeDto();
+
+            var mode = db.ExecuteScalar(@"
+                SELECT COALESCE(""ScheduleMode"", 'stable')
+                FROM ""Masters""
+                WHERE ""idMaster"" = @masterId
+            ", new NpgsqlParameter("masterId", master.Id))?.ToString();
+
+            return new MiniAppMasterScheduleModeDto
+            {
+                Mode = mode == "manual" ? "manual" : "stable"
+            };
+        }
+
+        public MiniAppMasterActionResult UpdateScheduleMode(string key, long telegramId, MiniAppUpdateScheduleModeRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому расписанию");
+
+            var mode = request.Mode == "manual" ? "manual" : "stable";
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Masters""
+                SET ""ScheduleMode"" = @mode
+                WHERE ""idMaster"" = @masterId
+            ",
+                new NpgsqlParameter("mode", mode),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return Ok(mode == "manual" ? "Включен ручной график" : "Включен стабильный график");
+        }
+
+        public List<MiniAppManualSlotDto> GetManualSlots(string key, long telegramId, string dateText)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return new List<MiniAppManualSlotDto>();
+
+            if (!DateTime.TryParse(dateText, out var date))
+                return new List<MiniAppManualSlotDto>();
+
+            var table = db.ExecuteQuery(@"
+                SELECT ""idSlot"", ""Date"", ""StartTime"", ""EndTime""
+                FROM ""MasterManualSlots""
+                WHERE ""MasterId"" = @masterId
+                AND ""Date"" = @date
+                AND ""IsActive"" = true
+                ORDER BY ""StartTime""
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date));
+
+            var slots = new List<MiniAppManualSlotDto>();
+
+            foreach (DataRow row in table.Rows)
+            {
+                slots.Add(new MiniAppManualSlotDto
+                {
+                    Id = Convert.ToInt32(row["idSlot"]),
+                    Date = ((DateOnly)row["Date"]).ToString("yyyy-MM-dd"),
+                    StartTime = FormatTime(row["StartTime"]),
+                    EndTime = FormatTime(row["EndTime"])
+                });
+            }
+
+            return slots;
+        }
+
+        public MiniAppMasterActionResult CreateManualSlot(string key, long telegramId, MiniAppCreateManualSlotRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому расписанию");
+
+            if (!DateTime.TryParse(request.Date, out var date))
+                return Failed("Неверная дата");
+
+            if (date.Date < DateTime.Now.Date)
+                return Failed("Нельзя добавить слот в прошедший день");
+
+            var startText = NormalizeTime(request.StartTime);
+            var endText = NormalizeTime(request.EndTime);
+
+            if (!TimeSpan.TryParse(startText, out var start) || !TimeSpan.TryParse(endText, out var end))
+                return Failed("Время введено неверно");
+
+            if (start >= end)
+                return Failed("Время начала должно быть раньше конца");
+
+            if (date.Date == DateTime.Now.Date && start <= DateTime.Now.TimeOfDay)
+                return Failed("Нельзя добавить прошедшее время");
+
+            var conflict = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""MasterManualSlots""
+                WHERE ""MasterId"" = @masterId
+                AND ""Date"" = @date
+                AND ""IsActive"" = true
+                AND ""StartTime"" < @endTime
+                AND ""EndTime"" > @startTime
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            if (conflict.Rows.Count > 0)
+                return Failed("Этот слот пересекается с другим слотом");
+
+            var bookingConflict = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""Bookings"" b
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE b.""MasterId"" = @masterId
+                AND b.""Date"" = @date
+                AND b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
+                AND b.""Time"" < @endTime
+                AND (b.""Time"" + (COALESCE(s.""Duration"", 60) * interval '1 minute')) > @startTime
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            if (bookingConflict.Rows.Count > 0)
+                return Failed("В это время уже есть запись клиента");
+
+            var blockConflict = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""MasterTimeBlocks""
+                WHERE ""MasterId"" = @masterId
+                AND ""Date"" = @date
+                AND ""IsActive"" = true
+                AND ""StartTime"" < @endTime
+                AND ""EndTime"" > @startTime
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            if (blockConflict.Rows.Count > 0)
+                return Failed("Это время уже закрыто ручной блокировкой");
+
+            db.ExecuteNonQuery(@"
+                INSERT INTO ""MasterManualSlots""
+                    (""MasterId"", ""Date"", ""StartTime"", ""EndTime"")
+                VALUES
+                    (@masterId, @date, @startTime, @endTime)
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date),
+                new NpgsqlParameter("startTime", start),
+                new NpgsqlParameter("endTime", end));
+
+            return Ok("Слот добавлен");
+        }
+
+        public MiniAppMasterActionResult DeleteManualSlot(string key, long telegramId, int slotId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому расписанию");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""MasterManualSlots""
+                SET ""IsActive"" = false
+                WHERE ""idSlot"" = @slotId
+                AND ""MasterId"" = @masterId
+            ",
+                new NpgsqlParameter("slotId", slotId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return Ok("Слот удалён");
+        }
+
+        public MiniAppMasterActionResult ClearManualSlotsDay(string key, long telegramId, string dateText)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому расписанию");
+
+            if (!DateTime.TryParse(dateText, out var date))
+                return Failed("Неверная дата");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""MasterManualSlots""
+                SET ""IsActive"" = false
+                WHERE ""MasterId"" = @masterId
+                AND ""Date"" = @date
+                AND ""IsActive"" = true
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("date", date.Date));
+
+            return Ok("День очищен");
+        }
+
         public MiniAppMasterActionResult UpdateScheduleDay(string key, long telegramId, int day, MiniAppUpdateScheduleDayRequest request)
         {
             var master = GetMasterByKey(key);
@@ -639,6 +851,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     s.""idService"",
                     COALESCE(s.""Name"", 'Без названия') AS ""Name"",
                     COALESCE(s.""Price"", 0) AS ""Price"",
+                    COALESCE(s.""IsVariablePrice"", false) AS ""IsVariablePrice"",
+                    s.""MaxPrice"",
                     COALESCE(s.""Duration"", 0) AS ""Duration"",
                     COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent""
                 FROM ""Services"" s
@@ -659,6 +873,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     Id = Convert.ToInt32(row["idService"]),
                     Name = row["Name"]?.ToString(),
                     Price = price,
+                    IsVariablePrice = Convert.ToBoolean(row["IsVariablePrice"]),
+                    MaxPrice = row["MaxPrice"] == DBNull.Value ? null : Convert.ToInt32(row["MaxPrice"]),
                     Duration = Convert.ToInt32(row["Duration"]),
                     PrepaymentPercent = percent,
                     PrepaymentAmount = (price * percent) / 100
@@ -683,6 +899,12 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (request.Price <= 0)
                 return Failed("Цена должна быть больше 0");
 
+            if (request.IsVariablePrice)
+            {
+                if (!request.MaxPrice.HasValue || request.MaxPrice.Value <= request.Price)
+                    return Failed("Максимальная цена должна быть больше минимальной");
+            }
+
             if (request.Duration <= 0)
                 return Failed("Длительность должна быть больше 0");
 
@@ -694,13 +916,15 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
             db.ExecuteNonQuery(@"
                 INSERT INTO ""Services""
-                    (""MasterId"", ""Name"", ""Price"", ""Duration"", ""PrepaymentPercent"")
+                    (""MasterId"", ""Name"", ""Price"", ""MaxPrice"", ""IsVariablePrice"", ""Duration"", ""PrepaymentPercent"")
                 VALUES
-                    (@masterId, @name, @price, @duration, @prepaymentPercent)
+                    (@masterId, @name, @price, @maxPrice, @isVariablePrice, @duration, @prepaymentPercent)
             ",
                 new NpgsqlParameter("masterId", master.Id),
                 new NpgsqlParameter("name", name),
                 new NpgsqlParameter("price", request.Price),
+                new NpgsqlParameter("maxPrice", request.IsVariablePrice ? request.MaxPrice!.Value : (object)DBNull.Value),
+                new NpgsqlParameter("isVariablePrice", request.IsVariablePrice),
                 new NpgsqlParameter("duration", request.Duration),
                 new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent));
 
@@ -722,6 +946,12 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (request.Price <= 0)
                 return Failed("Цена должна быть больше 0");
 
+            if (request.IsVariablePrice)
+            {
+                if (!request.MaxPrice.HasValue || request.MaxPrice.Value <= request.Price)
+                    return Failed("Максимальная цена должна быть больше минимальной");
+            }
+
             if (request.Duration <= 0)
                 return Failed("Длительность должна быть больше 0");
 
@@ -736,6 +966,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 SET
                     ""Name"" = @name,
                     ""Price"" = @price,
+                    ""MaxPrice"" = @maxPrice,
+                    ""IsVariablePrice"" = @isVariablePrice,
                     ""Duration"" = @duration,
                     ""PrepaymentPercent"" = @prepaymentPercent
                 WHERE ""idService"" = @serviceId
@@ -743,6 +975,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             ",
                 new NpgsqlParameter("name", name),
                 new NpgsqlParameter("price", request.Price),
+                new NpgsqlParameter("maxPrice", request.IsVariablePrice ? request.MaxPrice!.Value : (object)DBNull.Value),
+                new NpgsqlParameter("isVariablePrice", request.IsVariablePrice),
                 new NpgsqlParameter("duration", request.Duration),
                 new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent),
                 new NpgsqlParameter("serviceId", serviceId),

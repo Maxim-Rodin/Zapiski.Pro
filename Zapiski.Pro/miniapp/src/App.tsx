@@ -90,6 +90,13 @@ type MasterScheduleDay = {
   isActive: boolean
 }
 
+type MasterManualSlot = {
+  id: number
+  date: string
+  startTime: string
+  endTime: string
+}
+
 type BookingSlot = {
   time: string
   isBusy: boolean
@@ -118,6 +125,8 @@ type MasterServiceItem = {
   id: number
   name: string
   price: number
+  isVariablePrice: boolean
+  maxPrice: number | null
   duration: number
   prepaymentPercent: number
   prepaymentAmount: number
@@ -209,6 +218,11 @@ const compareBookingDates = (first: string, second: string) => {
   const [secondDay, secondMonth, secondYear] = second.split(".").map(Number)
   return new Date(firstYear, firstMonth - 1, firstDay).getTime() - new Date(secondYear, secondMonth - 1, secondDay).getTime()
 }
+
+const formatServicePrice = (service: Pick<MasterServiceItem, "price" | "isVariablePrice" | "maxPrice">) =>
+  service.isVariablePrice && service.maxPrice && service.maxPrice > service.price
+    ? `${service.price}₽ - ${service.maxPrice}₽`
+    : `${service.price}₽`
 
 function App() {
   return (
@@ -925,7 +939,7 @@ function PublicProfileStub() {
                 <div>
                   <strong>{service.name || "Услуга"}</strong>
                   <small>
-                    {service.price}₽
+                    {formatServicePrice(service)}
                     {service.prepaymentPercent > 0
                       ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
                       : " · без предоплаты"}
@@ -1046,7 +1060,7 @@ function PublicServicesPage() {
                 <div>
                   <strong>{service.name || "Услуга"}</strong>
                   <small>
-                    {service.price}₽
+                    {formatServicePrice(service)}
                     {service.prepaymentPercent > 0
                       ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
                       : " · без предоплаты"}
@@ -1242,7 +1256,7 @@ function PublicBookingStub() {
                   >
                     <strong>{service.name}</strong>
                     <span>
-                      {service.price}₽ · {service.duration} мин
+                      {formatServicePrice(service)} · {service.duration} мин
                       {service.prepaymentPercent > 0 ? ` · предоплата ${service.prepaymentAmount}₽` : ""}
                     </span>
                   </button>
@@ -1738,6 +1752,12 @@ function MasterSchedulePage() {
   const [isActive, setIsActive] = useState(true)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("")
+  const [manualSlots, setManualSlots] = useState<MasterManualSlot[]>([])
+  const [selectedManualDate, setSelectedManualDate] = useState(formatDateInput(new Date()))
+  const [manualStartTime, setManualStartTime] = useState("09:00")
+  const [manualEndTime, setManualEndTime] = useState("10:00")
+  const [manualLoading, setManualLoading] = useState(false)
+  const manualDays = buildCalendarDays(45)
 
   function loadSchedule() {
     if (!key) return
@@ -1766,9 +1786,140 @@ function MasterSchedulePage() {
       .finally(() => setLoading(false))
   }
 
+  function loadScheduleMode() {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/schedule-mode`, {
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok) return
+        setMode(data?.mode === "manual" ? "manual" : "stable")
+      })
+      .catch(() => undefined)
+  }
+
+  function loadManualSlots(date = selectedManualDate) {
+    if (!key) return
+
+    setManualLoading(true)
+
+    fetch(`${API_URL}/api/master/${key}/manual-slots?date=${date}`, {
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => [])
+
+        if (!res.ok) {
+          setManualSlots([])
+          return
+        }
+
+        setManualSlots(Array.isArray(data) ? data : [])
+      })
+      .catch(() => setManualSlots([]))
+      .finally(() => setManualLoading(false))
+  }
+
   useEffect(() => {
     loadSchedule()
+    loadScheduleMode()
   }, [key])
+
+  useEffect(() => {
+    if (mode === "manual") {
+      loadManualSlots(selectedManualDate)
+    }
+  }, [mode, selectedManualDate, key])
+
+  function changeMode(nextMode: "stable" | "manual") {
+    if (!key) return
+
+    setMode(nextMode)
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}/schedule-mode`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({ mode: nextMode }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось переключить режим")
+        }
+        setMessage(data.message || "Режим расписания обновлен")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка сохранения режима"))
+  }
+
+  function addManualSlot() {
+    if (!key) return
+
+    setMessage("Добавляем слот...")
+
+    fetch(`${API_URL}/api/master/${key}/manual-slots`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        date: selectedManualDate,
+        startTime: manualStartTime,
+        endTime: manualEndTime,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось добавить слот")
+        }
+        setMessage(data.message || "Слот добавлен")
+        loadManualSlots(selectedManualDate)
+      })
+      .catch((err) => setMessage(err.message || "Ошибка добавления слота"))
+  }
+
+  function deleteManualSlot(slotId: number) {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/manual-slots/${slotId}`, {
+      method: "DELETE",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось удалить слот")
+        }
+        setMessage(data.message || "Слот удален")
+        loadManualSlots(selectedManualDate)
+      })
+      .catch((err) => setMessage(err.message || "Ошибка удаления слота"))
+  }
+
+  function clearManualDay() {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/manual-slots?date=${selectedManualDate}`, {
+      method: "DELETE",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось очистить день")
+        }
+        setMessage(data.message || "День очищен")
+        loadManualSlots(selectedManualDate)
+      })
+      .catch((err) => setMessage(err.message || "Ошибка очистки дня"))
+  }
 
   function startEditDay(day: MasterScheduleDay) {
     setEditingDay(day)
@@ -1820,14 +1971,14 @@ function MasterSchedulePage() {
         <button
           type="button"
           className={mode === "stable" ? "active" : ""}
-          onClick={() => setMode("stable")}
+          onClick={() => changeMode("stable")}
         >
           Стабильное
         </button>
         <button
           type="button"
           className={mode === "manual" ? "active" : ""}
-          onClick={() => setMode("manual")}
+          onClick={() => changeMode("manual")}
         >
           Ручное
         </button>
@@ -1836,7 +1987,89 @@ function MasterSchedulePage() {
       {message && <div className="profileMessage">{message}</div>}
 
       {mode === "manual" ? (
-        <section className="stubScreen">
+        <section className="adminCard manualSchedulePanel">
+          <div className="calendarStrip manualDateStrip">
+            {manualDays.map((day) => (
+              <button
+                type="button"
+                key={day.value}
+                className={selectedManualDate === day.value ? "active" : ""}
+                onClick={() => setSelectedManualDate(day.value)}
+              >
+                <span>{day.weekday}</span>
+                <strong>{day.day}</strong>
+                <small>{day.month}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="manualScheduleHeader">
+            <div>
+              <h2>Ручной график</h2>
+              <p>Заполняйте слоты для выбранного дня</p>
+            </div>
+            <span>
+              <CalendarDays size={24} strokeWidth={2.4} />
+            </span>
+          </div>
+
+          <div className="manualSlotList">
+            {manualLoading ? (
+              <div className="manualEmptySlot">Загружаем слоты...</div>
+            ) : manualSlots.length === 0 ? (
+              <div className="manualEmptySlot">
+                <CalendarDays size={22} strokeWidth={2.4} />
+                <div>
+                  <strong>Пока нет слотов</strong>
+                  <small>Добавьте время вручную</small>
+                </div>
+              </div>
+            ) : (
+              manualSlots.map((slot) => (
+                <div className="manualSlotRow" key={slot.id}>
+                  <span>
+                    <Clock size={20} strokeWidth={2.4} />
+                  </span>
+                  <strong>{slot.startTime} - {slot.endTime}</strong>
+                  <button type="button" aria-label="Удалить слот" onClick={() => deleteManualSlot(slot.id)}>
+                    <Trash2 size={19} strokeWidth={2.4} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="manualSlotForm">
+            <div className="timeGrid">
+              <label>
+                <span>Начало</span>
+                <input
+                  className="adminInput"
+                  type="time"
+                  value={manualStartTime}
+                  onChange={(event) => setManualStartTime(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Конец</span>
+                <input
+                  className="adminInput"
+                  type="time"
+                  value={manualEndTime}
+                  onChange={(event) => setManualEndTime(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <button type="button" className="primaryButton iconButton" onClick={addManualSlot}>
+              <Plus size={19} strokeWidth={2.4} />
+              Добавить слот
+            </button>
+            <button type="button" className="clearDayButton" onClick={clearManualDay}>
+              <Trash2 size={17} strokeWidth={2.4} />
+              Очистить день
+            </button>
+          </div>
           <div className="stubIcon">
             <CalendarDays size={38} strokeWidth={2.2} />
           </div>
@@ -2491,6 +2724,8 @@ function MasterServicesPage() {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
+  const [isVariablePrice, setIsVariablePrice] = useState(false)
+  const [maxPrice, setMaxPrice] = useState("")
   const [duration, setDuration] = useState("")
   const [prepaymentPercent, setPrepaymentPercent] = useState("0")
   const [message, setMessage] = useState("")
@@ -2540,6 +2775,8 @@ function MasterServicesPage() {
   function resetServiceForm() {
     setName("")
     setPrice("")
+    setIsVariablePrice(false)
+    setMaxPrice("")
     setDuration("")
     setPrepaymentPercent("0")
     setEditingService(null)
@@ -2549,6 +2786,8 @@ function MasterServicesPage() {
     setEditingService(service)
     setName(service.name)
     setPrice(String(service.price))
+    setIsVariablePrice(Boolean(service.isVariablePrice))
+    setMaxPrice(service.maxPrice ? String(service.maxPrice) : "")
     setDuration(String(service.duration))
     setPrepaymentPercent(String(service.prepaymentPercent))
     setShowForm(true)
@@ -2565,6 +2804,7 @@ function MasterServicesPage() {
     setMessage("")
 
     const priceValue = Number(price)
+    const maxPriceValue = Number(maxPrice)
     const durationValue = Number(duration)
     const prepaymentValue = Number(prepaymentPercent)
 
@@ -2575,6 +2815,11 @@ function MasterServicesPage() {
 
     if (!Number.isInteger(priceValue) || priceValue <= 0) {
       setMessage("Цена должна быть больше 0")
+      return
+    }
+
+    if (isVariablePrice && (!Number.isInteger(maxPriceValue) || maxPriceValue <= priceValue)) {
+      setMessage("Максимальная цена должна быть больше минимальной")
       return
     }
 
@@ -2603,6 +2848,8 @@ function MasterServicesPage() {
       body: JSON.stringify({
         name: name.trim(),
         price: priceValue,
+        isVariablePrice,
+        maxPrice: isVariablePrice ? maxPriceValue : null,
         duration: durationValue,
         prepaymentPercent: prepaymentValue,
       }),
@@ -2688,6 +2935,28 @@ function MasterServicesPage() {
               />
             </div>
 
+            <label className="settingsToggleRow">
+              <input
+                type="checkbox"
+                checked={isVariablePrice}
+                onChange={(event) => setIsVariablePrice(event.target.checked)}
+              />
+              <span>
+                <strong>Вариативная цена</strong>
+                <small>Показывать клиентам диапазон цены</small>
+              </span>
+            </label>
+
+            {isVariablePrice && (
+              <input
+                className="adminInput"
+                inputMode="numeric"
+                placeholder="Максимальная цена"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+              />
+            )}
+
             <label className="fieldLabel" htmlFor="prepaymentPercent">
               Предоплата: {prepaymentPercent || 0}%
             </label>
@@ -2748,7 +3017,7 @@ function MasterServicesPage() {
               </div>
 
               <div className="serviceMetaGrid">
-                <ServiceMeta icon={<Banknote />} label="Цена" value={`${service.price}₽`} />
+                <ServiceMeta icon={<Banknote />} label="Цена" value={formatServicePrice(service)} />
                 <ServiceMeta icon={<Clock />} label="Время" value={`${service.duration} мин`} />
                 <ServiceMeta
                   icon={<BadgePercent />}
@@ -2798,6 +3067,7 @@ function MasterProfilePage() {
   const [paymentDetails, setPaymentDetails] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [message, setMessage] = useState("")
+  const [profileEditor, setProfileEditor] = useState<"phone" | "payment" | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/api/master/${key}`)
@@ -2847,6 +3117,7 @@ function MasterProfilePage() {
           paymentDetails: paymentDetails.trim(),
           phoneNumber: phoneNumber.trim(),
         })
+        setProfileEditor(null)
         setMessage("Профиль сохранён")
       })
       .catch((err) => setMessage(err.message || "Ошибка сохранения"))
@@ -2886,7 +3157,31 @@ function MasterProfilePage() {
               placeholder="Расскажите клиентам о себе"
             />
 
-            <label className="fieldLabel" htmlFor="masterPhone">Телефон мастера</label>
+            <div className="profileSettingsList">
+              <button type="button" className="profileSettingsCard" onClick={() => setProfileEditor("phone")}>
+                <span className="profileSettingsIcon">
+                  <Phone size={22} strokeWidth={2.4} />
+                </span>
+                <span>
+                  <strong>Телефон</strong>
+                  <small>{phoneNumber.trim() || "Не указан"}</small>
+                </span>
+                <ChevronRight size={22} strokeWidth={2.4} />
+              </button>
+
+              <button type="button" className="profileSettingsCard" onClick={() => setProfileEditor("payment")}>
+                <span className="profileSettingsIcon">
+                  <CreditCard size={22} strokeWidth={2.4} />
+                </span>
+                <span>
+                  <strong>Реквизиты</strong>
+                  <small>{paymentDetails.trim() ? "Заполнены" : "Нужны для услуг с предоплатой"}</small>
+                </span>
+                <ChevronRight size={22} strokeWidth={2.4} />
+              </button>
+            </div>
+
+            <label className="fieldLabel legacyProfileField" htmlFor="masterPhone">Телефон мастера</label>
             <input
               id="masterPhone"
               className="adminInput"
@@ -2917,6 +3212,44 @@ function MasterProfilePage() {
           </div>
         )}
       </section>
+
+      {profileEditor && (
+        <div className="modalOverlay">
+          <div className="modal profileSettingsModal">
+            <h2>{profileEditor === "phone" ? "Телефон" : "Реквизиты"}</h2>
+            {profileEditor === "phone" ? (
+              <>
+                <p className="modalHint">Этот номер будет виден клиентам в публичном профиле.</p>
+                <input
+                  className="adminInput"
+                  inputMode="tel"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  placeholder="+7..."
+                />
+              </>
+            ) : (
+              <>
+                <p className="modalHint">Реквизиты нужны, если у услуги включена предоплата.</p>
+                <textarea
+                  className="adminInput broadcastTextarea"
+                  value={paymentDetails}
+                  onChange={(event) => setPaymentDetails(event.target.value)}
+                  placeholder="Например: СБП +7..., банк, получатель"
+                />
+              </>
+            )}
+            <div className="modalActions">
+              <button type="button" className="cancelButton" onClick={() => setProfileEditor(null)}>
+                Отмена
+              </button>
+              <button type="button" className="saveButton" onClick={saveProfile}>
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MasterBottomNav masterKey={key ?? ""} />
     </main>

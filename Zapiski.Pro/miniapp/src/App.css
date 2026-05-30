@@ -944,6 +944,145 @@ body {
   font-weight: 800;
 }
 
+.manualSchedulePanel {
+  display: grid;
+  gap: 14px;
+}
+
+.manualSchedulePanel > .stubIcon,
+.manualSchedulePanel > h2,
+.manualSchedulePanel > p {
+  display: none;
+}
+
+.manualDateStrip {
+  margin: -2px 0 0;
+}
+
+.manualScheduleHeader {
+  display: grid;
+  grid-template-columns: 1fr 52px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #4b8df7, #7caeff);
+  color: #ffffff;
+  padding: 16px;
+}
+
+.manualScheduleHeader h2,
+.manualScheduleHeader p {
+  margin: 0;
+}
+
+.manualScheduleHeader h2 {
+  font-size: 22px;
+}
+
+.manualScheduleHeader p {
+  margin-top: 4px;
+  opacity: 0.9;
+  font-size: 13px;
+}
+
+.manualScheduleHeader > span {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manualSlotList {
+  display: grid;
+  gap: 9px;
+}
+
+.manualSlotRow,
+.manualEmptySlot {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e4edf8;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.manualSlotRow {
+  grid-template-columns: 42px 1fr 38px;
+}
+
+.manualSlotRow span,
+.manualEmptySlot > svg {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manualSlotRow strong {
+  font-size: 16px;
+}
+
+.manualSlotRow button {
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #fff1f1;
+  color: #e54848;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manualEmptySlot {
+  grid-template-columns: 42px 1fr;
+  color: #102033;
+}
+
+.manualEmptySlot strong,
+.manualEmptySlot small {
+  display: block;
+}
+
+.manualEmptySlot small {
+  margin-top: 3px;
+  color: #6b7888;
+}
+
+.manualSlotForm {
+  display: grid;
+  gap: 10px;
+}
+
+.manualSlotForm .timeGrid,
+.manualSlotForm .adminInput {
+  margin-bottom: 0;
+}
+
+.clearDayButton {
+  width: 100%;
+  border: 1px solid #dbe7f5;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #4b8df7;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .modal {
   width: 100%;
   max-width: 360px;
@@ -1988,6 +2127,97 @@ body {
   margin: 4px 0 0;
   color: #5e6d80;
   font-size: 13px;
+}
+
+.profileSettingsList {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.profileSettingsCard {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 46px 1fr 22px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+  color: #102033;
+  padding: 12px;
+  text-align: left;
+}
+
+.profileSettingsIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileSettingsCard strong,
+.profileSettingsCard small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.profileSettingsCard small {
+  margin-top: 4px;
+  color: #6b7888;
+  font-size: 12px;
+}
+
+.legacyProfileField,
+.legacyProfileField + input,
+.legacyProfileField + input + .paymentDetailsNotice,
+.legacyProfileField + input + .paymentDetailsNotice + textarea {
+  display: none;
+}
+
+.profileSettingsModal .adminInput {
+  margin: 10px 0 14px;
+}
+
+.modalHint {
+  margin: 0 0 8px;
+  color: #6b7888;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settingsToggleRow {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.settingsToggleRow input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #4b8df7;
+}
+
+.settingsToggleRow strong,
+.settingsToggleRow small {
+  display: block;
+}
+
+.settingsToggleRow small {
+  margin-top: 3px;
+  color: #6b7888;
+  font-size: 12px;
 }
 
 .deleteButton {

@@ -123,18 +123,6 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 return new List<MiniAppBookingSlotDto>();
 
             var masterId = db.GetMasterIdByKey(masterKey);
-            var day = ToScheduleDay(date.DayOfWeek);
-
-            var schedule = db.ExecuteQuery($@"
-                SELECT *
-                FROM ""MasterSchedule""
-                WHERE ""MasterId"" = {masterId}
-                AND ""DayOfWeek"" = {day}
-            ");
-
-            if (schedule.Rows.Count == 0 || !(bool)schedule.Rows[0]["IsActive"])
-                return new List<MiniAppBookingSlotDto>();
-
             var serviceTable = db.ExecuteQuery($@"
                 SELECT ""Duration""
                 FROM ""Services""
@@ -148,8 +136,12 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var duration = serviceTable.Rows[0]["Duration"] == DBNull.Value
                 ? 60
                 : Convert.ToInt32(serviceTable.Rows[0]["Duration"]);
-            var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
-            var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
+            var slotDuration = TimeSpan.FromMinutes(duration);
+            var scheduleMode = db.ExecuteScalar($@"
+                SELECT COALESCE(""ScheduleMode"", 'stable')
+                FROM ""Masters""
+                WHERE ""idMaster"" = {masterId}
+            ")?.ToString() ?? "stable";
 
             var busyBookings = db.ExecuteQuery($@"
                 SELECT b.""Time"", COALESCE(s.""Duration"", 60) AS ""Duration""
@@ -186,12 +178,61 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var slots = new List<MiniAppBookingSlotDto>();
 
-            for (var time = start; time + TimeSpan.FromMinutes(duration) <= end; time += TimeSpan.FromMinutes(duration))
+            if (scheduleMode == "manual")
+            {
+                var manualSlots = db.ExecuteQuery($@"
+                    SELECT ""StartTime"", ""EndTime""
+                    FROM ""MasterManualSlots""
+                    WHERE ""MasterId"" = {masterId}
+                    AND ""Date"" = '{date:yyyy-MM-dd}'
+                    AND ""IsActive"" = true
+                    ORDER BY ""StartTime""
+                ");
+
+                foreach (DataRow row in manualSlots.Rows)
+                {
+                    var slotStart = TimeSpan.Parse(row["StartTime"].ToString());
+                    var slotEnd = TimeSpan.Parse(row["EndTime"].ToString());
+
+                    if (date.Date == now.Date && slotStart <= now.TimeOfDay)
+                        continue;
+
+                    if (slotStart + slotDuration > slotEnd)
+                        continue;
+
+                    var bookingEnd = slotStart + slotDuration;
+
+                    slots.Add(new MiniAppBookingSlotDto
+                    {
+                        Time = slotStart.ToString(@"hh\:mm"),
+                        IsBusy = busyIntervals.Any(interval => slotStart < interval.End && bookingEnd > interval.Start)
+                    });
+                }
+
+                return slots;
+            }
+
+            var day = ToScheduleDay(date.DayOfWeek);
+
+            var schedule = db.ExecuteQuery($@"
+                SELECT *
+                FROM ""MasterSchedule""
+                WHERE ""MasterId"" = {masterId}
+                AND ""DayOfWeek"" = {day}
+            ");
+
+            if (schedule.Rows.Count == 0 || !(bool)schedule.Rows[0]["IsActive"])
+                return new List<MiniAppBookingSlotDto>();
+
+            var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
+            var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
+
+            for (var time = start; time + slotDuration <= end; time += slotDuration)
             {
                 if (date.Date == now.Date && time <= now.TimeOfDay)
                     continue;
 
-                var slotEnd = time + TimeSpan.FromMinutes(duration);
+                var slotEnd = time + slotDuration;
 
                 slots.Add(new MiniAppBookingSlotDto
                 {
@@ -221,7 +262,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var safeMasterKey = (request.MasterKey ?? string.Empty).Replace("'", "''");
             var masterTable = db.ExecuteQuery($@"
-                SELECT ""idMaster""
+                SELECT ""idMaster"", COALESCE(""ScheduleMode"", 'stable') AS ""ScheduleMode""
                 FROM ""Masters""
                 WHERE ""Key"" = '{safeMasterKey}'
                 LIMIT 1
@@ -231,6 +272,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 return FailedBooking("Мастер не найден");
 
             var masterId = Convert.ToInt32(masterTable.Rows[0]["idMaster"]);
+            var scheduleMode = masterTable.Rows[0]["ScheduleMode"]?.ToString() ?? "stable";
             var day = ToScheduleDay(date.DayOfWeek);
 
             var schedule = db.ExecuteQuery($@"
@@ -240,7 +282,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 AND ""DayOfWeek"" = {day}
             ");
 
-            if (schedule.Rows.Count == 0 || !(bool)schedule.Rows[0]["IsActive"])
+            if (scheduleMode != "manual" && (schedule.Rows.Count == 0 || !(bool)schedule.Rows[0]["IsActive"]))
                 return FailedBooking("У мастера выходной");
 
             var serviceTable = db.ExecuteQuery($@"
@@ -257,14 +299,32 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var duration = service["Duration"] == DBNull.Value
                 ? 60
                 : Convert.ToInt32(service["Duration"]);
-            var start = TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
-            var end = TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
+            var start = schedule.Rows.Count == 0 ? TimeSpan.Zero : TimeSpan.Parse(schedule.Rows[0]["StartTime"].ToString());
+            var end = schedule.Rows.Count == 0 ? TimeSpan.Zero : TimeSpan.Parse(schedule.Rows[0]["EndTime"].ToString());
 
-            if (time < start || time + TimeSpan.FromMinutes(duration) > end)
+            if (scheduleMode != "manual" && (time < start || time + TimeSpan.FromMinutes(duration) > end))
                 return FailedBooking("Это время недоступно");
 
             var timeSql = time.ToString(@"hh\:mm\:ss");
             var timeText = time.ToString(@"hh\:mm");
+            var bookingEndSql = (time + TimeSpan.FromMinutes(duration)).ToString(@"hh\:mm\:ss");
+
+            if (scheduleMode == "manual")
+            {
+                var manualSlot = db.ExecuteQuery($@"
+                    SELECT 1
+                    FROM ""MasterManualSlots""
+                    WHERE ""MasterId"" = {masterId}
+                    AND ""Date"" = '{date:yyyy-MM-dd}'
+                    AND ""IsActive"" = true
+                    AND ""StartTime"" = '{timeSql}'::time
+                    AND ""EndTime"" >= '{bookingEndSql}'::time
+                    LIMIT 1
+                ");
+
+                if (manualSlot.Rows.Count == 0)
+                    return FailedBooking("Это время недоступно");
+            }
 
             var check = db.ExecuteQuery($@"
                 SELECT 1
@@ -273,7 +333,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 WHERE b.""MasterId"" = {masterId}
                 AND b.""Date"" = '{date:yyyy-MM-dd}'
                 AND b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm')
-                AND b.""Time"" < '{(time + TimeSpan.FromMinutes(duration)).ToString(@"hh\:mm\:ss")}'::time
+                AND b.""Time"" < '{bookingEndSql}'::time
                 AND (b.""Time"" + (COALESCE(s.""Duration"", 60) * interval '1 minute')) > '{timeSql}'::time
                 LIMIT 1
             ");
@@ -287,7 +347,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 WHERE ""MasterId"" = {masterId}
                 AND ""Date"" = '{date:yyyy-MM-dd}'
                 AND ""IsActive"" = true
-                AND ""StartTime"" < '{(time + TimeSpan.FromMinutes(duration)).ToString(@"hh\:mm\:ss")}'::time
+                AND ""StartTime"" < '{bookingEndSql}'::time
                 AND ""EndTime"" > '{timeSql}'::time
                 LIMIT 1
             ");
