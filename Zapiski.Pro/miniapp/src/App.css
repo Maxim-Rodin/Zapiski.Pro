@@ -742,6 +742,52 @@ body {
   font-size: 12px;
 }
 
+.addressLine {
+  color: #516071;
+  font-weight: 700;
+}
+
+.addressList {
+  display: grid;
+  gap: 10px;
+}
+
+.addressItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.addressItem span,
+.addressItem strong,
+.addressItem small {
+  display: block;
+}
+
+.addressItem small {
+  margin-top: 4px;
+  color: #6b7888;
+  overflow-wrap: anywhere;
+}
+
+.addressItem button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 13px;
+  color: #e54848;
+  background: #ffe8e8;
+}
+
 .timelineCardActions {
   display: flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react"
+﻿import { type ReactNode, useEffect, useState } from "react"
 import { Link, Route, Routes, useParams, useSearchParams } from "react-router-dom"
 import {
   Bot,
@@ -12,6 +12,7 @@ import {
   Globe,
   Home,
   LayoutDashboard,
+  MapPin,
   Megaphone,
   Plus,
   BadgePercent,
@@ -74,6 +75,7 @@ type MasterBooking = {
   clientTelegramId: number
   clientUsername: string
   serviceName: string
+  address: string
   dateTime: string
   status: string
   price: number
@@ -95,6 +97,12 @@ type MasterManualSlot = {
   date: string
   startTime: string
   endTime: string
+}
+
+type MasterAddress = {
+  id: number
+  title: string
+  address: string
 }
 
 type BookingSlot = {
@@ -119,6 +127,7 @@ type BookingCreateResult = {
   prepaymentPercent: number
   prepaymentAmount: number
   paymentDetails: string
+  address: string
 }
 
 type MasterServiceItem = {
@@ -130,6 +139,9 @@ type MasterServiceItem = {
   duration: number
   prepaymentPercent: number
   prepaymentAmount: number
+  addressId: number | null
+  addressTitle: string
+  address: string
 }
 
 type AdminStats = {
@@ -158,6 +170,7 @@ type UserDashboard = {
 type UserBooking = {
   id: number
   serviceName: string
+  address: string
   masterKey: string
   masterUsername: string
   dateTime: string
@@ -944,6 +957,7 @@ function PublicProfileStub() {
                       ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
                       : " · без предоплаты"}
                   </small>
+                  {service.address && <small className="addressLine">📍 {service.address}</small>}
                 </div>
                 <ChevronRight size={21} strokeWidth={2.4} />
               </Link>
@@ -1065,6 +1079,7 @@ function PublicServicesPage() {
                       ? ` · предоплата ${service.prepaymentAmount}₽ (${service.prepaymentPercent}%)`
                       : " · без предоплаты"}
                   </small>
+                  {service.address && <small className="addressLine">📍 {service.address}</small>}
                 </div>
                 <Link to={`/master/${key}/public-booking?serviceId=${service.id}`} className="publicServiceBookButton">
                   Записаться
@@ -1223,6 +1238,7 @@ function PublicBookingStub() {
           <p>
             {bookingResult.serviceName} · {selectedDate} · {selectedTime}
           </p>
+          {bookingResult.address && <p className="addressLine">📍 {bookingResult.address}</p>}
           {bookingResult.status === "waiting_payment" && (
             <div className="paymentBox">
               <strong>Предоплата {bookingResult.prepaymentAmount}₽ ({bookingResult.prepaymentPercent}%)</strong>
@@ -1259,11 +1275,11 @@ function PublicBookingStub() {
                       {formatServicePrice(service)} · {service.duration} мин
                       {service.prepaymentPercent > 0 ? ` · предоплата ${service.prepaymentAmount}₽` : ""}
                     </span>
+                    {service.address && <span>📍 {service.address}</span>}
                   </button>
                 ))}
               </div>
-            )}
-          </section>
+            )}          </section>
 
           <section className="publicInfoCard">
             <h3>Дата</h3>
@@ -1513,6 +1529,12 @@ function MasterBookingsPage() {
               ? `${booking.prepaymentAmount}₽ (${booking.prepaymentPercent}%)`
               : "без предоплаты"}
           </span>
+          {booking.address && (
+            <span>
+              <MapPin size={17} strokeWidth={2.2} />
+              {booking.address}
+            </span>
+          )}
         </div>
 
         {(booking.status === "pending" || booking.status === "confirmed" || booking.status === "waiting_payment_confirm") && (
@@ -2427,6 +2449,7 @@ function UserBookingsSection({
                 </div>
                 <p>@{booking.masterUsername || booking.masterKey}</p>
                 <span>{booking.dateTime}</span>
+                {booking.address && <span>📍 {booking.address}</span>}
                 {onCancel && booking.status !== "cancelled" && booking.status !== "completed" && (
                   <button type="button" className="inlineDangerButton" onClick={() => onCancel(booking.id)}>
                     <XCircle size={15} strokeWidth={2.4} />
@@ -2765,6 +2788,8 @@ function MasterServicesPage() {
   const [maxPrice, setMaxPrice] = useState("")
   const [duration, setDuration] = useState("")
   const [prepaymentPercent, setPrepaymentPercent] = useState("0")
+  const [addressId, setAddressId] = useState("")
+  const [addresses, setAddresses] = useState<MasterAddress[]>([])
   const [message, setMessage] = useState("")
   const [loadError, setLoadError] = useState("")
   const [editingService, setEditingService] = useState<MasterServiceItem | null>(null)
@@ -2807,6 +2832,11 @@ function MasterServicesPage() {
       .then((res) => res.json())
       .then((data) => setHasPaymentDetails(Boolean(data.paymentDetails?.trim())))
       .catch(() => setHasPaymentDetails(false))
+
+    fetch(`${API_URL}/api/master/${key}/addresses`)
+      .then((res) => res.json())
+      .then((data) => setAddresses(Array.isArray(data) ? data : []))
+      .catch(() => setAddresses([]))
   }, [key])
 
   function resetServiceForm() {
@@ -2816,6 +2846,7 @@ function MasterServicesPage() {
     setMaxPrice("")
     setDuration("")
     setPrepaymentPercent("0")
+    setAddressId("")
     setEditingService(null)
   }
 
@@ -2827,6 +2858,7 @@ function MasterServicesPage() {
     setMaxPrice(service.maxPrice ? String(service.maxPrice) : "")
     setDuration(String(service.duration))
     setPrepaymentPercent(String(service.prepaymentPercent))
+    setAddressId(service.addressId ? String(service.addressId) : "")
     setShowForm(true)
     setMessage("")
   }
@@ -2889,6 +2921,7 @@ function MasterServicesPage() {
         maxPrice: isVariablePrice ? maxPriceValue : null,
         duration: durationValue,
         prepaymentPercent: prepaymentValue,
+        addressId: addressId ? Number(addressId) : null,
       }),
     })
       .then(async (res) => {
@@ -2971,6 +3004,26 @@ function MasterServicesPage() {
                 onChange={(e) => setDuration(e.target.value)}
               />
             </div>
+
+            <label className="fieldLabel" htmlFor="serviceAddress">
+              Адрес услуги
+            </label>
+            <select
+              id="serviceAddress"
+              className="adminInput"
+              value={addressId}
+              onChange={(event) => setAddressId(event.target.value)}
+            >
+              <option value="">Без адреса</option>
+              {addresses.map((address) => (
+                <option value={address.id} key={address.id}>
+                  {address.title} - {address.address}
+                </option>
+              ))}
+            </select>
+            {addresses.length === 0 && (
+              <p className="formHint">Адреса можно добавить в профиле мастера.</p>
+            )}
 
             <label className="settingsToggleRow">
               <input
@@ -3056,6 +3109,7 @@ function MasterServicesPage() {
               <div className="serviceMetaGrid">
                 <ServiceMeta icon={<Banknote />} label="Цена" value={formatServicePrice(service)} />
                 <ServiceMeta icon={<Clock />} label="Время" value={`${service.duration} мин`} />
+                {service.address && <ServiceMeta icon={<MapPin />} label="Адрес" value={service.address} />}
                 <ServiceMeta
                   icon={<BadgePercent />}
                   label="Предоплата"
@@ -3103,8 +3157,11 @@ function MasterProfilePage() {
   const [description, setDescription] = useState("")
   const [paymentDetails, setPaymentDetails] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
+  const [addresses, setAddresses] = useState<MasterAddress[]>([])
+  const [addressTitle, setAddressTitle] = useState("")
+  const [addressText, setAddressText] = useState("")
   const [message, setMessage] = useState("")
-  const [profileEditor, setProfileEditor] = useState<"phone" | "payment" | null>(null)
+  const [profileEditor, setProfileEditor] = useState<"phone" | "payment" | "addresses" | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/api/master/${key}`)
@@ -3122,6 +3179,70 @@ function MasterProfilePage() {
       .finally(() => setLoading(false))
   }, [key])
 
+  function loadAddresses() {
+    fetch(`${API_URL}/api/master/${key}/addresses`)
+      .then((res) => res.json())
+      .then((data) => setAddresses(Array.isArray(data) ? data : []))
+      .catch(() => setAddresses([]))
+  }
+
+  useEffect(() => {
+    loadAddresses()
+  }, [key])
+
+  function addAddress() {
+    if (!addressTitle.trim() || !addressText.trim()) {
+      setMessage("Заполните название и адрес")
+      return
+    }
+
+    setMessage("Добавляем адрес...")
+
+    fetch(`${API_URL}/api/master/${key}/addresses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        title: addressTitle.trim(),
+        address: addressText.trim(),
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось добавить адрес")
+        }
+
+        setAddressTitle("")
+        setAddressText("")
+        setMessage(data.message || "Адрес добавлен")
+        loadAddresses()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка добавления адреса"))
+  }
+
+  function deleteAddress(addressId: number) {
+    setMessage("Удаляем адрес...")
+
+    fetch(`${API_URL}/api/master/${key}/addresses/${addressId}`, {
+      method: "DELETE",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось удалить адрес")
+        }
+
+        setMessage(data.message || "Адрес удалён")
+        loadAddresses()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка удаления адреса"))
+  }
   function saveProfile() {
     if (!master) return
 
@@ -3216,6 +3337,17 @@ function MasterProfilePage() {
                 </span>
                 <ChevronRight size={22} strokeWidth={2.4} />
               </button>
+
+              <button type="button" className="profileSettingsCard" onClick={() => setProfileEditor("addresses")}>
+                <span className="profileSettingsIcon">
+                  <MapPin size={22} strokeWidth={2.4} />
+                </span>
+                <span>
+                  <strong>Адреса</strong>
+                  <small>{addresses.length > 0 ? `${addresses.length} адрес(а)` : "Добавьте места приёма"}</small>
+                </span>
+                <ChevronRight size={22} strokeWidth={2.4} />
+              </button>
             </div>
 
             <label className="fieldLabel legacyProfileField" htmlFor="masterPhone">Телефон мастера</label>
@@ -3253,7 +3385,7 @@ function MasterProfilePage() {
       {profileEditor && (
         <div className="modalOverlay">
           <div className="modal profileSettingsModal">
-            <h2>{profileEditor === "phone" ? "Телефон" : "Реквизиты"}</h2>
+            <h2>{profileEditor === "phone" ? "Телефон" : profileEditor === "addresses" ? "Адреса" : "Реквизиты"}</h2>
             {profileEditor === "phone" ? (
               <>
                 <p className="modalHint">Этот номер будет виден клиентам в публичном профиле.</p>
@@ -3265,7 +3397,42 @@ function MasterProfilePage() {
                   placeholder="+7..."
                 />
               </>
-            ) : (
+            ) : profileEditor === "addresses" ? (
+              <>
+                <p className="modalHint">Добавьте адреса, которые потом можно выбрать у услуги.</p>
+                <div className="addressList">
+                  {addresses.length === 0 ? (
+                    <div className="emptyLine">Адреса пока не добавлены</div>
+                  ) : (
+                    addresses.map((item) => (
+                      <div className="addressItem" key={item.id}>
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{item.address}</small>
+                        </span>
+                        <button type="button" aria-label="Удалить адрес" onClick={() => deleteAddress(item.id)}>
+                          <Trash2 size={17} strokeWidth={2.4} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <input
+                  className="adminInput"
+                  value={addressTitle}
+                  onChange={(event) => setAddressTitle(event.target.value)}
+                  placeholder="Название: салон, дом, кабинет"
+                />
+                <textarea
+                  className="adminInput broadcastTextarea"
+                  value={addressText}
+                  onChange={(event) => setAddressText(event.target.value)}
+                  placeholder="Полный адрес"
+                />
+                <button type="button" className="primaryButton" onClick={addAddress}>
+                  Добавить адрес
+                </button>
+              </>            ) : (
               <>
                 <p className="modalHint">Реквизиты нужны, если у услуги включена предоплата.</p>
                 <textarea
@@ -3280,7 +3447,7 @@ function MasterProfilePage() {
               <button type="button" className="cancelButton" onClick={() => setProfileEditor(null)}>
                 Отмена
               </button>
-              <button type="button" className="saveButton" onClick={saveProfile}>
+              <button type="button" className="saveButton" onClick={profileEditor === "addresses" ? () => setProfileEditor(null) : saveProfile}>
                 Сохранить
               </button>
             </div>

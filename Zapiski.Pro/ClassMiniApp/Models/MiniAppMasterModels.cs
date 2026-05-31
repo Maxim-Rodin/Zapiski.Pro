@@ -35,12 +35,26 @@
         public long ClientTelegramId { get; set; }
         public string ClientUsername { get; set; }
         public string ServiceName { get; set; }
+        public string Address { get; set; } = string.Empty;
         public string DateTime { get; set; }
         public string Status { get; set; }
         public int Price { get; set; }
         public int PrepaymentPercent { get; set; }
         public int PrepaymentAmount { get; set; }
         public bool IsManualBlock { get; set; }
+    }
+
+    public class MiniAppMasterAddressDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
+    public class MiniAppMasterAddressRequest
+    {
+        public string Title { get; set; }
+        public string Address { get; set; }
     }
 
     public class MiniAppCreateTimeBlockRequest
@@ -102,6 +116,9 @@
         public int Duration { get; set; }
         public int PrepaymentPercent { get; set; }
         public int PrepaymentAmount { get; set; }
+        public int? AddressId { get; set; }
+        public string AddressTitle { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
     }
 
     public class MiniAppCreateMasterServiceRequest
@@ -112,6 +129,7 @@
         public int? MaxPrice { get; set; }
         public int Duration { get; set; }
         public int PrepaymentPercent { get; set; }
+        public int? AddressId { get; set; }
     }
 
     public class MiniAppUpdateMasterProfileRequest

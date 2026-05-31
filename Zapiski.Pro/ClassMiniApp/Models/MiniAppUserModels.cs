@@ -27,6 +27,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
     {
         public int Id { get; set; }
         public string ServiceName { get; set; }
+        public string Address { get; set; } = string.Empty;
         public string MasterKey { get; set; }
         public string MasterUsername { get; set; }
         public string DateTime { get; set; }
@@ -68,5 +69,6 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public int PrepaymentPercent { get; set; }
         public int PrepaymentAmount { get; set; }
         public string PaymentDetails { get; set; }
+        public string Address { get; set; } = string.Empty;
     }
 }

@@ -286,10 +286,13 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 return FailedBooking("У мастера выходной");
 
             var serviceTable = db.ExecuteQuery($@"
-                SELECT *
-                FROM ""Services""
-                WHERE ""idService"" = {request.ServiceId}
-                AND ""MasterId"" = {masterId}
+                SELECT
+                    s.*,
+                    COALESCE(a.""Address"", '') AS ""Address""
+                FROM ""Services"" s
+                LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
+                WHERE s.""idService"" = {request.ServiceId}
+                AND s.""MasterId"" = {masterId}
             ");
 
             if (serviceTable.Rows.Count == 0)
@@ -397,6 +400,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             var username = userTable.Rows[0]["UserName"]?.ToString() ?? "no_username";
             var clientPhone = userTable.Rows[0]["PhoneNumber"]?.ToString() ?? "";
             var serviceName = service["Name"]?.ToString() ?? "Услуга";
+            var address = service["Address"]?.ToString() ?? "";
+            var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"📍 Адрес: {address}\n";
             var price = service["Price"] == DBNull.Value
                 ? 0
                 : Convert.ToInt32(service["Price"]);
@@ -445,7 +450,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"💰 Стоимость: {price}₽\n" +
                     $"💸 Предоплата: {prepaymentAmount}₽ ({prepaymentPercent}%)\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                    $"⏰ Время: {timeText}\n\n" +
+                    $"⏰ Время: {timeText}\n" +
+                    $"{addressLine}\n" +
                     $"Реквизиты мастера:\n{paymentDetails}\n\n" +
                     $"После оплаты нажмите кнопку в mini app или ниже.",
                     replyMarkup: PaymentKeyboard(bookingId));
@@ -457,7 +463,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"✅ Запись создана\n\n" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                    $"⏰ Время: {timeText}\n\n" +
+                    $"⏰ Время: {timeText}\n" +
+                    $"{addressLine}\n" +
                     $"⏳ Ожидайте подтверждения от мастера.",
                     replyMarkup: ClientMenuKeyboard());
 
@@ -469,7 +476,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     $"{clientPhoneLine}" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                    $"⏰ Время: {timeText}\n\n" +
+                    $"⏰ Время: {timeText}\n" +
+                    $"{addressLine}\n" +
                     $"Подтвердить запись?",
                     replyMarkup: MasterBookingKeyboard(request.MasterKey, bookingId));
             }
@@ -484,7 +492,8 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 Price = price,
                 PrepaymentPercent = prepaymentPercent,
                 PrepaymentAmount = prepaymentAmount,
-                PaymentDetails = paymentDetails
+                PaymentDetails = paymentDetails,
+                Address = address
             };
         }
 
@@ -601,10 +610,12 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     b.""Time"",
                     b.""Status"",
                     s.""Name"" AS ""ServiceName"",
+                    COALESCE(a.""Address"", '') AS ""Address"",
                     m.""Key"" AS ""MasterKey"",
                     mu.""UserName"" AS ""MasterUsername""
                 FROM ""Bookings"" b
                 JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
                 JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
                 JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
                 WHERE b.""UserId"" = {userId}
@@ -619,6 +630,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 {
                     Id = Convert.ToInt32(row["idBooking"]),
                     ServiceName = row["ServiceName"]?.ToString(),
+                    Address = row["Address"]?.ToString() ?? string.Empty,
                     MasterKey = row["MasterKey"]?.ToString(),
                     MasterUsername = row["MasterUsername"]?.ToString(),
                     DateTime = FormatBookingDateTime(row["Date"], row["Time"]),

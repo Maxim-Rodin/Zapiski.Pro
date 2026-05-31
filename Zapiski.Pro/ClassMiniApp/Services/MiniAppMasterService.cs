@@ -193,6 +193,33 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.UpdateProfile(key.Trim(), telegramId, request);
         }
 
+        public List<MiniAppMasterAddressDto>? GetAddresses(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            return repository.GetAddresses(key.Trim());
+        }
+
+        public MiniAppMasterActionResult CreateAddress(string key, long telegramId, MiniAppMasterAddressRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.CreateAddress(key.Trim(), telegramId, request);
+        }
+
+        public MiniAppMasterActionResult DeleteAddress(string key, long telegramId, int addressId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.DeleteAddress(key.Trim(), telegramId, addressId);
+        }
+
         public MiniAppMasterActionResult CreateService(string key, MiniAppCreateMasterServiceRequest request)
         {
             if (string.IsNullOrWhiteSpace(key))

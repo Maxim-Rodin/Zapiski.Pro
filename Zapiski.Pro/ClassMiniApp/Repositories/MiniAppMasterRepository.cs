@@ -104,6 +104,106 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Профиль обновлён");
         }
 
+        public List<MiniAppMasterAddressDto> GetAddresses(string key)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return new List<MiniAppMasterAddressDto>();
+
+            var dt = db.ExecuteQuery(@"
+                SELECT
+                    ""idAddress"",
+                    COALESCE(""Title"", '') AS ""Title"",
+                    COALESCE(""Address"", '') AS ""Address""
+                FROM ""MasterAddresses""
+                WHERE ""MasterId"" = @masterId
+                AND ""IsActive"" = true
+                ORDER BY ""idAddress"" DESC
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            var addresses = new List<MiniAppMasterAddressDto>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                addresses.Add(new MiniAppMasterAddressDto
+                {
+                    Id = Convert.ToInt32(row["idAddress"]),
+                    Title = row["Title"]?.ToString() ?? string.Empty,
+                    Address = row["Address"]?.ToString() ?? string.Empty
+                });
+            }
+
+            return addresses;
+        }
+
+        public MiniAppMasterActionResult CreateAddress(string key, long telegramId, MiniAppMasterAddressRequest request)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к адресам");
+
+            var title = request.Title?.Trim() ?? string.Empty;
+            var address = request.Address?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(title))
+                return Failed("Введите название адреса");
+
+            if (string.IsNullOrWhiteSpace(address))
+                return Failed("Введите адрес");
+
+            if (title.Length > 80)
+                return Failed("Название адреса слишком длинное");
+
+            if (address.Length > 300)
+                return Failed("Адрес слишком длинный");
+
+            db.ExecuteNonQuery(@"
+                INSERT INTO ""MasterAddresses""
+                    (""MasterId"", ""Title"", ""Address"", ""IsActive"")
+                VALUES
+                    (@masterId, @title, @address, true)
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("title", title),
+                new NpgsqlParameter("address", address));
+
+            return Ok("Адрес добавлен");
+        }
+
+        public MiniAppMasterActionResult DeleteAddress(string key, long telegramId, int addressId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return Failed("Нет доступа к адресам");
+
+            var used = db.ExecuteQuery(@"
+                SELECT 1
+                FROM ""Services""
+                WHERE ""MasterId"" = @masterId
+                AND ""AddressId"" = @addressId
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("addressId", addressId));
+
+            if (used.Rows.Count > 0)
+                return Failed("Адрес привязан к услуге. Сначала выберите другой адрес у услуги");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""MasterAddresses""
+                SET ""IsActive"" = false
+                WHERE ""idAddress"" = @addressId
+                AND ""MasterId"" = @masterId
+            ",
+                new NpgsqlParameter("addressId", addressId),
+                new NpgsqlParameter("masterId", master.Id));
+
+            return Ok("Адрес удалён");
+        }
+
         public List<MiniAppMasterClientDto> GetClients(string key)
         {
             var safeKey = key.Replace("'", "''");
@@ -492,10 +592,12 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     u.""UserName"",
                     s.""Name"" AS ""ServiceName"",
                     COALESCE(s.""Price"", 0) AS ""Price"",
-                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent""
+                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent"",
+                    COALESCE(a.""Address"", '') AS ""Address""
                 FROM ""Bookings"" b
                 JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                 JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
                 WHERE b.""MasterId"" = @masterId
                 ORDER BY b.""Date"" DESC, b.""Time"" DESC
             ", new NpgsqlParameter("masterId", master.Id));
@@ -513,6 +615,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     ClientTelegramId = Convert.ToInt64(row["TelegrammId"]),
                     ClientUsername = row["UserName"]?.ToString(),
                     ServiceName = row["ServiceName"]?.ToString(),
+                    Address = row["Address"]?.ToString() ?? string.Empty,
                     DateTime = FormatBookingDateTime(row["Date"], row["Time"]),
                     Status = row["Status"]?.ToString(),
                     Price = price,
@@ -689,6 +792,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var time = (TimeOnly)booking["Time"];
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var address = booking["Address"]?.ToString() ?? "";
+            var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"\n📍 Адрес: {address}";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
             var masterProfile = GetMasterByKey(key);
             var masterName = masterProfile?.Name;
@@ -701,6 +806,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
                 $"⏰ Время: {time:HH:mm}" +
+                $"{addressLine}" +
                 $"{masterPhone}",
                 replyMarkup: ClientMenuKeyboard());
 
@@ -736,6 +842,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var date = (DateOnly)booking["Date"];
             var time = (TimeOnly)booking["Time"];
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var address = booking["Address"]?.ToString() ?? "";
+            var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"\n📍 Адрес: {address}";
             var masterProfile = GetMasterByKey(key);
             var masterName = masterProfile?.Name;
             var masterPhone = string.IsNullOrWhiteSpace(masterProfile?.PhoneNumber) ? "" : $"\n☎️ Телефон мастера: {masterProfile.PhoneNumber}";
@@ -747,6 +855,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
                 $"⏰ Время: {time:HH:mm}" +
+                $"{addressLine}" +
                 $"{masterPhone}\n\n" +
                 $"Ждём вас в назначенное время.",
                 replyMarkup: ClientMenuKeyboard());
@@ -775,6 +884,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var time = (TimeOnly)booking["Time"];
             var appointmentTime = date.ToDateTime(time);
             var serviceName = booking["ServiceName"]?.ToString() ?? "Услуга";
+            var address = booking["Address"]?.ToString() ?? "";
+            var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"\n📍 Адрес: {address}";
             var durationMinutes = Convert.ToInt32(booking["Duration"]);
             var masterProfile = GetMasterByKey(key);
             var masterName = masterProfile?.Name;
@@ -788,6 +899,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 $"💼 Услуга: {serviceName}\n" +
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
                 $"⏰ Время: {time:HH:mm}" +
+                $"{addressLine}" +
                 $"{masterPhone}\n\n" +
                 $"Ждём вас в назначенное время.",
                 replyMarkup: ClientMenuKeyboard());
@@ -877,9 +989,13 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     COALESCE(s.""IsVariablePrice"", false) AS ""IsVariablePrice"",
                     s.""MaxPrice"",
                     COALESCE(s.""Duration"", 0) AS ""Duration"",
-                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent""
+                    COALESCE(s.""PrepaymentPercent"", 0) AS ""PrepaymentPercent"",
+                    s.""AddressId"",
+                    COALESCE(a.""Title"", '') AS ""AddressTitle"",
+                    COALESCE(a.""Address"", '') AS ""Address""
                 FROM ""Services"" s
                 JOIN ""Masters"" m ON m.""idMaster"" = s.""MasterId""
+                LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId"" AND a.""IsActive"" = true
                 WHERE m.""Key"" = '{safeKey}'
                 ORDER BY s.""idService"" DESC
             ");
@@ -900,7 +1016,10 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     MaxPrice = row["MaxPrice"] == DBNull.Value ? null : Convert.ToInt32(row["MaxPrice"]),
                     Duration = Convert.ToInt32(row["Duration"]),
                     PrepaymentPercent = percent,
-                    PrepaymentAmount = (price * percent) / 100
+                    PrepaymentAmount = (price * percent) / 100,
+                    AddressId = row["AddressId"] == DBNull.Value ? null : Convert.ToInt32(row["AddressId"]),
+                    AddressTitle = row["AddressTitle"]?.ToString() ?? string.Empty,
+                    Address = row["Address"]?.ToString() ?? string.Empty
                 });
             }
 
@@ -937,11 +1056,14 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (request.PrepaymentPercent > 0 && string.IsNullOrWhiteSpace(master.PaymentDetails))
                 return Failed("Вы можете сделать предоплату после добавления реквизитов в профиле");
 
+            if (!AddressBelongsToMaster(master.Id, request.AddressId))
+                return Failed("Выберите адрес из профиля мастера");
+
             db.ExecuteNonQuery(@"
                 INSERT INTO ""Services""
-                    (""MasterId"", ""Name"", ""Price"", ""MaxPrice"", ""IsVariablePrice"", ""Duration"", ""PrepaymentPercent"")
+                    (""MasterId"", ""Name"", ""Price"", ""MaxPrice"", ""IsVariablePrice"", ""Duration"", ""PrepaymentPercent"", ""AddressId"")
                 VALUES
-                    (@masterId, @name, @price, @maxPrice, @isVariablePrice, @duration, @prepaymentPercent)
+                    (@masterId, @name, @price, @maxPrice, @isVariablePrice, @duration, @prepaymentPercent, @addressId)
             ",
                 new NpgsqlParameter("masterId", master.Id),
                 new NpgsqlParameter("name", name),
@@ -949,7 +1071,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 new NpgsqlParameter("maxPrice", request.IsVariablePrice ? request.MaxPrice!.Value : (object)DBNull.Value),
                 new NpgsqlParameter("isVariablePrice", request.IsVariablePrice),
                 new NpgsqlParameter("duration", request.Duration),
-                new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent));
+                new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent),
+                new NpgsqlParameter("addressId", request.AddressId.HasValue ? request.AddressId.Value : (object)DBNull.Value));
 
             return Ok("Услуга добавлена");
         }
@@ -984,6 +1107,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
             if (request.PrepaymentPercent > 0 && string.IsNullOrWhiteSpace(master.PaymentDetails))
                 return Failed("Вы можете сделать предоплату после добавления реквизитов в профиле");
 
+            if (!AddressBelongsToMaster(master.Id, request.AddressId))
+                return Failed("Выберите адрес из профиля мастера");
+
             var updated = db.ExecuteNonQuery(@"
                 UPDATE ""Services""
                 SET
@@ -992,7 +1118,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     ""MaxPrice"" = @maxPrice,
                     ""IsVariablePrice"" = @isVariablePrice,
                     ""Duration"" = @duration,
-                    ""PrepaymentPercent"" = @prepaymentPercent
+                    ""PrepaymentPercent"" = @prepaymentPercent,
+                    ""AddressId"" = @addressId
                 WHERE ""idService"" = @serviceId
                 AND ""MasterId"" = @masterId
             ",
@@ -1002,6 +1129,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 new NpgsqlParameter("isVariablePrice", request.IsVariablePrice),
                 new NpgsqlParameter("duration", request.Duration),
                 new NpgsqlParameter("prepaymentPercent", request.PrepaymentPercent),
+                new NpgsqlParameter("addressId", request.AddressId.HasValue ? request.AddressId.Value : (object)DBNull.Value),
                 new NpgsqlParameter("serviceId", serviceId),
                 new NpgsqlParameter("masterId", master.Id));
 
@@ -1212,10 +1340,12 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     u.""TelegrammId"",
                     u.""UserName"",
                     s.""Name"" AS ""ServiceName"",
-                    s.""Duration""
+                    s.""Duration"",
+                    COALESCE(a.""Address"", '') AS ""Address""
                 FROM ""Bookings"" b
                 JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                 JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
                 WHERE b.""idBooking"" = @bookingId
                 AND b.""MasterId"" = @masterId
                 LIMIT 1
@@ -1279,6 +1409,24 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     new NpgsqlParameter("endTime", TimeSpan.Parse("18:00")),
                     new NpgsqlParameter("isActive", isWorkDay));
             }
+        }
+
+        private bool AddressBelongsToMaster(int masterId, int? addressId)
+        {
+            if (!addressId.HasValue)
+                return true;
+
+            var count = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""MasterAddresses""
+                WHERE ""idAddress"" = @addressId
+                AND ""MasterId"" = @masterId
+                AND ""IsActive"" = true
+            ",
+                new NpgsqlParameter("addressId", addressId.Value),
+                new NpgsqlParameter("masterId", masterId)));
+
+            return count > 0;
         }
 
         private static string FormatTime(object value)

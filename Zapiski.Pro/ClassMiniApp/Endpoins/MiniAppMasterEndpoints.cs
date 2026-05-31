@@ -285,6 +285,42 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(result);
             });
 
+            app.MapGet("/api/master/{key}/addresses", (string key) =>
+            {
+                var addresses = masterService.GetAddresses(key);
+
+                if (addresses == null)
+                    return Results.NotFound(new { success = false, message = "Мастер не найден" });
+
+                return Results.Ok(addresses);
+            });
+
+            app.MapPost("/api/master/{key}/addresses", (HttpRequest httpRequest, string key, MiniAppMasterAddressRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте профиль из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.CreateAddress(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapDelete("/api/master/{key}/addresses/{addressId:int}", (HttpRequest httpRequest, string key, int addressId) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте профиль из Telegram" }, statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = masterService.DeleteAddress(key, telegramId, addressId);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
             app.MapPost("/api/master/{key}/services", (string key, MiniAppCreateMasterServiceRequest request) =>
             {
                 var result = masterService.CreateService(key, request);

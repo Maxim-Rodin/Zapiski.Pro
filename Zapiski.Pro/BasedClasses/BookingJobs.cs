@@ -112,10 +112,11 @@ namespace Zapiski.Pro.BasedClasses
             try
             {
                 var activeBooking = Db.ExecuteQuery($@"
-                    SELECT 1
+                    SELECT COALESCE(a.""Address"", '') AS ""Address""
                     FROM ""Bookings"" b
                     JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                     JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                    LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
                     WHERE u.""TelegrammId"" = {clientId}
                     AND b.""Date"" = '{appointmentTime:yyyy-MM-dd}'
                     AND b.""Time"" = '{appointmentTime:HH:mm:ss}'
@@ -126,6 +127,9 @@ namespace Zapiski.Pro.BasedClasses
 
                 if (activeBooking.Rows.Count == 0)
                     return;
+
+                var address = activeBooking.Rows[0]["Address"]?.ToString() ?? "";
+                var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"\n📍 Адрес: {address}";
 
                 var keyboard = new InlineKeyboardMarkup(new[]
         {
@@ -143,7 +147,8 @@ namespace Zapiski.Pro.BasedClasses
                     $"Через {label} у вас запись\n\n" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {appointmentTime:dd.MM.yyyy}\n" +
-                    $"⏰ Время: {appointmentTime:HH:mm}", replyMarkup: keyboard
+                    $"⏰ Время: {appointmentTime:HH:mm}" +
+                    $"{addressLine}", replyMarkup: keyboard
                 );
             }
             catch (Exception ex)
@@ -165,10 +170,12 @@ namespace Zapiski.Pro.BasedClasses
                         b.""Date"",
                         b.""Time"",
                         s.""Name"" AS ""ServiceName"",
+                        COALESCE(a.""Address"", '') AS ""Address"",
                         u.""TelegrammId"" AS ""ClientTelegramId""
                     FROM ""Bookings"" b
                     JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
                     JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                    LEFT JOIN ""MasterAddresses"" a ON a.""idAddress"" = s.""AddressId""
                     WHERE b.""idBooking"" = {bookingId}
                 ");
 
@@ -182,6 +189,8 @@ namespace Zapiski.Pro.BasedClasses
 
                 long clientId = Convert.ToInt64(row["ClientTelegramId"]);
                 string serviceName = row["ServiceName"].ToString();
+                var address = row["Address"]?.ToString() ?? "";
+                var addressLine = string.IsNullOrWhiteSpace(address) ? "" : $"\n📍 Адрес: {address}";
 
                 DateOnly date = (DateOnly)row["Date"];
                 TimeOnly time = (TimeOnly)row["Time"];
@@ -201,7 +210,8 @@ namespace Zapiski.Pro.BasedClasses
                     $"Завтра у вас запись:\n\n" +
                     $"💼 Услуга: {serviceName}\n" +
                     $"📅 Дата: {date:dd.MM.yyyy}\n" +
-                    $"⏰ Время: {time:HH:mm}\n\n" +
+                    $"⏰ Время: {time:HH:mm}" +
+                    $"{addressLine}\n\n" +
                     $"Вы придёте?",
                     replyMarkup: keyboard
                 );
