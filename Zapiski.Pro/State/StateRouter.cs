@@ -92,21 +92,7 @@ namespace Zapisi.Pro.State
                     await adminService.DeletMasterWithId(message);
                     break;
 
-                // ─────────────────────────────
-                // MASTER PROFILE
-                // ─────────────────────────────
-
-                case "waiting_description":
-                    await materService.SaveDescription(message, key);
-                    break;
-
-                case "waiting_contacts":
-                    await materService.SaveContacts(message, key);
-                    break;
-
-                case "waiting_name":
-                    await materService.SaveName(message, key);
-                    break;
+               
 
                 // ─────────────────────────────
                 // SCHEDULE

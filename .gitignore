@@ -384,3 +384,4 @@ postgres_data/
 # Logs (на всякий)
 logs/
 *.log
+.DS_Store
