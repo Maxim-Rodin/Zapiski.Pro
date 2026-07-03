@@ -547,7 +547,7 @@ namespace Zapisi.Pro.CallBacks
                 $"📅 Дата: {date:dd.MM.yyyy}\n" +
                 $"⏰ Время: {time:HH:mm}\n\n" +
                 $"Ждём вас в назначенное время.",
-                replyMarkup: clientKeyboard);
+                replyMarkup: clientKeyboard); 
 
             await botClient.EditMessageText(
                 query.Message.Chat.Id,

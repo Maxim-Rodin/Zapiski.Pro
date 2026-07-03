@@ -5,10 +5,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
+      POSTGRES_PASSWORD: strong_new_password_here
       POSTGRES_DB: Zapisi.Pro
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -23,7 +21,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
-      DB_PASSWORD: admin
+      DB_PASSWORD: strong_new_password_here
       MINIAPP_URL: https://app-zapisi-pro.site
       ASPNETCORE_URLS: http://+:8080
     expose:
