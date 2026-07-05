@@ -14,6 +14,7 @@
         public string Key { get; set; }
         public long TelegramId { get; set; }
         public string Username { get; set; }
+        public string AvatarUrl { get; set; } = string.Empty;
     }
 
     public class MiniAppUserDto

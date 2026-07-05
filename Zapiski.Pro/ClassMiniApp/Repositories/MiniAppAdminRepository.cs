@@ -34,6 +34,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 SELECT 
                     m.""idMaster"",
                     m.""Key"",
+                    COALESCE(m.""AvatarUrl"", '') AS ""AvatarUrl"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -50,7 +51,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     Id = Convert.ToInt32(row["idMaster"]),
                     Key = row["Key"].ToString(),
                     TelegramId = Convert.ToInt64(row["TelegrammId"]),
-                    Username = row["UserName"]?.ToString()
+                    Username = row["UserName"]?.ToString(),
+                    AvatarUrl = row["AvatarUrl"]?.ToString() ?? string.Empty
                 });
             }
 

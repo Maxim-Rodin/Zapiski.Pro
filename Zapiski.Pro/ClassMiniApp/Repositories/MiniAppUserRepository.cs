@@ -648,12 +648,13 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     m.""idMaster"",
                     m.""Key"",
                     mu.""UserName"",
+                    COALESCE(m.""AvatarUrl"", '') AS ""AvatarUrl"",
                     COUNT(b.""idBooking"") AS ""BookingsCount""
                 FROM ""Bookings"" b
                 JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
                 JOIN ""Users"" mu ON mu.""idUser"" = m.""UserId""
                 WHERE b.""UserId"" = {userId}
-                GROUP BY m.""idMaster"", m.""Key"", mu.""UserName""
+                GROUP BY m.""idMaster"", m.""Key"", mu.""UserName"", m.""AvatarUrl""
                 ORDER BY COUNT(b.""idBooking"") DESC, m.""idMaster"" DESC
             ");
 
@@ -666,6 +667,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     Id = Convert.ToInt32(row["idMaster"]),
                     Key = row["Key"]?.ToString(),
                     Username = row["UserName"]?.ToString(),
+                    AvatarUrl = row["AvatarUrl"]?.ToString() ?? string.Empty,
                     BookingsCount = Convert.ToInt32(row["BookingsCount"])
                 });
             }

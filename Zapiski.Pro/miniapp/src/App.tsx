@@ -188,8 +188,14 @@ type UserMaster = {
   id: number
   key: string
   username: string
+  avatarUrl: string
   bookingsCount: number
 }
+
+const normalizeUserMaster = (master: any): UserMaster => ({
+  ...master,
+  avatarUrl: master?.avatarUrl ?? master?.AvatarUrl ?? "",
+})
 
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
@@ -375,7 +381,7 @@ function MastersPage() {
       headers: { "X-Telegram-Id": telegramId() },
     })
       .then((res) => res.json())
-      .then((data) => setMasters(data))
+      .then((data) => setMasters(Array.isArray(data) ? data.map(normalizeMaster) : []))
       .catch((err) => console.error("Ошибка загрузки мастеров:", err))
   }
 
@@ -478,7 +484,11 @@ function MastersPage() {
           masters.map((master) => (
             <div className="masterCard" key={master.id}>
               <div className="masterAvatar">
-                <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                {master.avatarUrl ? (
+                  <img src={master.avatarUrl} alt={master.username || "Мастер"} />
+                ) : (
+                  <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                )}
               </div>
 
               <div className="masterInfo">
@@ -2251,7 +2261,10 @@ function useUserDashboard() {
           return
         }
 
-        setDashboard(data)
+        setDashboard({
+          ...data,
+          masters: Array.isArray(data.masters) ? data.masters.map(normalizeUserMaster) : [],
+        })
       })
       .catch(() => setError("Ошибка соединения с сервером"))
       .finally(() => setLoading(false))
@@ -2496,7 +2509,11 @@ function UserMastersSection({
           masters.map((master) => (
             <Link to={`/master/${master.key}/public-profile`} className="clientListItem clientListLink" key={master.id}>
               <span className="masterAvatar">
-                <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                {master.avatarUrl ? (
+                  <img src={master.avatarUrl} alt={master.username || "Мастер"} />
+                ) : (
+                  <BriefcaseBusiness size={23} strokeWidth={2.3} />
+                )}
               </span>
               <div className="masterInfo">
                 <h3>@{master.username || "master"}</h3>

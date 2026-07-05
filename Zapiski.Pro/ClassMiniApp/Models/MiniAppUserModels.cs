@@ -39,6 +39,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public int Id { get; set; }
         public string Key { get; set; }
         public string Username { get; set; }
+        public string AvatarUrl { get; set; } = string.Empty;
         public int BookingsCount { get; set; }
     }
 
