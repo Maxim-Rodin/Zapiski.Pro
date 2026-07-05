@@ -10,6 +10,7 @@
         public string Description { get; set; } = string.Empty;
         public string PaymentDetails { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
+        public string AvatarUrl { get; set; } = string.Empty;
     }
 
     public class MiniAppMasterClientDto
@@ -150,5 +151,15 @@
     {
         public bool Success { get; set; }
         public string Message { get; set; }
+    }
+
+    public class MiniAppMasterAvatarResult : MiniAppMasterActionResult
+    {
+        public string AvatarUrl { get; set; }= string .Empty;
+    }
+
+    public class MiniAppAddMasterClientRequest
+    {
+        public string Search { get; set; } = string.Empty;
     }
 }

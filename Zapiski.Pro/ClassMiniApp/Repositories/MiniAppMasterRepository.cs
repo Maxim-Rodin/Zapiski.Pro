@@ -30,6 +30,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     COALESCE(m.""Description"", '') AS ""Description"",
                     COALESCE(m.""PaymentDetails"", '') AS ""PaymentDetails"",
                     COALESCE(m.""PhoneNumber"", '') AS ""PhoneNumber"",
+                    COALESCE(m.""AvatarUrl"",'') AS ""AvatarUrl"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -52,7 +53,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 Name = row["Name"]?.ToString(),
                 Description = row["Description"]?.ToString(),
                 PaymentDetails = row["PaymentDetails"]?.ToString(),
-                PhoneNumber = row["PhoneNumber"]?.ToString()
+                PhoneNumber = row["PhoneNumber"]?.ToString(),
+                AvatarUrl = row["AvatarUrl"]?.ToString()
             };
         }
 
@@ -206,9 +208,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
         public List<MiniAppMasterClientDto> GetClients(string key)
         {
-            var safeKey = key.Replace("'", "''");
-
-            var dt = db.ExecuteQuery($@"
+            var dt = db.ExecuteQuery(@"
                 SELECT
                     u.""idUser"",
                     u.""TelegrammId"",
@@ -218,8 +218,11 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     latest.""Time"" AS ""LastTime"",
                     latest.""Status"" AS ""LastStatus""
                 FROM ""Masters"" m
-                JOIN ""Bookings"" b ON b.""MasterId"" = m.""idMaster""
-                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
+                JOIN ""MasterClients"" mc ON mc.""MasterId"" = m.""idMaster""
+                JOIN ""Users"" u ON u.""idUser"" = mc.""UserId""
+                LEFT JOIN ""Bookings"" b
+                    ON b.""MasterId"" = m.""idMaster""
+                    AND b.""UserId"" = u.""idUser""
                 LEFT JOIN LATERAL (
                     SELECT
                         lb.""Date"",
@@ -231,16 +234,17 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     ORDER BY lb.""Date"" DESC, lb.""Time"" DESC
                     LIMIT 1
                 ) latest ON true
-                WHERE m.""Key"" = '{safeKey}'
+                WHERE m.""Key"" = @key
                 GROUP BY
                     u.""idUser"",
                     u.""TelegrammId"",
                     u.""UserName"",
+                    mc.""CreatedAt"",
                     latest.""Date"",
                     latest.""Time"",
                     latest.""Status""
-                ORDER BY latest.""Date"" DESC NULLS LAST, latest.""Time"" DESC NULLS LAST, u.""idUser"" DESC
-            ");
+                ORDER BY latest.""Date"" DESC NULLS LAST, latest.""Time"" DESC NULLS LAST, mc.""CreatedAt"" DESC
+            ", new NpgsqlParameter("key", key));
 
             var clients = new List<MiniAppMasterClientDto>();
 
@@ -262,29 +266,27 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
         public MiniAppMasterStatsDto GetStats(string key)
         {
-            var safeKey = key.Replace("'", "''");
-
             return new MiniAppMasterStatsDto
             {
                 Clients = Convert.ToInt32(db.ExecuteScalar($@"
-                    SELECT COUNT(DISTINCT b.""UserId"")
-                    FROM ""Bookings"" b
-                    JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
-                    WHERE m.""Key"" = '{safeKey}'
-                ")),
+                    SELECT COUNT(*)
+                    FROM ""MasterClients"" mc
+                    JOIN ""Masters"" m ON m.""idMaster"" = mc.""MasterId""
+                    WHERE m.""Key"" = @key
+                ", new NpgsqlParameter("key", key))),
                 ActiveBookings = Convert.ToInt32(db.ExecuteScalar($@"
                     SELECT COUNT(*)
                     FROM ""Bookings"" b
                     JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
-                    WHERE m.""Key"" = '{safeKey}'
+                    WHERE m.""Key"" = @key
                     AND b.""Status"" NOT IN ('cancelled', 'completed')
-                ")),
+                ", new NpgsqlParameter("key", key))),
                 Services = Convert.ToInt32(db.ExecuteScalar($@"
                     SELECT COUNT(*)
                     FROM ""Services"" s
                     JOIN ""Masters"" m ON m.""idMaster"" = s.""MasterId""
-                    WHERE m.""Key"" = '{safeKey}'
-                "))
+                    WHERE m.""Key"" = @key
+                ", new NpgsqlParameter("key", key)))
             };
         }
 
@@ -863,6 +865,50 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Запись отменена");
         }
 
+        public MiniAppMasterAvatarResult UpdateAvatarUrl(string key, long telegramId, string avatarUrl)// метод для обновления юрл ссылки 
+        {
+            var master = GetMasterByKey(key);
+            if (master == null)
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (master.TelegramId != telegramId)
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                    Success = false,
+                    Message = "Нет доступа к этому профилю"
+                };
+            }
+            if ( string.IsNullOrWhiteSpace(avatarUrl))
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                    Success = false,
+                    Message = "Фото не загружено"
+                };
+
+            }
+            db.ExecuteNonQuery(@"UPDATE ""Masters"" SET ""AvatarUrl"" = @avatarUrl WHERE ""idMaster"" = @masterId",
+                new NpgsqlParameter("avatarUrl", avatarUrl),
+                new NpgsqlParameter("masterId", master.Id));
+            return new MiniAppMasterAvatarResult
+            {
+                Success = true,
+                Message = "Фото профиля обновлено",
+                AvatarUrl = avatarUrl
+            };
+
+
+
+
+        }
+
         public async Task<MiniAppMasterActionResult> AcceptPayment(string key, long telegramId, int bookingId)
         {
             var booking = GetBookingForAction(key, telegramId, bookingId);
@@ -1196,9 +1242,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
             var clients = db.ExecuteQuery(@"
                 SELECT DISTINCT u.""TelegrammId""
-                FROM ""Bookings"" b
-                JOIN ""Users"" u ON u.""idUser"" = b.""UserId""
-                WHERE b.""MasterId"" = @masterId
+                FROM ""MasterClients"" mc
+                JOIN ""Users"" u ON u.""idUser"" = mc.""UserId""
+                WHERE mc.""MasterId"" = @masterId
             ", new NpgsqlParameter("masterId", master.Id));
 
             if (clients.Rows.Count == 0)
@@ -1367,6 +1413,91 @@ namespace Zapiski.Pro.MiniApp.Repositories
             });
         }
 
+        public MiniAppMasterActionResult AddClient(string key, long telegramId, MiniAppAddMasterClientRequest request)
+        {
+            var master = GetMasterByKey(key);
+            if (master == null)
+            {
+                return Failed("Мастер не найден");
+            }
+
+            if (master.TelegramId != telegramId)
+            {
+                return Failed("Нет доступа к клиентам");
+
+            }
+            var search = request.Search?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                return Failed("Введите username или телефон клиента");
+            }
+            var normalizedSearch = search.Trim().TrimStart('@').Trim();
+            var phone = NormalizePhone(search);
+            var phoneForSearch = LooksLikePhone(search, phone) ? phone : string.Empty;
+            
+            var user = db.ExecuteQuery(@"
+        SELECT ""idUser"", ""TelegrammId"", ""UserName"", COALESCE(""PhoneNumber"", '') AS ""PhoneNumber""
+        FROM ""Users""
+        WHERE (
+            @username <> ''
+            AND LOWER(COALESCE(""UserName"", '')) = LOWER(@username)
+        )
+        OR (
+            @phone <> ''
+            AND regexp_replace(COALESCE(""PhoneNumber"", ''), '[^0-9]', '', 'g') = @phone
+        )
+        LIMIT 1
+    ",
+                new NpgsqlParameter("username", normalizedSearch),
+                new NpgsqlParameter("phone", phoneForSearch));
+            if (user.Rows.Count == 0)
+                return Failed("Клиент не найден. Попросите его открыть бота хотя бы один раз.");
+
+            var userId = Convert.ToInt32(user.Rows[0]["idUser"]);
+
+            var exists = db.ExecuteQuery(@"
+        SELECT 1
+        FROM ""MasterClients""
+        WHERE ""MasterId"" = @masterId
+        AND ""UserId"" = @userId
+        LIMIT 1
+    ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("userId", userId));
+
+            if (exists.Rows.Count > 0)
+                return Failed("Клиент уже есть в вашей базе");
+
+            db.ExecuteNonQuery(@"
+        INSERT INTO ""MasterClients"" (""MasterId"", ""UserId"", ""Source"")
+        VALUES (@masterId, @userId, 'manual')
+    ",
+                new NpgsqlParameter("masterId", master.Id),
+                new NpgsqlParameter("userId", userId));
+
+            return Ok("Клиент добавлен");
+            
+           
+        }
+        private static string NormalizePhone(string value)
+        {
+            return new string((value ?? string.Empty).Where(char.IsDigit).ToArray());
+        }
+        
+        private static bool LooksLikePhone(string value, string digits)
+        {
+            if (digits.Length < 10 || digits.Length > 15)
+                return false;
+
+            return value.Contains('+')
+                   || value.Contains(' ')
+                   || value.Contains('-')
+                   || value.Contains('(')
+                   || value.Contains(')')
+                   || digits.StartsWith('7')
+                   || digits.StartsWith('8');
+        }
+
         private static InlineKeyboardMarkup PaymentKeyboard(int bookingId)
         {
             return new InlineKeyboardMarkup(new[]
@@ -1477,5 +1608,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
             return $"{date:dd.MM.yyyy} {time:hh\\:mm}";
         }
+        
+        
     }
 }

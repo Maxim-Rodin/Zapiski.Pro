@@ -259,5 +259,63 @@ namespace Zapiski.Pro.MiniApp.Services
 
             return await repository.SendPersonalBroadcast(key.Trim(), telegramId, clientTelegramId, request);
         }
+
+        public MiniAppMasterActionResult AddClient(string key, long telegramId, MiniAppAddMasterClientRequest request) //метод прокладка для добавления ручного клиентов 
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+                
+
+            }
+            if (request == null || string.IsNullOrWhiteSpace(request.Search))
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Введите username или телефон клиента"
+                };
+
+            request.Search = request.Search.Trim();
+
+            return repository.AddClient(key.Trim(), telegramId, request);
+            
+        }
+
+        public MiniAppMasterAvatarResult UpdateAvatarUrl(string key, long telegramId, string avatarUrl)//метод прокладка для проверки валидности данных
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+            if (telegramId <= 0)
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                        Success = false,
+                        Message = "Отркойте профиль из телеграмма"
+                };
+                    
+            }
+
+            if (string.IsNullOrWhiteSpace(avatarUrl))
+            {
+                return new MiniAppMasterAvatarResult
+                {
+                        Success = false,
+                        Message = "Фото не загружено"
+                };
+            }
+
+            return repository.UpdateAvatarUrl(key.Trim(), telegramId, avatarUrl.Trim());
+            
+        }
     }
 }

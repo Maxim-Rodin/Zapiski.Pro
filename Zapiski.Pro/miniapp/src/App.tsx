@@ -1,10 +1,11 @@
-﻿import { type ReactNode, useEffect, useState } from "react"
+﻿import { type ChangeEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { Link, Route, Routes, useParams, useSearchParams } from "react-router-dom"
 import {
   Bot,
   BriefcaseBusiness,
   CalendarCheck,
   CalendarDays,
+  Camera,
   Clock,
   ChevronRight,
   Construction,
@@ -53,6 +54,7 @@ type Master = {
   description: string
   paymentDetails: string
   phoneNumber: string
+  avatarUrl: string
 }
 
 type MasterClient = {
@@ -846,7 +848,11 @@ function PublicProfileStub() {
 
       <section className="publicProfileHero">
         <div className="publicAvatar">
-          <User size={42} strokeWidth={2.1} />
+          {master.avatarUrl ? (
+            <img src={master.avatarUrl} alt={displayName} />
+          ) : (
+            <User size={42} strokeWidth={2.1} />
+          )}
         </div>
         <div className="publicMasterInfo">
           {editMode === "name" ? (
@@ -2502,17 +2508,62 @@ function UserMastersSection({
 
 function MasterClientsPage() {
   const { key } = useParams()
+  const currentTelegramId = telegramId()
   const [clients, setClients] = useState<MasterClient[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [clientSearch, setClientSearch] = useState("")
+  const [savingClient, setSavingClient] = useState(false)
+  const [message, setMessage] = useState("")
 
-  useEffect(() => {
+  function loadClients() {
+    setLoading(true)
     fetch(`${API_URL}/api/master/${key}/clients`)
       .then((res) => res.json())
       .then((data) => setClients(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Ошибка загрузки клиентов мастера:", err))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadClients()
   }, [key])
+
+  function addClient() {
+    const search = clientSearch.trim()
+
+    if (!search) {
+      setMessage("Введите username или телефон клиента")
+      return
+    }
+
+    setSavingClient(true)
+    setMessage("Добавляем клиента...")
+
+    fetch(`${API_URL}/api/master/${key}/clients`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({ search }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось добавить клиента")
+        }
+
+        setMessage(data.message || "Клиент добавлен")
+        setClientSearch("")
+        setAddModalOpen(false)
+        loadClients()
+      })
+      .catch((err) => setMessage(err.message || "Ошибка добавления клиента"))
+      .finally(() => setSavingClient(false))
+  }
 
   const normalizedQuery = query.trim().toLowerCase()
   const filteredClients = clients.filter((client) => {
@@ -2525,16 +2576,23 @@ function MasterClientsPage() {
     <main className="app">
       <header className="adminHeader">
         <h1>Клиенты</h1>
-        <p>Клиенты, которые записывались к вам</p>
+        <p>База клиентов мастера и история посещений</p>
       </header>
 
+      {message && <div className="profileMessage">{message}</div>}
+
       <section className="adminCard">
-        <input
-          className="adminInput searchInput"
-          placeholder="Поиск по имени или Telegram ID"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="clientsToolbar">
+          <input
+            className="adminInput searchInput"
+            placeholder="Поиск по username или Telegram ID"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button type="button" className="addClientButton" onClick={() => setAddModalOpen(true)} aria-label="Добавить клиента">
+            <Plus size={22} strokeWidth={2.6} />
+          </button>
+        </div>
       </section>
 
       <section className="mastersList">
@@ -2564,6 +2622,34 @@ function MasterClientsPage() {
           ))
         )}
       </section>
+
+      {addModalOpen && (
+        <div className="modalOverlay">
+          <div className="modal profileSettingsModal">
+            <h2>Добавить клиента</h2>
+            <p className="modalHint">Введите Telegram username или телефон. Клиент должен хотя бы раз открыть бота.</p>
+            <input
+              className="adminInput"
+              value={clientSearch}
+              onChange={(event) => setClientSearch(event.target.value)}
+              placeholder="@username или +79991234567"
+              autoFocus
+            />
+            <div className="clientAddHint">
+              <User size={19} strokeWidth={2.4} />
+              <span>Если клиент не найден, отправьте ему ссылку на бота и попросите нажать Start.</span>
+            </div>
+            <div className="modalActions">
+              <button type="button" className="cancelButton" onClick={() => setAddModalOpen(false)} disabled={savingClient}>
+                Отмена
+              </button>
+              <button type="button" className="saveButton" onClick={addClient} disabled={savingClient}>
+                {savingClient ? "Добавляем..." : "Добавить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MasterBottomNav masterKey={key ?? ""} />
     </main>
@@ -3160,8 +3246,17 @@ function MasterProfilePage() {
   const [addresses, setAddresses] = useState<MasterAddress[]>([])
   const [addressTitle, setAddressTitle] = useState("")
   const [addressText, setAddressText] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState("")
+  const [avatarSourceUrl, setAvatarSourceUrl] = useState("")
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [cropScale, setCropScale] = useState(1)
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 })
+  const [cropImageSize, setCropImageSize] = useState({ width: 0, height: 0 })
+  const [avatarSaving, setAvatarSaving] = useState(false)
   const [message, setMessage] = useState("")
   const [profileEditor, setProfileEditor] = useState<"phone" | "payment" | "addresses" | null>(null)
+  const cropDrag = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/api/master/${key}`)
@@ -3189,6 +3284,164 @@ function MasterProfilePage() {
   useEffect(() => {
     loadAddresses()
   }, [key])
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    }
+  }, [avatarPreview])
+
+  useEffect(() => {
+    return () => {
+      if (avatarSourceUrl) URL.revokeObjectURL(avatarSourceUrl)
+    }
+  }, [avatarSourceUrl])
+
+  function selectAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setMessage("Выберите файл картинки")
+      event.target.value = ""
+      return
+    }
+
+    const sourceUrl = URL.createObjectURL(file)
+
+    setAvatarSourceUrl(sourceUrl)
+    setAvatarFile(null)
+    setAvatarPreview("")
+    setCropScale(1)
+    setCropPosition({ x: 0, y: 0 })
+    setCropImageSize({ width: 0, height: 0 })
+    setCropModalOpen(true)
+    setMessage("")
+    event.target.value = ""
+  }
+
+  function resetAvatarPreview() {
+    setAvatarFile(null)
+    setAvatarPreview("")
+    setAvatarSourceUrl("")
+    setCropModalOpen(false)
+    setCropScale(1)
+    setCropPosition({ x: 0, y: 0 })
+    setCropImageSize({ width: 0, height: 0 })
+  }
+
+  function handleCropPointerDown(event: PointerEvent<HTMLDivElement>) {
+    cropDrag.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: cropPosition.x,
+      originY: cropPosition.y,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handleCropPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!cropDrag.current) return
+
+    setCropPosition({
+      x: cropDrag.current.originX + event.clientX - cropDrag.current.startX,
+      y: cropDrag.current.originY + event.clientY - cropDrag.current.startY,
+    })
+  }
+
+  function handleCropPointerEnd() {
+    cropDrag.current = null
+  }
+
+  function loadCropImage(src: string) {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image()
+      image.onload = () => resolve(image)
+      image.onerror = reject
+      image.src = src
+    })
+  }
+
+  async function applyAvatarCrop() {
+    if (!avatarSourceUrl) return
+
+    const image = await loadCropImage(avatarSourceUrl)
+    const viewportSize = 260
+    const outputSize = 800
+    const outputRatio = outputSize / viewportSize
+    const baseScale = Math.max(viewportSize / image.naturalWidth, viewportSize / image.naturalHeight)
+    const canvas = document.createElement("canvas")
+    const context = canvas.getContext("2d")
+
+    if (!context) {
+      setMessage("Не удалось подготовить фото")
+      return
+    }
+
+    canvas.width = outputSize
+    canvas.height = outputSize
+    context.fillStyle = "#ffffff"
+    context.fillRect(0, 0, outputSize, outputSize)
+    context.translate(outputSize / 2 + cropPosition.x * outputRatio, outputSize / 2 + cropPosition.y * outputRatio)
+    context.scale(baseScale * cropScale * outputRatio, baseScale * cropScale * outputRatio)
+    context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2)
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setMessage("Не удалось подготовить фото")
+        return
+      }
+
+      const file = new File([blob], "master-avatar.jpg", { type: "image/jpeg" })
+      const previewUrl = URL.createObjectURL(blob)
+
+      setAvatarFile(file)
+      setAvatarPreview(previewUrl)
+      setCropModalOpen(false)
+      setMessage("")
+    }, "image/jpeg", 0.92)
+  }
+
+  const cropViewportSize = 260
+  const cropBaseScale = cropImageSize.width && cropImageSize.height
+    ? Math.max(cropViewportSize / cropImageSize.width, cropViewportSize / cropImageSize.height)
+    : 1
+
+  function saveAvatar() {
+    if (!avatarFile || !master) return
+
+    const formData = new FormData()
+    formData.append("file", avatarFile)
+
+    setAvatarSaving(true)
+    setMessage("Загружаем фото...")
+
+    fetch(`${API_URL}/api/master/${key}/avatar`, {
+      method: "POST",
+      headers: {
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: formData,
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось загрузить фото")
+        }
+
+        setMaster({
+          ...master,
+          avatarUrl: data.avatarUrl || master.avatarUrl,
+        })
+        setAvatarFile(null)
+        setAvatarPreview("")
+        setMessage(data.message || "Фото профиля обновлено")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка загрузки фото"))
+      .finally(() => setAvatarSaving(false))
+  }
 
   function addAddress() {
     if (!addressTitle.trim() || !addressText.trim()) {
@@ -3297,6 +3550,36 @@ function MasterProfilePage() {
           <div className="emptyLine">Профиль не найден</div>
         ) : (
           <div className="addForm">
+            <div className="avatarEditor">
+              <div className="avatarPreview">
+                {avatarPreview || master.avatarUrl ? (
+                  <img src={avatarPreview || master.avatarUrl} alt={name || "Фото мастера"} />
+                ) : (
+                  <Camera size={34} strokeWidth={2.2} />
+                )}
+              </div>
+              <div className="avatarEditorText">
+                <strong>Фото профиля</strong>
+                <small>Картинка будет показана клиентам круглой аватаркой.</small>
+                <div className="avatarActions">
+                  <label className="avatarPickButton">
+                    Выбрать фото
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={selectAvatar} />
+                  </label>
+                  {avatarFile && (
+                    <>
+                      <button type="button" className="avatarSaveButton" onClick={saveAvatar} disabled={avatarSaving}>
+                        {avatarSaving ? "Сохраняем..." : "Сохранить"}
+                      </button>
+                      <button type="button" className="avatarCancelButton" onClick={resetAvatarPreview} disabled={avatarSaving}>
+                        Отмена
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <label className="fieldLabel" htmlFor="masterName">Имя в публичном профиле</label>
             <input
               id="masterName"
@@ -3381,6 +3664,63 @@ function MasterProfilePage() {
           </div>
         )}
       </section>
+
+      {cropModalOpen && avatarSourceUrl && (
+        <div className="modalOverlay">
+          <div className="modal avatarCropModal">
+            <h2>Настройте фото</h2>
+            <p className="modalHint">Передвиньте фото так, чтобы в круге осталось главное.</p>
+
+            <div
+              className="avatarCropArea"
+              onPointerDown={handleCropPointerDown}
+              onPointerMove={handleCropPointerMove}
+              onPointerUp={handleCropPointerEnd}
+              onPointerCancel={handleCropPointerEnd}
+            >
+              <img
+                className="avatarCropImage"
+                src={avatarSourceUrl}
+                alt="Предпросмотр фото"
+                draggable={false}
+                onLoad={(event) => {
+                  setCropImageSize({
+                    width: event.currentTarget.naturalWidth,
+                    height: event.currentTarget.naturalHeight,
+                  })
+                }}
+                style={{
+                  width: cropImageSize.width ? `${cropImageSize.width * cropBaseScale}px` : undefined,
+                  height: cropImageSize.height ? `${cropImageSize.height * cropBaseScale}px` : undefined,
+                  transform: `translate(-50%, -50%) translate(${cropPosition.x}px, ${cropPosition.y}px) scale(${cropScale})`,
+                }}
+              />
+              <div className="avatarCropMask" />
+            </div>
+
+            <label className="fieldLabel" htmlFor="avatarZoom">Масштаб</label>
+            <input
+              id="avatarZoom"
+              className="avatarZoomInput"
+              type="range"
+              min="1"
+              max="2.6"
+              step="0.05"
+              value={cropScale}
+              onChange={(event) => setCropScale(Number(event.target.value))}
+            />
+
+            <div className="modalActions">
+              <button type="button" className="cancelButton" onClick={resetAvatarPreview}>
+                Отмена
+              </button>
+              <button type="button" className="saveButton" onClick={applyAvatarCrop}>
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {profileEditor && (
         <div className="modalOverlay">

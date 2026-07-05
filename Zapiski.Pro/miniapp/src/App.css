@@ -1287,6 +1287,46 @@ body {
   overflow-wrap: anywhere;
 }
 
+.clientsToolbar {
+  display: grid;
+  grid-template-columns: 1fr 48px;
+  gap: 10px;
+  align-items: center;
+}
+
+.addClientButton {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 16px;
+  background: #4b8df7;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px rgba(75, 141, 247, 0.28);
+}
+
+.clientAddHint {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #607086;
+  padding: 11px;
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.clientAddHint svg {
+  color: #4b8df7;
+  justify-self: center;
+}
+
 .statusBadge {
   flex: 0 0 auto;
   border-radius: 999px;
@@ -1514,6 +1554,15 @@ body {
   justify-content: center;
   flex: 0 0 auto;
   border: 1px solid #dbeaff;
+  overflow: hidden;
+}
+
+.publicAvatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
 }
 
 .publicMasterInfo {
@@ -2207,6 +2256,161 @@ body {
   display: grid;
   gap: 10px;
   margin: 12px 0;
+}
+
+.avatarEditor {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #dce8f6;
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.avatarPreview {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px #d7e7fb;
+}
+
+.avatarPreview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+.avatarEditorText {
+  min-width: 0;
+}
+
+.avatarEditorText strong,
+.avatarEditorText small {
+  display: block;
+}
+
+.avatarEditorText strong {
+  margin-bottom: 4px;
+  color: #102033;
+}
+
+.avatarEditorText small {
+  color: #6b7888;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.avatarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.avatarPickButton,
+.avatarSaveButton,
+.avatarCancelButton {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.avatarPickButton {
+  position: relative;
+  background: #edf4ff;
+  color: #4b8df7;
+  overflow: hidden;
+}
+
+.avatarPickButton input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.avatarSaveButton {
+  background: #4b8df7;
+  color: white;
+}
+
+.avatarCancelButton {
+  background: #eef2f6;
+  color: #65758a;
+}
+
+.avatarSaveButton:disabled,
+.avatarCancelButton:disabled {
+  opacity: 0.65;
+}
+
+.avatarCropModal {
+  max-width: 360px;
+}
+
+.avatarCropArea {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin: 12px auto 18px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #dbe7f5;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.avatarCropArea:active {
+  cursor: grabbing;
+}
+
+.avatarCropImage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.avatarCropMask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 0 124px, rgba(83, 96, 112, 0.58) 126px);
+}
+
+.avatarCropMask::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 248px;
+  height: 248px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgba(75, 141, 247, 0.16);
+}
+
+.avatarZoomInput {
+  width: 100%;
+  accent-color: #4b8df7;
+  margin: 0 0 16px;
 }
 
 .profileSettingsCard {
