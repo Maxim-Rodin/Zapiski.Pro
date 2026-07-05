@@ -57,6 +57,11 @@ type Master = {
   avatarUrl: string
 }
 
+const normalizeMaster = (master: any): Master => ({
+  ...master,
+  avatarUrl: master?.avatarUrl ?? master?.AvatarUrl ?? "",
+})
+
 type MasterClient = {
   id: number
   telegramId: number
@@ -583,7 +588,7 @@ function MasterHomePage() {
           return
         }
 
-        setMaster(await res.json())
+        setMaster(normalizeMaster(await res.json()))
       })
       .catch(() => setDenied(true))
       .finally(() => setLoading(false))
@@ -725,9 +730,10 @@ function PublicProfileStub() {
       }),
     ])
       .then(([masterData, servicesData]) => {
-        setMaster(masterData)
-        setDraftName(masterData.name || "")
-        setDraftDescription(masterData.description || "")
+        const normalizedMaster = normalizeMaster(masterData)
+        setMaster(normalizedMaster)
+        setDraftName(normalizedMaster.name || "")
+        setDraftDescription(normalizedMaster.description || "")
         setServices(Array.isArray(servicesData) ? servicesData : [])
       })
       .catch(() => setError("Профиль мастера недоступен"))
@@ -3264,11 +3270,12 @@ function MasterProfilePage() {
         if (!res.ok) throw new Error("Мастер не найден")
 
         const data = await res.json()
-        setMaster(data)
-        setName(data.name || "")
-        setDescription(data.description || "")
-        setPaymentDetails(data.paymentDetails || "")
-        setPhoneNumber(data.phoneNumber || "")
+        const normalizedMaster = normalizeMaster(data)
+        setMaster(normalizedMaster)
+        setName(normalizedMaster.name || "")
+        setDescription(normalizedMaster.description || "")
+        setPaymentDetails(normalizedMaster.paymentDetails || "")
+        setPhoneNumber(normalizedMaster.phoneNumber || "")
       })
       .catch((err) => setMessage(err.message || "Не удалось загрузить профиль"))
       .finally(() => setLoading(false))
