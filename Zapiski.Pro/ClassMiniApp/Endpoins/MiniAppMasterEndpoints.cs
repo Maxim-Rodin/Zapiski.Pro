@@ -314,6 +314,55 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(services);
             });
 
+            app.MapGet("/api/master/{key}/portfolio", (string key) =>
+            {
+                return Results.Ok(masterService.GetPortfolioPhotos(key));
+            });
+
+            app.MapPost("/api/master/{key}/portfolio", async (HttpRequest httpRequest, string key, IFormFile file) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await masterService.UploadPortfolioPhoto(key, telegramId, file);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            }).DisableAntiforgery();
+
+            app.MapDelete("/api/master/{key}/portfolio/{photoId:int}",
+                async (HttpRequest httpRequest, string key, int photoId) =>
+                {
+                    if (!TryGetTelegramId(httpRequest, out var telegramId))
+                        return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
+                            statusCode: StatusCodes.Status401Unauthorized);
+
+                    var result = await masterService.DeletePortfolioPhoto(key, telegramId, photoId);
+
+                    if (!result.Success)
+                        return Results.BadRequest(result);
+
+                    return Results.Ok(result);
+                });
+
+            app.MapPut("/api/master/{key}/portfolio/reorder",
+                (HttpRequest httpRequest, string key, MiniAppReorderPortfolioRequest request) =>
+                {
+                    if (!TryGetTelegramId(httpRequest, out var telegramId))
+                        return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
+                            statusCode: StatusCodes.Status401Unauthorized);
+
+                    var result = masterService.ReorderPortfolioPhotos(key, telegramId, request);
+
+                    if (!result.Success)
+                        return Results.BadRequest(result);
+
+                    return Results.Ok(result);
+                });
+
             app.MapPut("/api/master/{key}/profile",
                 (HttpRequest httpRequest, string key, MiniAppUpdateMasterProfileRequest request) =>
                 {

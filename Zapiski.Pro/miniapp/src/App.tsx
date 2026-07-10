@@ -18,6 +18,10 @@ import {
   Plus,
   BadgePercent,
   Banknote,
+  ArrowLeft,
+  ArrowRight,
+  Image as ImageIcon,
+  Maximize2,
   Pencil,
   Phone,
   Trash2,
@@ -123,6 +127,18 @@ type PublicAvailableSlot = {
   label: string
   time: string
 }
+
+type PortfolioPhoto = {
+  id: number
+  imageUrl: string
+  sortOrder: number
+}
+
+const normalizePortfolioPhoto = (photo: any): PortfolioPhoto => ({
+  id: photo?.id ?? photo?.Id ?? 0,
+  imageUrl: photo?.imageUrl ?? photo?.ImageUrl ?? "",
+  sortOrder: photo?.sortOrder ?? photo?.SortOrder ?? 0,
+})
 
 type BookingCreateResult = {
   success: boolean
@@ -725,6 +741,8 @@ function PublicProfileStub() {
   const [profileMessage, setProfileMessage] = useState("")
   const [availableSlots, setAvailableSlots] = useState<PublicAvailableSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [portfolioPhotos, setPortfolioPhotos] = useState<PortfolioPhoto[]>([])
+  const [portfolioViewerIndex, setPortfolioViewerIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!key) return
@@ -738,13 +756,18 @@ function PublicProfileStub() {
         if (!res.ok) return []
         return res.json()
       }),
+      fetch(`${API_URL}/api/master/${key}/portfolio`).then((res) => {
+        if (!res.ok) return []
+        return res.json()
+      }),
     ])
-      .then(([masterData, servicesData]) => {
+      .then(([masterData, servicesData, portfolioData]) => {
         const normalizedMaster = normalizeMaster(masterData)
         setMaster(normalizedMaster)
         setDraftName(normalizedMaster.name || "")
         setDraftDescription(normalizedMaster.description || "")
         setServices(Array.isArray(servicesData) ? servicesData : [])
+        setPortfolioPhotos(Array.isArray(portfolioData) ? portfolioData.map(normalizePortfolioPhoto) : [])
       })
       .catch(() => setError("Профиль мастера недоступен"))
       .finally(() => setLoading(false))
@@ -801,6 +824,8 @@ function PublicProfileStub() {
   const description = master.description?.trim()
   const displayName = master.name?.trim() || master.username || "Мастер"
   const isOwner = currentTelegramId === String(master.telegramId)
+  const visiblePortfolioPhotos = portfolioPhotos.slice(0, 6)
+  const selectedPortfolioPhoto = portfolioViewerIndex === null ? null : portfolioPhotos[portfolioViewerIndex] ?? null
 
   function startEdit(field: "name" | "description") {
     setDraftName(master?.name || "")
@@ -940,12 +965,31 @@ function PublicProfileStub() {
         <div className="publicCardHeader">
           <h3>Портфолио</h3>
           {isOwner && (
-            <button type="button" className="editIconButton" onClick={() => showProfileStub("Портфолио")} aria-label="Редактировать портфолио">
+            <Link to={`/master/${master.key}/profile`} className="editIconButton" aria-label="Редактировать портфолио">
               <Pencil size={16} strokeWidth={2.4} />
-            </button>
+            </Link>
           )}
         </div>
-        <p>Раздел в разработке. Скоро здесь появятся фотографии работ мастера.</p>
+        {portfolioPhotos.length === 0 ? (
+          <p>Работы мастера скоро появятся здесь.</p>
+        ) : (
+          <div className="publicPortfolioPreview">
+            {visiblePortfolioPhotos.map((photo, index) => (
+              <button
+                type="button"
+                className="publicPortfolioTile"
+                key={photo.id}
+                onClick={() => setPortfolioViewerIndex(index)}
+                aria-label="Открыть фото портфолио"
+              >
+                <img src={photo.imageUrl} alt={`Работа мастера ${index + 1}`} />
+                {index === visiblePortfolioPhotos.length - 1 && portfolioPhotos.length > visiblePortfolioPhotos.length && (
+                  <span>+{portfolioPhotos.length - visiblePortfolioPhotos.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="publicInfoCard">
@@ -1027,6 +1071,41 @@ function PublicProfileStub() {
       </div>
 
       {currentTelegramId && <PublicProfileBottomNav telegramId={currentTelegramId} />}
+
+      {selectedPortfolioPhoto && (
+        <div className="portfolioViewerOverlay">
+          <button
+            type="button"
+            className="portfolioViewerClose"
+            onClick={() => setPortfolioViewerIndex(null)}
+            aria-label="Закрыть просмотр"
+          >
+            <X size={24} strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            className="portfolioViewerNav portfolioViewerPrev"
+            disabled={portfolioViewerIndex === 0}
+            onClick={() => setPortfolioViewerIndex((index) => index === null ? index : Math.max(0, index - 1))}
+            aria-label="Предыдущее фото"
+          >
+            <ArrowLeft size={22} strokeWidth={2.4} />
+          </button>
+          <img src={selectedPortfolioPhoto.imageUrl} alt="Работа мастера" />
+          <button
+            type="button"
+            className="portfolioViewerNav portfolioViewerNext"
+            disabled={portfolioViewerIndex === portfolioPhotos.length - 1}
+            onClick={() => setPortfolioViewerIndex((index) => index === null ? index : Math.min(portfolioPhotos.length - 1, index + 1))}
+            aria-label="Следующее фото"
+          >
+            <ArrowRight size={22} strokeWidth={2.4} />
+          </button>
+          <div className="portfolioViewerCounter">
+            {(portfolioViewerIndex ?? 0) + 1} / {portfolioPhotos.length}
+          </div>
+        </div>
+      )}
     </main>
   )
 }
@@ -3277,6 +3356,9 @@ function MasterProfilePage() {
   const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 })
   const [cropImageSize, setCropImageSize] = useState({ width: 0, height: 0 })
   const [avatarSaving, setAvatarSaving] = useState(false)
+  const [portfolioPhotos, setPortfolioPhotos] = useState<PortfolioPhoto[]>([])
+  const [portfolioSaving, setPortfolioSaving] = useState(false)
+  const [portfolioViewerIndex, setPortfolioViewerIndex] = useState<number | null>(null)
   const [message, setMessage] = useState("")
   const [profileEditor, setProfileEditor] = useState<"phone" | "payment" | "addresses" | null>(null)
   const cropDrag = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
@@ -3305,8 +3387,18 @@ function MasterProfilePage() {
       .catch(() => setAddresses([]))
   }
 
+  function loadPortfolio() {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/portfolio`)
+      .then((res) => res.json())
+      .then((data) => setPortfolioPhotos(Array.isArray(data) ? data.map(normalizePortfolioPhoto) : []))
+      .catch(() => setPortfolioPhotos([]))
+  }
+
   useEffect(() => {
     loadAddresses()
+    loadPortfolio()
   }, [key])
 
   useEffect(() => {
@@ -3467,6 +3559,129 @@ function MasterProfilePage() {
       .finally(() => setAvatarSaving(false))
   }
 
+  function uploadPortfolioPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+
+    if (!file || !key) return
+
+    if (!file.type.startsWith("image/")) {
+      setMessage("Выберите файл картинки")
+      return
+    }
+
+    if (portfolioPhotos.length >= 9) {
+      setMessage("Можно загрузить максимум 9 фото")
+      return
+    }
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    setPortfolioSaving(true)
+    setMessage("Загружаем фото в портфолио...")
+
+    fetch(`${API_URL}/api/master/${key}/portfolio`, {
+      method: "POST",
+      headers: { "X-Telegram-Id": currentTelegramId },
+      body: formData,
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось загрузить фото")
+        }
+
+        const photo = data?.photo ? normalizePortfolioPhoto(data.photo) : null
+
+        if (photo?.id) {
+          setPortfolioPhotos((photos) => [...photos, photo].sort((a, b) => a.sortOrder - b.sortOrder))
+        } else {
+          loadPortfolio()
+        }
+
+        setMessage(data?.message || "Фото добавлено")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка загрузки фото"))
+      .finally(() => setPortfolioSaving(false))
+  }
+
+  function deletePortfolioPhoto(photoId: number) {
+    if (!key) return
+
+    setPortfolioSaving(true)
+    setMessage("Удаляем фото...")
+
+    fetch(`${API_URL}/api/master/${key}/portfolio/${photoId}`, {
+      method: "DELETE",
+      headers: { "X-Telegram-Id": currentTelegramId },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось удалить фото")
+        }
+
+        setPortfolioPhotos((photos) =>
+          photos
+            .filter((photo) => photo.id !== photoId)
+            .map((photo, index) => ({ ...photo, sortOrder: index }))
+        )
+        setPortfolioViewerIndex(null)
+        setMessage(data?.message || "Фото удалено")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка удаления фото"))
+      .finally(() => setPortfolioSaving(false))
+  }
+
+  function savePortfolioOrder(nextPhotos: PortfolioPhoto[]) {
+    if (!key) return
+
+    setPortfolioSaving(true)
+
+    fetch(`${API_URL}/api/master/${key}/portfolio/reorder`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({
+        photoIds: nextPhotos.map((photo) => photo.id),
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось сохранить порядок")
+        }
+
+        setMessage(data?.message || "Порядок фото обновлен")
+      })
+      .catch((err) => {
+        setMessage(err.message || "Ошибка изменения порядка")
+        loadPortfolio()
+      })
+      .finally(() => setPortfolioSaving(false))
+  }
+
+  function movePortfolioPhoto(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction
+
+    if (nextIndex < 0 || nextIndex >= portfolioPhotos.length) return
+
+    const nextPhotos = portfolioPhotos.slice()
+    const current = nextPhotos[index]
+    nextPhotos[index] = nextPhotos[nextIndex]
+    nextPhotos[nextIndex] = current
+
+    const normalized = nextPhotos.map((photo, order) => ({ ...photo, sortOrder: order }))
+    setPortfolioPhotos(normalized)
+    savePortfolioOrder(normalized)
+  }
+
   function addAddress() {
     if (!addressTitle.trim() || !addressText.trim()) {
       setMessage("Заполните название и адрес")
@@ -3558,6 +3773,8 @@ function MasterProfilePage() {
       .catch((err) => setMessage(err.message || "Ошибка сохранения"))
   }
 
+  const selectedPortfolioPhoto = portfolioViewerIndex === null ? null : portfolioPhotos[portfolioViewerIndex] ?? null
+
   return (
     <main className="app">
       <header className="adminHeader">
@@ -3602,6 +3819,77 @@ function MasterProfilePage() {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="portfolioEditor">
+              <div className="portfolioEditorHeader">
+                <div>
+                  <strong>Портфолио работ</strong>
+                  <small>{portfolioPhotos.length} / 9 фото</small>
+                </div>
+                <label className={`portfolioUploadButton ${portfolioPhotos.length >= 9 || portfolioSaving ? "disabled" : ""}`}>
+                  <Plus size={17} strokeWidth={2.4} />
+                  Добавить
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={portfolioPhotos.length >= 9 || portfolioSaving}
+                    onChange={uploadPortfolioPhoto}
+                  />
+                </label>
+              </div>
+
+              {portfolioPhotos.length === 0 ? (
+                <div className="portfolioEmpty">
+                  <ImageIcon size={28} strokeWidth={2.2} />
+                  <span>Добавьте до 9 фото работ. Они появятся в публичном профиле мастера.</span>
+                </div>
+              ) : (
+                <div className="portfolioEditorGrid">
+                  {portfolioPhotos.map((photo, index) => (
+                    <div className="portfolioEditorTile" key={photo.id}>
+                      <button
+                        type="button"
+                        className="portfolioImageButton"
+                        onClick={() => setPortfolioViewerIndex(index)}
+                        aria-label="Открыть фото"
+                      >
+                        <img src={photo.imageUrl} alt={`Работа ${index + 1}`} />
+                        <span>
+                          <Maximize2 size={16} strokeWidth={2.4} />
+                        </span>
+                      </button>
+                      <div className="portfolioTileActions">
+                        <button
+                          type="button"
+                          disabled={index === 0 || portfolioSaving}
+                          onClick={() => movePortfolioPhoto(index, -1)}
+                          aria-label="Переместить левее"
+                        >
+                          <ArrowLeft size={15} strokeWidth={2.4} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === portfolioPhotos.length - 1 || portfolioSaving}
+                          onClick={() => movePortfolioPhoto(index, 1)}
+                          aria-label="Переместить правее"
+                        >
+                          <ArrowRight size={15} strokeWidth={2.4} />
+                        </button>
+                        <button
+                          type="button"
+                          className="portfolioDeleteButton"
+                          disabled={portfolioSaving}
+                          onClick={() => deletePortfolioPhoto(photo.id)}
+                          aria-label="Удалить фото"
+                        >
+                          <Trash2 size={15} strokeWidth={2.4} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <label className="fieldLabel" htmlFor="masterName">Имя в публичном профиле</label>
@@ -3815,6 +4103,41 @@ function MasterProfilePage() {
                 Сохранить
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPortfolioPhoto && (
+        <div className="portfolioViewerOverlay">
+          <button
+            type="button"
+            className="portfolioViewerClose"
+            onClick={() => setPortfolioViewerIndex(null)}
+            aria-label="Закрыть просмотр"
+          >
+            <X size={24} strokeWidth={2.4} />
+          </button>
+          <button
+            type="button"
+            className="portfolioViewerNav portfolioViewerPrev"
+            disabled={portfolioViewerIndex === 0}
+            onClick={() => setPortfolioViewerIndex((index) => index === null ? index : Math.max(0, index - 1))}
+            aria-label="Предыдущее фото"
+          >
+            <ArrowLeft size={22} strokeWidth={2.4} />
+          </button>
+          <img src={selectedPortfolioPhoto.imageUrl} alt="Работа мастера" />
+          <button
+            type="button"
+            className="portfolioViewerNav portfolioViewerNext"
+            disabled={portfolioViewerIndex === portfolioPhotos.length - 1}
+            onClick={() => setPortfolioViewerIndex((index) => index === null ? index : Math.min(portfolioPhotos.length - 1, index + 1))}
+            aria-label="Следующее фото"
+          >
+            <ArrowRight size={22} strokeWidth={2.4} />
+          </button>
+          <div className="portfolioViewerCounter">
+            {(portfolioViewerIndex ?? 0) + 1} / {portfolioPhotos.length}
           </div>
         </div>
       )}

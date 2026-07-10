@@ -1,4 +1,6 @@
-﻿using Zapiski.Pro.MiniApp.Models;
+﻿using Microsoft.AspNetCore.Http;
+using Zapiski.Pro.ClassMiniApp.Services;
+using Zapiski.Pro.MiniApp.Models;
 using Zapiski.Pro.MiniApp.Repositories;
 
 namespace Zapiski.Pro.MiniApp.Services
@@ -6,10 +8,12 @@ namespace Zapiski.Pro.MiniApp.Services
     public class MiniAppMasterService
     {
         private readonly MiniAppMasterRepository repository;
+        private readonly CloudinaryImageService imageService;
 
-        public MiniAppMasterService(MiniAppMasterRepository repository)
+        public MiniAppMasterService(MiniAppMasterRepository repository, CloudinaryImageService imageService)
         {
             this.repository = repository;
+            this.imageService = imageService;
         }
 
         public MiniAppMasterProfileDto? GetMasterProfile(string key)
@@ -316,6 +320,276 @@ namespace Zapiski.Pro.MiniApp.Services
 
             return repository.UpdateAvatarUrl(key.Trim(), telegramId, avatarUrl.Trim());
             
+        }
+        public List<MiniAppPortfolioPhotoDto> GetPortfolioPhotos(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return new List<MiniAppPortfolioPhotoDto>();
+
+            return repository.GetPortfolioPhotos(key.Trim());
+        }
+
+        public async Task<MiniAppPortfolioPhotoResult> UploadPortfolioPhoto(string key, long telegramId, IFormFile file)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (telegramId <= 0)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Откройте профиль из Telegram"
+                };
+            }
+
+            if (file == null || file.Length == 0)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Фото не выбрано"
+                };
+            }
+
+            var master = repository.GetMasterByKey(key.Trim());
+
+            if (master == null)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (master.TelegramId != telegramId)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Нет доступа к портфолио"
+                };
+            }
+
+            if (repository.GetPortfolioPhotosCount(master.Id) >= 9)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = "Можно загрузить максимум 9 фото"
+                };
+            }
+
+            try
+            {
+                var uploadResult = await imageService.UploadPortfolioPhoto(master.Id, file);
+
+                var photo = repository.AddPortfolioPhoto(
+                    master.Id,
+                    uploadResult.ImageUrl,
+                    uploadResult.PublicId);
+
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = true,
+                    Message = "Фото добавлено в портфолио",
+                    Photo = photo
+                };
+            }
+            catch (Exception ex)
+            {
+                return new MiniAppPortfolioPhotoResult
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
+            }
+        }
+
+        public async Task<MiniAppMasterActionResult> DeletePortfolioPhoto(string key, long telegramId, int photoId)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (telegramId <= 0)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Откройте профиль из Telegram"
+                };
+            }
+
+            if (photoId <= 0)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Фото не найдено"
+                };
+            }
+
+            var master = repository.GetMasterByKey(key.Trim());
+
+            if (master == null)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (master.TelegramId != telegramId)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Нет доступа к портфолио"
+                };
+            }
+
+            var photo = repository.GetPortfolioPhotoForMaster(master.Id, photoId);
+
+            if (photo == null)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Фото не найдено"
+                };
+            }
+
+            try
+            {
+                await imageService.DeletePhoto(photo.PublicId);
+                repository.DeletePortfolioPhoto(master.Id, photoId);
+
+                return new MiniAppMasterActionResult
+                {
+                    Success = true,
+                    Message = "Фото удалено"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
+            }
+        }
+
+        public MiniAppMasterActionResult ReorderPortfolioPhotos(string key, long telegramId, MiniAppReorderPortfolioRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (telegramId <= 0)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Откройте профиль из Telegram"
+                };
+            }
+
+            if (request == null || request.PhotoIds == null || request.PhotoIds.Count == 0)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Передайте порядок фото"
+                };
+            }
+
+            if (request.PhotoIds.Count > 9)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Можно сортировать максимум 9 фото"
+                };
+            }
+
+            var distinctPhotoIds = request.PhotoIds.Distinct().ToList();
+
+            if (distinctPhotoIds.Count != request.PhotoIds.Count)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "В списке есть повторяющиеся фото"
+                };
+            }
+
+            var master = repository.GetMasterByKey(key.Trim());
+
+            if (master == null)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Мастер не найден"
+                };
+            }
+
+            if (master.TelegramId != telegramId)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Нет доступа к портфолио"
+                };
+            }
+
+            var currentCount = repository.GetPortfolioPhotosCount(master.Id);
+
+            if (distinctPhotoIds.Count != currentCount)
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "Передан неполный список фото"
+                };
+            }
+
+            if (!repository.PortfolioPhotosBelongToMaster(master.Id, distinctPhotoIds))
+            {
+                return new MiniAppMasterActionResult
+                {
+                    Success = false,
+                    Message = "В списке есть чужие или несуществующие фото"
+                };
+            }
+
+            repository.UpdatePortfolioSortOrder(master.Id, distinctPhotoIds);
+
+            return new MiniAppMasterActionResult
+            {
+                Success = true,
+                Message = "Порядок фото обновлен"
+            };
         }
     }
 }

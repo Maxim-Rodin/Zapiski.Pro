@@ -97,7 +97,8 @@ namespace Zapisi.Pro
             var miniAppAdminService = new MiniAppAdminService(miniAppAdminRepository, botClient);
 
             var miniAppMasterRepository = new MiniAppMasterRepository(db);
-            var miniAppMasterService = new MiniAppMasterService(miniAppMasterRepository);
+            var cloudinaryImageService = new CloudinaryImageService();
+            var miniAppMasterService = new MiniAppMasterService(miniAppMasterRepository, cloudinaryImageService);
 
             var miniAppUserRepository = new MiniAppUserRepository(db);
             var miniAppUserService = new MiniAppUserService(miniAppUserRepository);

@@ -1434,7 +1434,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
             var normalizedSearch = search.Trim().TrimStart('@').Trim();
             var phone = NormalizePhone(search);
             var phoneForSearch = LooksLikePhone(search, phone) ? phone : string.Empty;
-            
+
             var user = db.ExecuteQuery(@"
         SELECT ""idUser"", ""TelegrammId"", ""UserName"", COALESCE(""PhoneNumber"", '') AS ""PhoneNumber""
         FROM ""Users""
@@ -1476,7 +1476,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 new NpgsqlParameter("userId", userId));
 
             return Ok("Клиент добавлен");
-            
+
            
         }
         private static string NormalizePhone(string value)
@@ -1597,6 +1597,209 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 _ => "День"
             };
         }
+
+        public List<MiniAppPortfolioPhotoDto> GetPortfolioPhotos(string key)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return new List<MiniAppPortfolioPhotoDto>();
+
+            var table = db.ExecuteQuery(@"
+                SELECT
+                    ""idPhoto"",
+                    ""ImageUrl"",
+                    ""SortOrder""
+                FROM ""MasterPortfolioPhotos""
+                WHERE ""MasterId"" = @masterId
+                ORDER BY ""SortOrder"", ""idPhoto""
+            ", new NpgsqlParameter("masterId", master.Id));
+
+            var photos = new List<MiniAppPortfolioPhotoDto>();
+
+            foreach (DataRow row in table.Rows)
+            {
+                photos.Add(new MiniAppPortfolioPhotoDto
+                {
+                    Id = Convert.ToInt32(row["idPhoto"]),
+                    ImageUrl = row["ImageUrl"]?.ToString() ?? string.Empty,
+                    SortOrder = Convert.ToInt32(row["SortOrder"])
+                });
+            }
+
+            return photos;
+        }
+
+        public MiniAppPortfolioPhotoInternalDto? GetPortfolioPhotoForMaster(int masterId, int photoId)
+        {
+            var table = db.ExecuteQuery(@"
+                SELECT
+                    ""idPhoto"",
+                    ""ImageUrl"",
+                    ""PublicId"",
+                    ""SortOrder""
+                FROM ""MasterPortfolioPhotos""
+                WHERE ""MasterId"" = @masterId
+                AND ""idPhoto"" = @photoId
+                LIMIT 1
+            ",
+                new NpgsqlParameter("masterId", masterId),
+                new NpgsqlParameter("photoId", photoId));
+
+            if (table.Rows.Count == 0)
+                return null;
+
+            var row = table.Rows[0];
+
+            return new MiniAppPortfolioPhotoInternalDto
+            {
+                Id = Convert.ToInt32(row["idPhoto"]),
+                ImageUrl = row["ImageUrl"]?.ToString() ?? string.Empty,
+                PublicId = row["PublicId"]?.ToString() ?? string.Empty,
+                SortOrder = Convert.ToInt32(row["SortOrder"])
+            };
+        }
+
+        public int GetPortfolioPhotosCount(int masterId)
+        {
+            return Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""MasterPortfolioPhotos""
+                WHERE ""MasterId"" = @masterId
+            ", new NpgsqlParameter("masterId", masterId)));
+        }
+
+        public MiniAppPortfolioPhotoDto AddPortfolioPhoto(int masterId, string imageUrl, string publicId)
+        {
+            var table = db.ExecuteQuery(@"
+                INSERT INTO ""MasterPortfolioPhotos""
+                    (""MasterId"", ""ImageUrl"", ""PublicId"", ""SortOrder"")
+                VALUES
+                    (
+                        @masterId,
+                        @imageUrl,
+                        @publicId,
+                        COALESCE(
+                            (
+                                SELECT MAX(""SortOrder"") + 1
+                                FROM ""MasterPortfolioPhotos""
+                                WHERE ""MasterId"" = @masterId
+                            ),
+                            0
+                        )
+                    )
+                RETURNING ""idPhoto"", ""ImageUrl"", ""SortOrder""
+            ",
+                new NpgsqlParameter("masterId", masterId),
+                new NpgsqlParameter("imageUrl", imageUrl),
+                new NpgsqlParameter("publicId", publicId));
+
+            var row = table.Rows[0];
+
+            return new MiniAppPortfolioPhotoDto
+            {
+                Id = Convert.ToInt32(row["idPhoto"]),
+                ImageUrl = row["ImageUrl"]?.ToString() ?? string.Empty,
+                SortOrder = Convert.ToInt32(row["SortOrder"])
+            };
+        }
+
+        public void DeletePortfolioPhoto(int masterId, int photoId)
+        {
+            db.ExecuteNonQuery(@"
+                DELETE FROM ""MasterPortfolioPhotos""
+                WHERE ""MasterId"" = @masterId
+                AND ""idPhoto"" = @photoId
+            ",
+                new NpgsqlParameter("masterId", masterId),
+                new NpgsqlParameter("photoId", photoId));
+
+            NormalizePortfolioSortOrder(masterId);
+        }
+
+        public void NormalizePortfolioSortOrder(int masterId)
+        {
+            var table = db.ExecuteQuery(@"
+                SELECT ""idPhoto""
+                FROM ""MasterPortfolioPhotos""
+                WHERE ""MasterId"" = @masterId
+                ORDER BY ""SortOrder"", ""idPhoto""
+            ", new NpgsqlParameter("masterId", masterId));
+
+            for (var i = 0; i < table.Rows.Count; i++)
+            {
+                var photoId = Convert.ToInt32(table.Rows[i]["idPhoto"]);
+
+                db.ExecuteNonQuery(@"
+                    UPDATE ""MasterPortfolioPhotos""
+                    SET ""SortOrder"" = @sortOrder
+                    WHERE ""MasterId"" = @masterId
+                    AND ""idPhoto"" = @photoId
+                ",
+                    new NpgsqlParameter("sortOrder", -(i + 1)),
+                    new NpgsqlParameter("masterId", masterId),
+                    new NpgsqlParameter("photoId", photoId));
+            }
+
+            for (var i = 0; i < table.Rows.Count; i++)
+            {
+                var photoId = Convert.ToInt32(table.Rows[i]["idPhoto"]);
+
+                db.ExecuteNonQuery(@"
+                    UPDATE ""MasterPortfolioPhotos""
+                    SET ""SortOrder"" = @sortOrder
+                    WHERE ""MasterId"" = @masterId
+                    AND ""idPhoto"" = @photoId
+                ",
+                    new NpgsqlParameter("sortOrder", i),
+                    new NpgsqlParameter("masterId", masterId),
+                    new NpgsqlParameter("photoId", photoId));
+            }
+        }
+
+        public bool PortfolioPhotosBelongToMaster(int masterId, List<int> photoIds)
+        {
+            foreach (var photoId in photoIds.Distinct())
+            {
+                if (GetPortfolioPhotoForMaster(masterId, photoId) == null)
+                    return false;
+            }
+
+            return true;
+        }
+
+        public void UpdatePortfolioSortOrder(int masterId, List<int> photoIds)
+        {
+            var distinctPhotoIds = photoIds.Distinct().ToList();
+
+            for (var i = 0; i < distinctPhotoIds.Count; i++)
+            {
+                db.ExecuteNonQuery(@"
+                    UPDATE ""MasterPortfolioPhotos""
+                    SET ""SortOrder"" = @sortOrder
+                    WHERE ""MasterId"" = @masterId
+                    AND ""idPhoto"" = @photoId
+                ",
+                    new NpgsqlParameter("sortOrder", -(i + 1)),
+                    new NpgsqlParameter("masterId", masterId),
+                    new NpgsqlParameter("photoId", distinctPhotoIds[i]));
+            }
+
+            for (var i = 0; i < distinctPhotoIds.Count; i++)
+            {
+                db.ExecuteNonQuery(@"
+                    UPDATE ""MasterPortfolioPhotos""
+                    SET ""SortOrder"" = @sortOrder
+                    WHERE ""MasterId"" = @masterId
+                    AND ""idPhoto"" = @photoId
+                ",
+                    new NpgsqlParameter("sortOrder", i),
+                    new NpgsqlParameter("masterId", masterId),
+                    new NpgsqlParameter("photoId", distinctPhotoIds[i]));
+            }
+        }
+
+
 
         private static string? FormatBookingDateTime(object dateValue, object timeValue)
         {

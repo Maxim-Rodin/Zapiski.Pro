@@ -2,6 +2,7 @@ using System;
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Http;
 using CloudinaryDotNet.Actions;
+using Zapiski.Pro.ClassMiniApp.Models;
 
 namespace Zapiski.Pro.ClassMiniApp.Services;
 
@@ -52,6 +53,56 @@ public class CloudinaryImageService //класс сервис для работ�
             throw new InvalidOperationException(result.Error.Message);
         }
         return result.SecureUrl.ToString();
+    }
+
+    public async Task<CloudinaryUploadResult> UploadPortfolioPhoto(int masterId, IFormFile file)
+    {
+        ValidateImage(file);
+        await using var stream =  file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Folder = $"zapiski/masters/{masterId}/portfolio",
+            PublicId = $"photo_{Guid.NewGuid():N}",
+            Overwrite = false,
+            Transformation = new Transformation()
+                .Width(1200)
+                .Height(1200)
+                .Crop("limit")
+                .FetchFormat("auto")
+                .Quality("auto")
+        };
+        var result = await cloudinary.UploadAsync(uploadParams);
+        if (result.Error != null)
+        {
+            throw new InvalidOperationException(result.Error.Message);
+        }
+
+        return new CloudinaryUploadResult
+        {
+            ImageUrl = result.SecureUrl.ToString(),
+            PublicId = result.PublicId
+
+        };
+    }
+
+    public async Task DeletePhoto(string publicId)
+    {
+        if (string.IsNullOrWhiteSpace(publicId))
+        {
+            return;
+        }
+
+        var deletePharams = new DeletionParams(publicId)
+        {
+            ResourceType = ResourceType.Image
+        };
+        var result = await cloudinary.DestroyAsync(deletePharams);
+        if (result.Error != null)
+        {
+            throw new InvalidOperationException(result.Error.Message);
+        }
+
     }
     private static void ValidateImage(IFormFile file)
     {

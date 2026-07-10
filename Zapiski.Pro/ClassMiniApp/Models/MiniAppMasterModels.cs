@@ -162,4 +162,25 @@
     {
         public string Search { get; set; } = string.Empty;
     }
+
+    public class MiniAppPortfolioPhotoDto
+    {
+        public int Id { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+    }
+    public class MiniAppPortfolioPhotoInternalDto : MiniAppPortfolioPhotoDto
+    {
+        public string PublicId { get; set; } = string.Empty;
+    }
+
+    public class MiniAppReorderPortfolioRequest
+    {
+        public List<int> PhotoIds { get; set; } = new();
+    }
+
+    public class MiniAppPortfolioPhotoResult : MiniAppMasterActionResult
+    {
+        public MiniAppPortfolioPhotoDto? Photo { get; set; }
+    }
 }
