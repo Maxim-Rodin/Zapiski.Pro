@@ -352,6 +352,76 @@ namespace Zapiski.Pro.MiniApp.Repositories
             };
         }
 
+        public MiniAppMasterAnalyticsDto GetAnalytics(string key, DateTime from, DateTime to)
+        {
+            var fromDate = from.Date;
+            var toDate = to.Date;
+
+            var totals = db.ExecuteQuery(@"
+                SELECT
+                    COALESCE(SUM(CASE WHEN b.""Status"" = 'completed' THEN s.""Price"" ELSE 0 END), 0) AS ""CompletedRevenue"",
+                    COALESCE(SUM(CASE WHEN b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm') THEN s.""Price"" ELSE 0 END), 0) AS ""PotentialRevenue"",
+                    COUNT(CASE WHEN b.""Status"" = 'completed' THEN 1 END) AS ""CompletedBookings"",
+                    COUNT(CASE WHEN b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm') THEN 1 END) AS ""ActiveBookings"",
+                    COUNT(DISTINCT CASE WHEN b.""Status"" <> 'cancelled' THEN b.""UserId"" END) AS ""Clients""
+                FROM ""Bookings"" b
+                JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE m.""Key"" = @key
+                AND b.""Date"" >= @from
+                AND b.""Date"" <= @to
+            ",
+                new NpgsqlParameter("key", key),
+                new NpgsqlParameter("from", fromDate),
+                new NpgsqlParameter("to", toDate));
+
+            var dayRows = db.ExecuteQuery(@"
+                SELECT
+                    b.""Date"",
+                    COUNT(CASE WHEN b.""Status"" = 'completed' THEN 1 END) AS ""CompletedBookings"",
+                    COALESCE(SUM(CASE WHEN b.""Status"" = 'completed' THEN s.""Price"" ELSE 0 END), 0) AS ""CompletedRevenue"",
+                    COALESCE(SUM(CASE WHEN b.""Status"" IN ('pending', 'confirmed', 'waiting_payment', 'waiting_payment_confirm') THEN s.""Price"" ELSE 0 END), 0) AS ""PotentialRevenue""
+                FROM ""Bookings"" b
+                JOIN ""Masters"" m ON m.""idMaster"" = b.""MasterId""
+                JOIN ""Services"" s ON s.""idService"" = b.""ServiceId""
+                WHERE m.""Key"" = @key
+                AND b.""Date"" >= @from
+                AND b.""Date"" <= @to
+                GROUP BY b.""Date""
+                ORDER BY b.""Date""
+            ",
+                new NpgsqlParameter("key", key),
+                new NpgsqlParameter("from", fromDate),
+                new NpgsqlParameter("to", toDate));
+
+            var totalRow = totals.Rows[0];
+            var analytics = new MiniAppMasterAnalyticsDto
+            {
+                From = fromDate.ToString("yyyy-MM-dd"),
+                To = toDate.ToString("yyyy-MM-dd"),
+                CompletedRevenue = Convert.ToInt32(totalRow["CompletedRevenue"]),
+                PotentialRevenue = Convert.ToInt32(totalRow["PotentialRevenue"]),
+                CompletedBookings = Convert.ToInt32(totalRow["CompletedBookings"]),
+                ActiveBookings = Convert.ToInt32(totalRow["ActiveBookings"]),
+                Clients = Convert.ToInt32(totalRow["Clients"])
+            };
+
+            foreach (DataRow row in dayRows.Rows)
+            {
+                var date = (DateOnly)row["Date"];
+
+                analytics.Days.Add(new MiniAppMasterAnalyticsDayDto
+                {
+                    Date = date.ToString("yyyy-MM-dd"),
+                    CompletedBookings = Convert.ToInt32(row["CompletedBookings"]),
+                    CompletedRevenue = Convert.ToInt32(row["CompletedRevenue"]),
+                    PotentialRevenue = Convert.ToInt32(row["PotentialRevenue"])
+                });
+            }
+
+            return analytics;
+        }
+
         public List<MiniAppMasterScheduleDayDto> GetSchedule(string key, long telegramId)
         {
             var master = GetMasterByKey(key);
@@ -695,7 +765,8 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     ""Title"",
                     ""Date"",
                     ""StartTime"",
-                    ""EndTime""
+                    ""EndTime"",
+                    (""Date"" + ""EndTime"") < NOW() AS ""IsPast""
                 FROM ""MasterTimeBlocks""
                 WHERE ""MasterId"" = @masterId
                 AND ""IsActive"" = true
@@ -707,6 +778,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 var start = TimeSpan.Parse(row["StartTime"].ToString());
                 var end = TimeSpan.Parse(row["EndTime"].ToString());
                 var title = row["Title"]?.ToString() ?? "Занято";
+                var isPast = Convert.ToBoolean(row["IsPast"]);
 
                 bookings.Add(new MiniAppMasterBookingDto
                 {
@@ -715,7 +787,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     ClientUsername = "Блокировка",
                     ServiceName = $"{title} ({start:hh\\:mm}-{end:hh\\:mm})",
                     DateTime = FormatBookingDateTime(row["Date"], row["StartTime"]),
-                    Status = "blocked",
+                    Status = isPast ? "completed" : "blocked",
                     Price = 0,
                     PrepaymentPercent = 0,
                     PrepaymentAmount = 0,

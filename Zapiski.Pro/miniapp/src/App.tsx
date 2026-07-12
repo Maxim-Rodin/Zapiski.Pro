@@ -10,11 +10,16 @@ import {
   ChevronRight,
   Construction,
   CreditCard,
+  CircleHelp,
+  FileText,
+  BarChart3,
   Globe,
   Home,
+  Info,
   LayoutDashboard,
   MapPin,
   Megaphone,
+  Menu,
   Plus,
   BadgePercent,
   Banknote,
@@ -26,8 +31,10 @@ import {
   Phone,
   Trash2,
   Settings,
+  Shield,
   ShieldCheck,
   Send,
+  Star,
   User,
   Users,
   X,
@@ -136,10 +143,22 @@ type MasterClient = {
   lastStatus: string
 }
 
-type MasterStats = {
-  clients: number
+type MasterAnalyticsDay = {
+  date: string
+  completedBookings: number
+  completedRevenue: number
+  potentialRevenue: number
+}
+
+type MasterAnalytics = {
+  from: string
+  to: string
+  completedRevenue: number
+  potentialRevenue: number
+  completedBookings: number
   activeBookings: number
-  services: number
+  clients: number
+  days: MasterAnalyticsDay[]
 }
 
 type MasterBooking = {
@@ -274,6 +293,17 @@ const normalizeUserMaster = (master: any): UserMaster => ({
   avatarUrl: master?.avatarUrl ?? master?.AvatarUrl ?? "",
 })
 
+type TopMenuItem = {
+  to: string
+  title: string
+  subtitle?: string
+  icon: ReactNode
+  danger?: boolean
+}
+
+type InfoMode = "user" | "master"
+type InfoTabId = "faq" | "rules" | "privacy" | "offer" | "statuses"
+
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
 
@@ -339,11 +369,13 @@ function App() {
       <Route path="/master/:key" element={<MasterHomePage />} />
       <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
       <Route path="/master/:key/block-time" element={<MasterTimeBlockPage />} />
+      <Route path="/master/:key/analytics" element={<MasterAnalyticsPage />} />
       <Route path="/master/:key/services" element={<MasterServicesPage />} />
       <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
       <Route path="/master/:key/subscription" element={<MasterSubscriptionPage />} />
+      <Route path="/master/:key/info" element={<InformationPage mode="master" />} />
       <Route path="/master/:key/profile" element={<MasterProfilePage />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
       <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
@@ -352,9 +384,90 @@ function App() {
       <Route path="/user/:telegramId" element={<UserHomePage />} />
       <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
       <Route path="/user/:telegramId/masters" element={<UserMastersPage />} />
+      <Route path="/user/:telegramId/info" element={<InformationPage mode="user" />} />
       <Route path="/user/:telegramId/become-master" element={<BecomeMasterPage />} />
       <Route path="/become-master" element={<BecomeMasterPage />} />
     </Routes>
+  )
+}
+
+function AppTopBar({
+  subtitle,
+  username,
+  homeUrl,
+  infoUrl,
+  menuItems,
+}: {
+  subtitle: string
+  username?: string
+  homeUrl: string
+  infoUrl: string
+  menuItems: TopMenuItem[]
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  return (
+    <>
+      <header className="appTopBar">
+        <Link to={homeUrl} className="appBrand">
+          <span className="appBrandLogo">
+            <BriefcaseBusiness size={25} strokeWidth={2.3} />
+          </span>
+          <span>
+            <strong>Zapisi.Pro</strong>
+            <small>{subtitle}</small>
+          </span>
+        </Link>
+
+        <div className="appTopActions">
+          <Link to={infoUrl} className="appTopIconButton" aria-label="Информация">
+            <Info size={21} strokeWidth={2.4} />
+          </Link>
+          <button
+            type="button"
+            className="appTopIconButton appMenuButton"
+            aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+            onClick={() => setMenuOpen((value) => !value)}
+          >
+            {menuOpen ? <X size={25} strokeWidth={2.4} /> : <Menu size={26} strokeWidth={2.4} />}
+          </button>
+        </div>
+      </header>
+
+      {menuOpen && (
+        <div className="topMenuOverlay">
+          <div className="topMenuPanel">
+            <div className="topMenuUser">
+              <span className="topMenuAvatar">
+                <User size={23} strokeWidth={2.3} />
+              </span>
+              <span>
+                <strong>{username ? `@${username}` : "Пользователь"}</strong>
+                <small>{subtitle}</small>
+              </span>
+            </div>
+
+            <nav className="topMenuList">
+              {menuItems.map((item) => (
+                <Link
+                  to={item.to}
+                  className={`topMenuItem ${item.danger ? "danger" : ""}`}
+                  key={item.to}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span>{item.icon}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    {item.subtitle && <small>{item.subtitle}</small>}
+                  </div>
+                  <ChevronRight size={18} strokeWidth={2.3} />
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -446,6 +559,106 @@ function AdminPage() {
       <AdminBottomNav />
     </main>
   )
+}
+
+function getUserTopMenuItems(userTelegramId: number): TopMenuItem[] {
+  return [
+    {
+      to: `/user/${userTelegramId}`,
+      title: "Главная",
+      subtitle: "Кабинет клиента",
+      icon: <Home size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/user/${userTelegramId}/bookings`,
+      title: "Мои записи",
+      subtitle: "Будущие и прошлые визиты",
+      icon: <CalendarCheck size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/user/${userTelegramId}/masters`,
+      title: "Мастера",
+      subtitle: "К кому вы уже записывались",
+      icon: <BriefcaseBusiness size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/user/${userTelegramId}/become-master`,
+      title: "Стать мастером",
+      subtitle: "Запустить свою онлайн-запись",
+      icon: <BadgePercent size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/user/${userTelegramId}/info`,
+      title: "Информация",
+      subtitle: "FAQ, правила и документы",
+      icon: <Info size={21} strokeWidth={2.3} />,
+    },
+  ]
+}
+
+function getMasterTopMenuItems(masterKey: string): TopMenuItem[] {
+  return [
+    {
+      to: `/master/${masterKey}`,
+      title: "Главная",
+      subtitle: "Сводка мастер-панели",
+      icon: <Home size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/bookings`,
+      title: "Записи",
+      subtitle: "Заявки и визиты клиентов",
+      icon: <CalendarCheck size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/clients`,
+      title: "Клиенты",
+      subtitle: "База и история посещений",
+      icon: <Users size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/analytics`,
+      title: "Статистика",
+      subtitle: "Доход, записи и клиенты",
+      icon: <BarChart3 size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/services`,
+      title: "Услуги",
+      subtitle: "Цены, длительность и адреса",
+      icon: <BriefcaseBusiness size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/schedule`,
+      title: "Расписание",
+      subtitle: "Рабочие дни и свободные окна",
+      icon: <CalendarDays size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/broadcast`,
+      title: "Рассылка",
+      subtitle: "Сообщения клиентам",
+      icon: <Megaphone size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/subscription`,
+      title: "Подписка",
+      subtitle: "Тариф и доступ к панели",
+      icon: <CreditCard size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/profile`,
+      title: "Профиль",
+      subtitle: "Фото, описание и портфолио",
+      icon: <User size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/info`,
+      title: "Информация",
+      subtitle: "FAQ, правила и документы",
+      icon: <Info size={21} strokeWidth={2.3} />,
+    },
+  ]
 }
 
 function MastersPage() {
@@ -745,7 +958,6 @@ function UsersPage() {
 function MasterHomePage() {
   const { key } = useParams()
   const [master, setMaster] = useState<Master | null>(null)
-  const [stats, setStats] = useState<MasterStats | null>(null)
   const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
@@ -768,15 +980,6 @@ function MasterHomePage() {
   useEffect(() => {
     if (!key) return
 
-    fetch(`${API_URL}/api/master/${key}/stats`)
-      .then((res) => res.json())
-      .then((data) => setStats(data))
-      .catch(() => setStats(null))
-  }, [key])
-
-  useEffect(() => {
-    if (!key) return
-
     fetch(`${API_URL}/api/master/${key}/subscription`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => setSubscription(data ? normalizeSubscription(data) : null))
@@ -789,6 +992,35 @@ function MasterHomePage() {
 
   if (denied || !master) {
     return <ComingSoon title="Доступ закрыт" subtitle="Мастер с таким ключом не найден" />
+  }
+
+  if (subscription && !subscription.hasAccess) {
+    const lockedMenuItems = getMasterTopMenuItems(master.key)
+
+    return (
+      <main className="app">
+        <AppTopBar
+          subtitle="кабинет мастера"
+          username={master.username}
+          homeUrl={`/master/${master.key}`}
+          infoUrl={`/master/${master.key}/info`}
+          menuItems={lockedMenuItems}
+        />
+
+        <section className="subscriptionLockedCard">
+          <div className="subscriptionLockedIcon">
+            <CreditCard size={34} strokeWidth={2.4} />
+          </div>
+          <h2>Доступ закончился</h2>
+          <p>Оформите подписку, чтобы снова управлять записями, расписанием, услугами, клиентами и рассылками.</p>
+          <Link to={`/master/${master.key}/subscription`} className="primaryButton subscriptionLockedButton">
+            Перейти к подписке
+          </Link>
+        </section>
+
+        <MasterBottomNav masterKey={master.key} />
+      </main>
+    )
   }
 
   const clientBotLink = `https://t.me/ZapisiProBot?start=${master.key}`
@@ -811,12 +1043,17 @@ function MasterHomePage() {
       .catch(() => setCopyMessage("Не удалось скопировать ссылку"))
   }
 
+  const masterMenuItems = getMasterTopMenuItems(master.key)
+
   return (
     <main className="app">
-      <header className="top">
-        <h1>Zapisi.Pro</h1>
-        <p>кабинет мастера</p>
-      </header>
+      <AppTopBar
+        subtitle="кабинет мастера"
+        username={master.username}
+        homeUrl={`/master/${master.key}`}
+        infoUrl={`/master/${master.key}/info`}
+        menuItems={masterMenuItems}
+      />
 
       <section className="hero">
         <div>
@@ -866,6 +1103,9 @@ function MasterHomePage() {
         <Link to={`/master/${master.key}/clients`} className="cardLink">
           <Card icon={<Users />} title="Клиенты" text="База клиентов мастера" />
         </Link>
+        <Link to={`/master/${master.key}/analytics`} className="cardLink">
+          <Card icon={<BarChart3 />} title="Статистика" text="Доход, записи и клиенты" />
+        </Link>
         <Link to={`/master/${master.key}/broadcast`} className="cardLink">
           <Card icon={<Megaphone />} title="Рассылка" text="Сообщения всем клиентам" />
         </Link>
@@ -883,32 +1123,196 @@ function MasterHomePage() {
         </Link>
       </section>
 
-      <section className="adminCard statsBlock">
-        <h2>Статистика</h2>
-        <div className="masterStatsList">
-          <MasterStatRow
-            to={`/master/${master.key}/clients`}
-            icon={<Users size={26} strokeWidth={2.4} />}
-            title="Клиенты"
-            value={stats?.clients ?? "..."}
-          />
-          <MasterStatRow
-            to={`/master/${master.key}/bookings`}
-            icon={<CalendarCheck size={26} strokeWidth={2.4} />}
-            title="Активные записи"
-            value={stats?.activeBookings ?? "..."}
-          />
-          <MasterStatRow
-            to={`/master/${master.key}/services`}
-            icon={<BriefcaseBusiness size={26} strokeWidth={2.4} />}
-            title="Услуги"
-            value={stats?.services ?? "..."}
-          />
-        </div>
-      </section>
-
       <MasterBottomNav masterKey={master.key} />
     </main>
+  )
+}
+
+function MasterAnalyticsPage() {
+  const { key } = useParams()
+  const today = new Date()
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  const [from, setFrom] = useState(formatDateInput(monthStart))
+  const [to, setTo] = useState(formatDateInput(monthEnd))
+  const [analytics, setAnalytics] = useState<MasterAnalytics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    if (!key) return
+
+    setLoading(true)
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}/analytics?from=${from}&to=${to}`, {
+      headers: { "X-Telegram-Id": telegramId() },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok) {
+          throw new Error(data?.message || "Не удалось загрузить статистику")
+        }
+
+        setAnalytics(normalizeMasterAnalytics(data))
+      })
+      .catch((err) => {
+        setAnalytics(null)
+        setMessage(err.message || "Ошибка загрузки статистики")
+      })
+      .finally(() => setLoading(false))
+  }, [key, from, to])
+
+  const periodDays = analytics ? getPeriodDays(analytics.from, analytics.to) : 0
+  const maxCompletedBookings = Math.max(1, ...(analytics?.days.map((day) => day.completedBookings) ?? [0]))
+  const chartPoints = analytics?.days.length
+    ? analytics.days.map((day, index) => {
+      const x = analytics.days.length === 1 ? 160 : 18 + (index * 284) / (analytics.days.length - 1)
+      const y = 142 - (day.completedBookings / maxCompletedBookings) * 108
+      return `${x},${y}`
+    }).join(" ")
+    : ""
+
+  return (
+    <main className="app">
+      <AppTopBar
+        subtitle="кабинет мастера"
+        homeUrl={`/master/${key ?? ""}`}
+        infoUrl={`/master/${key ?? ""}/info`}
+        menuItems={getMasterTopMenuItems(key ?? "")}
+      />
+
+      <header className="adminHeader analyticsHeader">
+        <h1>Статистика</h1>
+        <p>Доход, записи и клиенты за выбранный период</p>
+      </header>
+
+      <section className="analyticsPeriodCard">
+        <label>
+          <span>Начало</span>
+          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+        </label>
+        <label>
+          <span>Конец</span>
+          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+        </label>
+        <small>{periodDays > 0 ? `Выбрано ${periodDays} дн.` : "Выберите период"}</small>
+      </section>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      <section className="analyticsSummaryGrid">
+        <AnalyticsMetricCard
+          title="Заработано"
+          value={formatMoney(analytics?.completedRevenue ?? 0)}
+          text="По завершенным записям"
+          icon={<Banknote size={24} strokeWidth={2.4} />}
+        />
+        <AnalyticsMetricCard
+          title="Потенциально"
+          value={formatMoney(analytics?.potentialRevenue ?? 0)}
+          text="По активным записям"
+          icon={<CreditCard size={24} strokeWidth={2.4} />}
+        />
+      </section>
+
+      <section className="analyticsNumbers">
+        <AnalyticsNumber title="Завершенные записи" value={analytics?.completedBookings ?? 0} loading={loading} />
+        <AnalyticsNumber title="Активные записи" value={analytics?.activeBookings ?? 0} loading={loading} />
+        <AnalyticsNumber title="Клиенты" value={analytics?.clients ?? 0} loading={loading} />
+      </section>
+
+      <section className="analyticsChartCard">
+        <div className="analyticsChartTitle">
+          <div>
+            <strong>Количество завершенных записей</strong>
+            <small>Динамика по дням</small>
+          </div>
+          <span>{analytics?.completedBookings ?? 0}</span>
+        </div>
+
+        <svg viewBox="0 0 320 170" className="analyticsChart" role="img" aria-label="График завершенных записей">
+          <line x1="18" y1="34" x2="302" y2="34" />
+          <line x1="18" y1="88" x2="302" y2="88" />
+          <line x1="18" y1="142" x2="302" y2="142" />
+          {chartPoints ? (
+            <>
+              <polyline points={chartPoints} />
+              {analytics?.days.map((day, index) => {
+                const x = analytics.days.length === 1 ? 160 : 18 + (index * 284) / (analytics.days.length - 1)
+                const y = 142 - (day.completedBookings / maxCompletedBookings) * 108
+                return <circle key={day.date} cx={x} cy={y} r={4} />
+              })}
+            </>
+          ) : (
+            <text x="160" y="88" textAnchor="middle">Нет данных</text>
+          )}
+        </svg>
+      </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
+const normalizeMasterAnalytics = (data: any): MasterAnalytics => ({
+  from: data?.from ?? data?.From ?? "",
+  to: data?.to ?? data?.To ?? "",
+  completedRevenue: data?.completedRevenue ?? data?.CompletedRevenue ?? 0,
+  potentialRevenue: data?.potentialRevenue ?? data?.PotentialRevenue ?? 0,
+  completedBookings: data?.completedBookings ?? data?.CompletedBookings ?? 0,
+  activeBookings: data?.activeBookings ?? data?.ActiveBookings ?? 0,
+  clients: data?.clients ?? data?.Clients ?? 0,
+  days: (data?.days ?? data?.Days ?? []).map((day: any) => ({
+    date: day?.date ?? day?.Date ?? "",
+    completedBookings: day?.completedBookings ?? day?.CompletedBookings ?? 0,
+    completedRevenue: day?.completedRevenue ?? day?.CompletedRevenue ?? 0,
+    potentialRevenue: day?.potentialRevenue ?? day?.PotentialRevenue ?? 0,
+  })),
+})
+
+const formatMoney = (value: number) =>
+  `${Math.round(value).toLocaleString("ru-RU")} ₽`
+
+const getPeriodDays = (from: string, to: string) => {
+  if (!from || !to) return 0
+
+  const fromDate = new Date(from)
+  const toDate = new Date(to)
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return 0
+
+  return Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86400000) + 1)
+}
+
+function AnalyticsMetricCard({
+  title,
+  value,
+  text,
+  icon,
+}: {
+  title: string
+  value: string
+  text: string
+  icon: ReactNode
+}) {
+  return (
+    <div className="analyticsMetricCard">
+      <span>{icon}</span>
+      <small>{title}</small>
+      <strong>{value}</strong>
+      <p>{text}</p>
+    </div>
+  )
+}
+
+function AnalyticsNumber({ title, value, loading }: { title: string; value: number; loading: boolean }) {
+  return (
+    <div className="analyticsNumber">
+      <small>{title}</small>
+      <strong>{loading ? "..." : value}</strong>
+    </div>
   )
 }
 
@@ -2680,12 +3084,17 @@ function UserHomePage() {
     return <ComingSoon title="Доступ закрыт" subtitle={error || "Кабинет недоступен"} />
   }
 
+  const userMenuItems = getUserTopMenuItems(dashboard.profile.telegramId)
+
   return (
     <main className="app">
-      <header className="top">
-        <h1>Zapisi.Pro</h1>
-        <p>кабинет клиента</p>
-      </header>
+      <AppTopBar
+        subtitle="кабинет клиента"
+        username={dashboard.profile.username}
+        homeUrl={`/user/${dashboard.profile.telegramId}`}
+        infoUrl={`/user/${dashboard.profile.telegramId}/info`}
+        menuItems={userMenuItems}
+      />
 
       <section className="hero">
         <div>
@@ -2735,6 +3144,123 @@ function UserHomePage() {
       />
 
       <UserBottomNav telegramId={dashboard.profile.telegramId} />
+    </main>
+  )
+}
+
+function InformationPage({ mode }: { mode: InfoMode }) {
+  const { telegramId: routeTelegramId, key } = useParams()
+  const [activeTab, setActiveTab] = useState<InfoTabId>("privacy")
+  const isMaster = mode === "master"
+  const homeUrl = isMaster ? `/master/${key ?? ""}` : `/user/${routeTelegramId ?? ""}`
+  const infoUrl = isMaster ? `/master/${key ?? ""}/info` : `/user/${routeTelegramId ?? ""}/info`
+  const menuItems = isMaster
+    ? getMasterTopMenuItems(key ?? "")
+    : getUserTopMenuItems(Number(routeTelegramId ?? 0))
+  const title = isMaster ? "Информация для мастера" : "Информация для клиента"
+  const tabs: Array<{ id: InfoTabId; title: string; icon: ReactNode }> = [
+    { id: "faq", title: "FAQ", icon: <CircleHelp size={19} strokeWidth={2.3} /> },
+    { id: "rules", title: "Правила", icon: <FileText size={19} strokeWidth={2.3} /> },
+    { id: "privacy", title: "Конфиденциальность", icon: <Shield size={19} strokeWidth={2.3} /> },
+    { id: "offer", title: "Оферта", icon: <FileText size={19} strokeWidth={2.3} /> },
+    { id: "statuses", title: "Статусы", icon: <Star size={19} strokeWidth={2.3} /> },
+  ]
+
+  const content = {
+    faq: {
+      title: "FAQ",
+      items: isMaster
+        ? [
+          "Как настроить профиль: добавьте имя, описание, фото, услуги и расписание.",
+          "Как получать записи: отправьте клиентам публичную ссылку из мастер-панели.",
+          "Как работает подписка: доступ активен во время trial, оплаченного периода или статуса первого мастера.",
+        ]
+        : [
+          "Как записаться: откройте профиль мастера, выберите услугу, дату и время.",
+          "Где смотреть записи: раздел 'Мои записи' показывает будущие и прошлые визиты.",
+          "Как стать мастером: нажмите 'Стать мастером' и создайте свой публичный ключ.",
+        ],
+    },
+    rules: {
+      title: "Правила сервиса",
+      items: [
+        "Используйте сервис только для реальных записей и корректных данных.",
+        "Не передавайте чужие персональные данные без законного основания.",
+        "Мастер отвечает за актуальность услуг, цен, адресов и расписания.",
+      ],
+    },
+    privacy: {
+      title: "Конфиденциальность",
+      items: [
+        "Zapisi.Pro обрабатывает Telegram ID, username, записи, контактные данные и данные профилей.",
+        "Фотографии профиля и портфолио используются для отображения публичного профиля мастера.",
+        "Данные применяются для работы записи, уведомлений, клиентской базы и поддержки.",
+      ],
+    },
+    offer: {
+      title: "Оферта",
+      items: [
+        "Полный текст оферты будет добавлен перед запуском оплаты.",
+        "После подключения оплаты условия подписки будут отображаться в разделе 'Подписка'.",
+        "Продолжение использования сервиса означает согласие с актуальными условиями.",
+      ],
+    },
+    statuses: {
+      title: "Статусы",
+      items: [
+        "Пробный период - временный бесплатный доступ к мастер-панели.",
+        "Подписка активна - доступ оплачен и действует до указанной даты.",
+        "Первый мастер - бессрочный доступ, выданный администрацией.",
+        "Доступ закончился - рабочие функции мастера закрыты до продления.",
+      ],
+    },
+  }[activeTab]
+
+  return (
+    <main className="app">
+      <AppTopBar
+        subtitle={isMaster ? "кабинет мастера" : "кабинет клиента"}
+        homeUrl={homeUrl}
+        infoUrl={infoUrl}
+        menuItems={menuItems}
+      />
+
+      <section className="infoHeader">
+        <Info size={30} strokeWidth={2.4} />
+        <div>
+          <h1>Информация</h1>
+          <p>{title}</p>
+        </div>
+      </section>
+
+      <section className="infoTabs">
+        {tabs.map((tab) => (
+          <button
+            type="button"
+            className={activeTab === tab.id ? "active" : ""}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.icon}
+            <span>{tab.title}</span>
+          </button>
+        ))}
+      </section>
+
+      <section className="infoContentCard">
+        <h2>{content.title}</h2>
+        <ol>
+          {content.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </section>
+
+      {isMaster ? (
+        <MasterBottomNav masterKey={key ?? ""} />
+      ) : (
+        <UserBottomNav telegramId={Number(routeTelegramId ?? 0)} />
+      )}
     </main>
   )
 }
@@ -4739,30 +5265,6 @@ function StatusBadge({ status }: { status: string | null }) {
     <span className={`statusBadge status-${normalizedStatus}`}>
       {labelByStatus[normalizedStatus] ?? normalizedStatus}
     </span>
-  )
-}
-
-function MasterStatRow({
-  to,
-  icon,
-  title,
-  value,
-}: {
-  to: string
-  icon: ReactNode
-  title: string
-  value: string | number
-}) {
-  return (
-    <Link to={to} className="masterStatRow">
-      <span className="masterStatIcon">{icon}</span>
-      <span className="masterStatText">
-        <small>{title}</small>
-        <strong>{value}</strong>
-      </span>
-      <span className="masterStatTrend">↗</span>
-      <ChevronRight className="masterStatArrow" size={24} strokeWidth={2.4} />
-    </Link>
   )
 }
 

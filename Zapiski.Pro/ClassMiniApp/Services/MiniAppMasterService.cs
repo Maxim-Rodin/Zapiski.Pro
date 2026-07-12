@@ -32,6 +32,12 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.GetSubscription(key.Trim());
         }
 
+        public bool HasActiveAccess(string key)
+        {
+            var subscription = GetSubscription(key);
+            return subscription?.HasAccess == true;
+        }
+
         public MiniAppMasterActionResult ExtendSubscriptionAfterPayment(int masterId, int months)
         {
             if (masterId <= 0)
@@ -60,6 +66,33 @@ namespace Zapiski.Pro.MiniApp.Services
                 return null;
 
             return repository.GetStats(key.Trim());
+        }
+
+        public MiniAppMasterAnalyticsDto? GetAnalytics(string key, string? fromText, string? toText)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            if (repository.GetMasterByKey(key.Trim()) == null)
+                return null;
+
+            var today = DateTime.Today;
+            var from = new DateTime(today.Year, today.Month, 1);
+            var to = from.AddMonths(1).AddDays(-1);
+
+            if (!string.IsNullOrWhiteSpace(fromText) && DateTime.TryParse(fromText, out var parsedFrom))
+                from = parsedFrom.Date;
+
+            if (!string.IsNullOrWhiteSpace(toText) && DateTime.TryParse(toText, out var parsedTo))
+                to = parsedTo.Date;
+
+            if (to < from)
+                (from, to) = (to, from);
+
+            if ((to - from).TotalDays > 370)
+                to = from.AddDays(370);
+
+            return repository.GetAnalytics(key.Trim(), from, to);
         }
 
         public List<MiniAppMasterScheduleDayDto>? GetSchedule(string key, long telegramId)

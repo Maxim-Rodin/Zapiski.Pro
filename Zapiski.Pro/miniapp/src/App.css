@@ -9,12 +9,185 @@ body {
 }
 
 .app {
+  position: relative;
   max-width: 430px;
   margin: 0 auto;
   min-height: 100vh;
   background: #f7fbff;
   padding: 14px;
   padding-bottom: 90px;
+}
+
+.appTopBar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -14px -14px 14px;
+  padding: 14px;
+  background: rgba(247, 251, 255, 0.94);
+  border-bottom: 1px solid #e0ebfa;
+  backdrop-filter: blur(14px);
+}
+
+.appBrand {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #172033;
+  text-decoration: none;
+}
+
+.appBrandLogo,
+.topMenuAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #4b8df7;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.appBrand strong,
+.appBrand small,
+.topMenuUser strong,
+.topMenuUser small {
+  display: block;
+}
+
+.appBrand strong {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.appBrand small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.appTopActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.appTopIconButton {
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 15px;
+  background: white;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.08);
+}
+
+.appMenuButton {
+  background: #4b8df7;
+  color: white;
+}
+
+.topMenuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  justify-content: center;
+  background: rgba(15, 32, 51, 0.32);
+  backdrop-filter: blur(5px);
+}
+
+.topMenuPanel {
+  width: min(430px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 88px 14px 105px;
+  background: rgba(247, 251, 255, 0.96);
+  overflow-y: auto;
+}
+
+.topMenuUser {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.topMenuUser strong {
+  color: #172033;
+  font-size: 17px;
+}
+
+.topMenuUser small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.topMenuList {
+  display: grid;
+  gap: 9px;
+}
+
+.topMenuItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: white;
+  color: #172033;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.06);
+}
+
+.topMenuItem > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #eef4ff;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topMenuItem strong,
+.topMenuItem small {
+  display: block;
+}
+
+.topMenuItem strong {
+  font-size: 15px;
+}
+
+.topMenuItem small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.topMenuItem.danger {
+  color: #ef4444;
 }
 
 .top {
@@ -2677,6 +2850,336 @@ body {
 .subscriptionIncluded svg {
   color: #22c55e;
   margin-top: 1px;
+}
+
+.subscriptionLockedCard {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  border-radius: 24px;
+  background: white;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(15, 52, 96, 0.08);
+}
+
+.subscriptionLockedIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: #eef4ff;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subscriptionLockedCard h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.subscriptionLockedCard p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.subscriptionLockedButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.analyticsHeader {
+  margin-bottom: 12px;
+}
+
+.analyticsPeriodCard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  border-radius: 20px;
+  background: white;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(15, 52, 96, 0.07);
+  margin-bottom: 12px;
+}
+
+.analyticsPeriodCard label {
+  display: grid;
+  gap: 6px;
+}
+
+.analyticsPeriodCard span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.analyticsPeriodCard input {
+  width: 100%;
+  border: 1px solid #dbe7f5;
+  border-radius: 13px;
+  background: #f8fbff;
+  color: #172033;
+  padding: 11px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  outline: none;
+}
+
+.analyticsPeriodCard small {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.analyticsSummaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.analyticsMetricCard {
+  min-width: 0;
+  border-radius: 20px;
+  background: white;
+  padding: 15px;
+  box-shadow: 0 8px 24px rgba(15, 52, 96, 0.07);
+}
+
+.analyticsMetricCard > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #eef4ff;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.analyticsMetricCard small,
+.analyticsMetricCard strong,
+.analyticsMetricCard p {
+  display: block;
+}
+
+.analyticsMetricCard small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.analyticsMetricCard strong {
+  margin-top: 5px;
+  color: #172033;
+  font-size: 25px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.analyticsMetricCard p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.analyticsNumbers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.analyticsNumber {
+  border-radius: 18px;
+  background: #e8f2ff;
+  padding: 12px;
+}
+
+.analyticsNumber small,
+.analyticsNumber strong {
+  display: block;
+}
+
+.analyticsNumber small {
+  min-height: 32px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.analyticsNumber strong {
+  margin-top: 6px;
+  color: #172033;
+  font-size: 24px;
+}
+
+.analyticsChartCard {
+  border-radius: 22px;
+  background: white;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(15, 52, 96, 0.08);
+}
+
+.analyticsChartTitle {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.analyticsChartTitle strong,
+.analyticsChartTitle small {
+  display: block;
+}
+
+.analyticsChartTitle strong {
+  color: #172033;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.analyticsChartTitle small {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.analyticsChartTitle span {
+  min-width: 48px;
+  border-radius: 14px;
+  background: #4b8df7;
+  color: white;
+  padding: 9px 10px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.analyticsChart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.analyticsChart line {
+  stroke: #e2eaf5;
+  stroke-width: 1;
+}
+
+.analyticsChart polyline {
+  fill: none;
+  stroke: #4b8df7;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.analyticsChart circle {
+  fill: #ffb020;
+  stroke: white;
+  stroke-width: 3;
+}
+
+.analyticsChart text {
+  fill: #94a3b8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.infoHeader {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #172033;
+}
+
+.infoHeader > svg {
+  color: #4b8df7;
+}
+
+.infoHeader h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.infoHeader p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.infoTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.infoTabs button {
+  border: none;
+  border-radius: 15px;
+  background: #e8f2ff;
+  color: #516071;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.infoTabs button.active {
+  background: #4b8df7;
+  color: white;
+  box-shadow: 0 8px 18px rgba(75, 141, 247, 0.25);
+}
+
+.infoContentCard {
+  border-radius: 22px;
+  background: white;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(15, 52, 96, 0.08);
+}
+
+.infoContentCard h2 {
+  margin: 0 0 14px;
+  color: #172033;
+  font-size: 22px;
+}
+
+.infoContentCard ol {
+  margin: 0;
+  padding-left: 22px;
+  color: #334155;
+}
+
+.infoContentCard li {
+  padding-left: 4px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+.infoContentCard li::marker {
+  color: #4b8df7;
+  font-weight: 900;
 }
 
 .iconButton {

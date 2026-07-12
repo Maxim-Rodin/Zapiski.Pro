@@ -30,6 +30,26 @@
         public int Services { get; set; }
     }
 
+    public class MiniAppMasterAnalyticsDto
+    {
+        public string From { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+        public int CompletedRevenue { get; set; }
+        public int PotentialRevenue { get; set; }
+        public int CompletedBookings { get; set; }
+        public int ActiveBookings { get; set; }
+        public int Clients { get; set; }
+        public List<MiniAppMasterAnalyticsDayDto> Days { get; set; } = new();
+    }
+
+    public class MiniAppMasterAnalyticsDayDto
+    {
+        public string Date { get; set; } = string.Empty;
+        public int CompletedBookings { get; set; }
+        public int CompletedRevenue { get; set; }
+        public int PotentialRevenue { get; set; }
+    }
+
     public class MiniAppMasterBookingDto
     {
         public int Id { get; set; }

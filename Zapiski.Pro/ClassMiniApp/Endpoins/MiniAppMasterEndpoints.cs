@@ -30,6 +30,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
             app.MapGet("/api/master/{key}/clients", (string key) =>
             {
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
                 var clients = masterService.GetClients(key);
 
                 if (clients == null)
@@ -49,6 +53,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                             success = false,
                             message = "Откройте раздел из Telegram"
                         }, statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
+
                     var result = masterService.AddClient(key, telegramId, request);
                     if (!result.Success)
                     {
@@ -60,6 +68,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
             app.MapGet("/api/master/{key}/stats", (string key) =>
             {
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
                 var stats = masterService.GetStats(key);
 
                 if (stats == null)
@@ -70,6 +82,24 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     });
 
                 return Results.Ok(stats);
+            });
+
+            app.MapGet("/api/master/{key}/analytics", (string key, string? from, string? to) =>
+            {
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
+                var analytics = masterService.GetAnalytics(key, from, to);
+
+                if (analytics == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(analytics);
             });
 
             app.MapGet("/api/master/{key}/subscription", (string key) =>
@@ -91,6 +121,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var bookings = masterService.GetBookings(key, telegramId);
 
@@ -109,6 +142,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var schedule = masterService.GetSchedule(key, telegramId);
 
@@ -128,6 +164,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.UpdateScheduleDay(key, telegramId, day, request);
 
@@ -142,6 +181,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var mode = masterService.GetScheduleMode(key, telegramId);
 
@@ -157,6 +199,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.UpdateScheduleMode(key, telegramId, request);
 
@@ -171,6 +216,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var slots = masterService.GetManualSlots(key, telegramId, date);
 
@@ -186,6 +234,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.CreateManualSlot(key, telegramId, request);
 
@@ -201,6 +252,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.DeleteManualSlot(key, telegramId, slotId);
 
@@ -215,6 +269,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var result = masterService.ClearManualSlotsDay(key, telegramId, date);
 
@@ -230,6 +287,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.CreateTimeBlock(key, telegramId, request);
 
@@ -245,6 +305,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.DeleteTimeBlock(key, telegramId, blockId);
 
@@ -260,6 +323,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.AcceptBooking(key, telegramId, bookingId);
 
@@ -275,6 +341,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.CancelBooking(key, telegramId, bookingId);
 
@@ -290,6 +359,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.AcceptPayment(key, telegramId, bookingId);
 
@@ -305,6 +377,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.RejectPayment(key, telegramId, bookingId);
 
@@ -338,6 +413,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var result = await masterService.UploadPortfolioPhoto(key, telegramId, file);
 
@@ -353,6 +431,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.DeletePortfolioPhoto(key, telegramId, photoId);
 
@@ -368,6 +449,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.ReorderPortfolioPhotos(key, telegramId, request);
 
@@ -385,6 +469,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!long.TryParse(telegramHeader, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.UpdateProfile(key, telegramId, request);
 
@@ -410,6 +497,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.CreateAddress(key, telegramId, request);
 
@@ -425,6 +515,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = masterService.DeleteAddress(key, telegramId, addressId);
 
@@ -436,6 +529,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
             app.MapPost("/api/master/{key}/services", (string key, MiniAppCreateMasterServiceRequest request) =>
             {
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
                 var result = masterService.CreateService(key, request);
 
                 if (!result.Success)
@@ -447,6 +544,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
             app.MapPut("/api/master/{key}/services/{serviceId:int}",
                 (string key, int serviceId, MiniAppCreateMasterServiceRequest request) =>
                 {
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
+
                     var result = masterService.UpdateService(key, serviceId, request);
 
                     if (!result.Success)
@@ -457,6 +558,10 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
             app.MapDelete("/api/master/{key}/services/{serviceId:int}", (string key, int serviceId) =>
             {
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
                 var result = masterService.DeleteService(key, serviceId);
 
                 if (!result.Success)
@@ -471,6 +576,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     if (!TryGetTelegramId(httpRequest, out var telegramId))
                         return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
                             statusCode: StatusCodes.Status401Unauthorized);
+                    var accessError = EnsureMasterAccess(masterService, key);
+                    if (accessError != null)
+                        return accessError;
 
                     var result = await masterService.SendBroadcast(key, telegramId, request);
 
@@ -484,6 +592,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
                     return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
                         statusCode: StatusCodes.Status401Unauthorized);
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
 
                 var master = masterService.GetMasterProfile(key);
 
@@ -521,6 +632,23 @@ namespace Zapiski.Pro.MiniApp.Endpoints
             var telegramHeader = httpRequest.Headers["X-Telegram-Id"].ToString();
             return long.TryParse(telegramHeader, out telegramId);
             
+        }
+
+        private static IResult? EnsureMasterAccess(MiniAppMasterService masterService, string key)
+        {
+            var subscription = masterService.GetSubscription(key);
+
+            if (subscription == null)
+                return Results.NotFound(new { success = false, message = "Мастер не найден" });
+
+            if (subscription.HasAccess)
+                return null;
+
+            return Results.Json(new
+            {
+                success = false,
+                message = "Доступ закончился. Оформите подписку, чтобы продолжить пользоваться мастер-панелью."
+            }, statusCode: StatusCodes.Status402PaymentRequired);
         }
     }
 }
