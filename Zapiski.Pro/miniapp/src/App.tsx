@@ -59,11 +59,72 @@ type Master = {
   paymentDetails: string
   phoneNumber: string
   avatarUrl: string
+  isFounder: boolean
+  trialEndsAt: string | null
+  subscriptionEndsAt: string | null
+  subscriptionPlan: string
+  hasAccess: boolean
+  accessType: string
+  daysLeft: number
 }
 
 const normalizeMaster = (master: any): Master => ({
   ...master,
   avatarUrl: master?.avatarUrl ?? master?.AvatarUrl ?? "",
+  isFounder: master?.isFounder ?? master?.IsFounder ?? false,
+  trialEndsAt: master?.trialEndsAt ?? master?.TrialEndsAt ?? null,
+  subscriptionEndsAt: master?.subscriptionEndsAt ?? master?.SubscriptionEndsAt ?? null,
+  subscriptionPlan: master?.subscriptionPlan ?? master?.SubscriptionPlan ?? "",
+  hasAccess: master?.hasAccess ?? master?.HasAccess ?? false,
+  accessType: master?.accessType ?? master?.AccessType ?? "expired",
+  daysLeft: master?.daysLeft ?? master?.DaysLeft ?? 0,
+})
+
+type SubscriptionPlan = {
+  code: string
+  title: string
+  months: number
+  priceRub: number
+}
+
+type MasterSubscription = {
+  hasAccess: boolean
+  isFounder: boolean
+  accessType: string
+  trialEndsAt: string | null
+  subscriptionEndsAt: string | null
+  subscriptionPlan: string
+  daysLeft: number
+  availablePlans: SubscriptionPlan[]
+}
+
+const subscriptionPlanPrice = (code: string, months: number) => {
+  if (code === "month" || months === 1) return 399
+  if (code === "quarter" || months === 3) return 999
+  if (code === "year" || months === 12) return 3360
+  return 0
+}
+
+const normalizeSubscription = (subscription: any): MasterSubscription => ({
+  hasAccess: subscription?.hasAccess ?? subscription?.HasAccess ?? false,
+  isFounder: subscription?.isFounder ?? subscription?.IsFounder ?? false,
+  accessType: subscription?.accessType ?? subscription?.AccessType ?? "expired",
+  trialEndsAt: subscription?.trialEndsAt ?? subscription?.TrialEndsAt ?? null,
+  subscriptionEndsAt: subscription?.subscriptionEndsAt ?? subscription?.SubscriptionEndsAt ?? null,
+  subscriptionPlan: subscription?.subscriptionPlan ?? subscription?.SubscriptionPlan ?? "",
+  daysLeft: subscription?.daysLeft ?? subscription?.DaysLeft ?? 0,
+  availablePlans: (subscription?.availablePlans ?? subscription?.AvailablePlans ?? []).map((plan: any) => {
+    const code = plan?.code ?? plan?.Code ?? ""
+    const months = plan?.months ?? plan?.Months ?? 0
+    const priceRub = plan?.priceRub ?? plan?.PriceRub ?? subscriptionPlanPrice(code, months)
+
+    return {
+      code,
+      title: plan?.title ?? plan?.Title ?? "",
+      months,
+      priceRub,
+    }
+  }),
 })
 
 type MasterClient = {
@@ -282,6 +343,7 @@ function App() {
       <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
+      <Route path="/master/:key/subscription" element={<MasterSubscriptionPage />} />
       <Route path="/master/:key/profile" element={<MasterProfilePage />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
       <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
@@ -290,6 +352,8 @@ function App() {
       <Route path="/user/:telegramId" element={<UserHomePage />} />
       <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
       <Route path="/user/:telegramId/masters" element={<UserMastersPage />} />
+      <Route path="/user/:telegramId/become-master" element={<BecomeMasterPage />} />
+      <Route path="/become-master" element={<BecomeMasterPage />} />
     </Routes>
   )
 }
@@ -390,6 +454,8 @@ function MastersPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [telegramIdValue, setTelegramIdValue] = useState("")
   const [masterKey, setMasterKey] = useState("")
+  const [isFounder, setIsFounder] = useState(false)
+  const [subscriptionMonths, setSubscriptionMonths] = useState("0")
   const [message, setMessage] = useState("")
 
   function loadMasters() {
@@ -417,6 +483,8 @@ function MastersPage() {
       body: JSON.stringify({
         telegramId: Number(telegramIdValue),
         key: masterKey,
+        isFounder,
+        subscriptionMonths: Number(subscriptionMonths),
       }),
     })
       .then(async (res) => {
@@ -430,7 +498,37 @@ function MastersPage() {
         setMessage("Мастер добавлен")
         setTelegramIdValue("")
         setMasterKey("")
+        setIsFounder(false)
+        setSubscriptionMonths("0")
         setShowAddForm(false)
+        loadMasters()
+      })
+      .catch(() => setMessage("Ошибка соединения с сервером"))
+  }
+
+  function grantSubscription(masterId: number, months: number, founder = false) {
+    setMessage("Обновляем доступ...")
+
+    fetch(`${API_URL}/api/admin/masters/${masterId}/subscription`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": telegramId(),
+      },
+      body: JSON.stringify({
+        isFounder: founder,
+        subscriptionMonths: months,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json()
+
+        if (!res.ok || data?.success === false) {
+          setMessage(data.message || "Ошибка обновления подписки")
+          return
+        }
+
+        setMessage(data.message || "Доступ обновлён")
         loadMasters()
       })
       .catch(() => setMessage("Ошибка соединения с сервером"))
@@ -484,6 +582,28 @@ function MastersPage() {
               onChange={(e) => setMasterKey(e.target.value)}
             />
 
+            <label className="adminCheckRow">
+              <input
+                type="checkbox"
+                checked={isFounder}
+                onChange={(event) => setIsFounder(event.target.checked)}
+              />
+              Первый мастер, доступ навсегда
+            </label>
+
+            {!isFounder && (
+              <select
+                className="adminInput"
+                value={subscriptionMonths}
+                onChange={(event) => setSubscriptionMonths(event.target.value)}
+              >
+                <option value="0">30 дней trial</option>
+                <option value="1">Сразу подписка на 1 месяц</option>
+                <option value="3">Сразу подписка на 3 месяца</option>
+                <option value="12">Сразу подписка на год</option>
+              </select>
+            )}
+
             <button className="primaryButton" onClick={createMaster}>
               Создать мастера
             </button>
@@ -511,6 +631,29 @@ function MastersPage() {
                 <h3>@{master.username || "unknown"}</h3>
                 <p>Ключ: {master.key}</p>
                 <span>ID: {master.telegramId}</span>
+                <span className={`subscriptionBadge ${master.hasAccess ? "active" : "expired"}`}>
+                  {master.accessType === "founder"
+                    ? "Первый мастер"
+                    : master.accessType === "trial"
+                      ? `Trial: ${master.daysLeft} дн.`
+                      : master.accessType === "paid"
+                        ? `Подписка: ${master.daysLeft} дн.`
+                        : "Доступ закончился"}
+                </span>
+                <div className="adminSubscriptionActions">
+                  <button type="button" onClick={() => grantSubscription(master.id, 0, true)}>
+                    Founder
+                  </button>
+                  <button type="button" onClick={() => grantSubscription(master.id, 1)}>
+                    +1 мес
+                  </button>
+                  <button type="button" onClick={() => grantSubscription(master.id, 3)}>
+                    +3 мес
+                  </button>
+                  <button type="button" onClick={() => grantSubscription(master.id, 12)}>
+                    +1 год
+                  </button>
+                </div>
               </div>
 
               <button className="deleteButton" onClick={() => setDeleteCandidate(master)}>
@@ -602,6 +745,7 @@ function MasterHomePage() {
   const { key } = useParams()
   const [master, setMaster] = useState<Master | null>(null)
   const [stats, setStats] = useState<MasterStats | null>(null)
+  const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
   const [copyMessage, setCopyMessage] = useState("")
@@ -629,6 +773,15 @@ function MasterHomePage() {
       .catch(() => setStats(null))
   }, [key])
 
+  useEffect(() => {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/subscription`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setSubscription(data ? normalizeSubscription(data) : null))
+      .catch(() => setSubscription(null))
+  }, [key])
+
   if (loading) {
     return <ComingSoon title="Загрузка..." subtitle="Получаем данные мастера" />
   }
@@ -638,6 +791,18 @@ function MasterHomePage() {
   }
 
   const clientBotLink = `https://t.me/ZapisiProBot?start=${master.key}`
+  const shouldShowSubscriptionBanner = subscription && !subscription.isFounder
+  const isSubscriptionCountdown = shouldShowSubscriptionBanner && subscription.hasAccess && subscription.daysLeft <= 3
+  const subscriptionBannerTitle = subscription?.accessType === "paid"
+    ? "Подписка активна"
+    : subscription?.accessType === "trial"
+      ? "Пробный период активен"
+      : "Доступ закончился"
+  const subscriptionBannerText = subscription?.hasAccess
+    ? isSubscriptionCountdown
+      ? `Осталось ${subscription.daysLeft} дн. Продлите доступ, чтобы панель не остановилась.`
+      : `Осталось ${subscription.daysLeft} дн. Приятного пользования.`
+    : "Оформите подписку, чтобы продолжить пользоваться мастер-панелью."
 
   function copyPublicLink() {
     navigator.clipboard?.writeText(clientBotLink)
@@ -666,6 +831,22 @@ function MasterHomePage() {
         </div>
       </section>
 
+      {shouldShowSubscriptionBanner && (
+        <Link
+          to={`/master/${master.key}/subscription`}
+          className={`homeSubscriptionBanner ${subscription.hasAccess ? "active" : "expired"} ${isSubscriptionCountdown ? "countdown" : ""}`}
+        >
+          <span>
+            {subscription.hasAccess ? <ShieldCheck size={24} strokeWidth={2.4} /> : <CreditCard size={24} strokeWidth={2.4} />}
+          </span>
+          <div>
+            <strong>{subscriptionBannerTitle}</strong>
+            <small>{subscriptionBannerText}</small>
+          </div>
+          {isSubscriptionCountdown && <b>{subscription.daysLeft}</b>}
+        </Link>
+      )}
+
       <ClientCabinetBanner telegramId={master.telegramId} />
 
       <section className="adminCard masterLinkCard">
@@ -692,6 +873,9 @@ function MasterHomePage() {
         </Link>
         <Link to={`/master/${master.key}/schedule`} className="cardLink">
           <Card icon={<CalendarDays />} title="Расписание" text="Управление временем" />
+        </Link>
+        <Link to={`/master/${master.key}/subscription`} className="cardLink">
+          <Card icon={<CreditCard />} title="Подписка" text="Доступ к мастер-панели и тарифы" />
         </Link>
         <Link to={`/master/${master.key}/public-profile`} className="cardLink">
           <Card icon={<Globe />} title="Профиль" text="Так страницу будут видеть клиенты" />
@@ -723,6 +907,138 @@ function MasterHomePage() {
       </section>
 
       <MasterBottomNav masterKey={master.key} />
+    </main>
+  )
+}
+
+function MasterSubscriptionPage() {
+  const { key } = useParams()
+  const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    if (!key) return
+
+    fetch(`${API_URL}/api/master/${key}/subscription`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Не удалось загрузить подписку")
+        }
+
+        return res.json()
+      })
+      .then((data) => setSubscription(normalizeSubscription(data)))
+      .catch((err) => setMessage(err.message || "Ошибка загрузки подписки"))
+      .finally(() => setLoading(false))
+  }, [key])
+
+  function formatDate(value: string | null) {
+    if (!value) return ""
+
+    return new Date(value).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+  }
+
+  function planClick(plan: SubscriptionPlan) {
+    const actionText = subscription?.hasAccess
+      ? "После оплаты срок добавится к текущей дате окончания доступа."
+      : "После оплаты доступ к мастер-панели откроется сразу."
+
+    setMessage(`Оплата тарифа "${plan.title}" скоро появится. ${actionText} Пока подписку может выдать администратор.`)
+  }
+
+  const subscriptionFeatures = [
+    "Безлимитное управление услугами, ценами и расписанием",
+    "Онлайн-запись клиентов через публичный профиль мастера",
+    "Клиентская база, история посещений и ручное добавление клиентов",
+    "Портфолио работ до 9 фото и фото профиля",
+    "Рассылки клиентам и уведомления по записям",
+  ]
+
+  const statusTitle = subscription?.accessType === "founder"
+    ? "Вы первый мастер"
+    : subscription?.accessType === "paid"
+      ? "Подписка активна"
+      : subscription?.accessType === "trial"
+        ? "Пробный период активен"
+        : "Доступ закончился"
+
+  const statusText = subscription?.accessType === "founder"
+    ? "Поздравляем, у вас доступ навсегда. Приятного пользования."
+    : subscription?.accessType === "paid"
+      ? `Поздравляем, у вас подписка активна${subscription.subscriptionEndsAt ? ` до ${formatDate(subscription.subscriptionEndsAt)}` : ""}.`
+      : subscription?.accessType === "trial"
+        ? `У вас бесплатный период. Осталось ${subscription.daysLeft} дн.`
+        : "Оформите подписку, чтобы продолжить пользоваться мастер-панелью."
+
+  return (
+    <main className="app">
+      <Link to={`/master/${key ?? ""}`} className="subscriptionBackLink">
+        <ArrowLeft size={18} strokeWidth={2.5} />
+        <span>Назад в профиль</span>
+      </Link>
+
+      <header className="adminHeader">
+        <h1>Подписка</h1>
+        <p>Доступ мастера к панели и будущая оплата</p>
+      </header>
+
+      <section className={`subscriptionStatusCard ${subscription?.hasAccess ? "active" : "expired"}`}>
+        <div className="subscriptionStatusIcon">
+          {subscription?.hasAccess ? <ShieldCheck size={32} strokeWidth={2.4} /> : <CreditCard size={32} strokeWidth={2.4} />}
+        </div>
+        <div>
+          <h2>{loading ? "Загружаем..." : statusTitle}</h2>
+          <p>{loading ? "Проверяем статус доступа" : statusText}</p>
+        </div>
+      </section>
+
+      {subscription?.accessType === "founder" && (
+        <section className="adminCard subscriptionFounderCard">
+          <strong>Статус: первый мастер</strong>
+          <p>Этот доступ не заканчивается и не требует оплаты.</p>
+        </section>
+      )}
+
+      {subscription && subscription.accessType !== "founder" && (
+        <section className="subscriptionPlans">
+          {subscription.availablePlans.map((plan) => (
+            <button type="button" className="subscriptionPlanCard" key={plan.code} onClick={() => planClick(plan)}>
+              <span>{plan.title}</span>
+              <strong>{plan.priceRub.toLocaleString("ru-RU")} ₽</strong>
+              <em>{`${Math.round(plan.priceRub / Math.max(plan.months, 1))} ₽ / месяц`}</em>
+              <small>{subscription.hasAccess ? "Продлить подписку" : "Оформить подписку"}</small>
+            </button>
+          ))}
+        </section>
+      )}
+
+      {subscription && subscription.accessType !== "founder" && (
+        <section className="adminCard subscriptionIncluded">
+          <strong>Что входит в подписку</strong>
+          <ul>
+            {subscriptionFeatures.map((feature) => (
+              <li key={feature}>
+                <ShieldCheck size={17} strokeWidth={2.4} />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      <section className="adminCard subscriptionNote">
+        <strong>Как это будет работать</strong>
+        <p>После подключения оплаты успешный платёж будет автоматически продлевать дату подписки. Сейчас доступ можно выдать через админ-панель.</p>
+      </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
     </main>
   )
 }
@@ -2383,6 +2699,19 @@ function UserHomePage() {
 
       <RoleSwitchBanners dashboard={dashboard} />
 
+      {!dashboard.roles?.isMaster && (
+        <Link to={`/user/${dashboard.profile.telegramId}/become-master`} className="becomeMasterBanner">
+          <span>
+            <BriefcaseBusiness size={26} strokeWidth={2.4} />
+          </span>
+          <div>
+            <strong>Стать мастером в Zapisi.Pro</strong>
+            <small>30 дней бесплатно: записи, напоминания, расписание и клиентская база</small>
+          </div>
+          <ChevronRight size={22} strokeWidth={2.4} />
+        </Link>
+      )}
+
       <section className="grid">
         <Link to={`/user/${dashboard.profile.telegramId}/bookings`} className="cardLink">
           <Card icon={<CalendarCheck />} title="Мои записи" text={`${dashboard.bookings.length} записей`} />
@@ -2405,6 +2734,200 @@ function UserHomePage() {
       />
 
       <UserBottomNav telegramId={dashboard.profile.telegramId} />
+    </main>
+  )
+}
+
+function BecomeMasterPage() {
+  const { telegramId: routeTelegramId } = useParams()
+  const currentTelegramId = routeTelegramId || telegramId()
+  const [keyValue, setKeyValue] = useState("")
+  const [message, setMessage] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [createdKey, setCreatedKey] = useState("")
+  const [keyStatus, setKeyStatus] = useState<"idle" | "checking" | "available" | "unavailable">("idle")
+  const [keyStatusMessage, setKeyStatusMessage] = useState("")
+
+  useEffect(() => {
+    if (!keyValue && window.Telegram?.WebApp?.initDataUnsafe?.user?.username) {
+      setKeyValue(String(window.Telegram.WebApp.initDataUnsafe.user.username))
+    }
+  }, [keyValue])
+
+  function normalizeKey(value: string) {
+    return value
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "")
+      .slice(0, 32)
+  }
+
+  useEffect(() => {
+    const key = normalizeKey(keyValue)
+
+    if (!key) {
+      setKeyStatus("idle")
+      setKeyStatusMessage("")
+      return
+    }
+
+    if (key.length < 4) {
+      setKeyStatus("unavailable")
+      setKeyStatusMessage("Минимум 4 символа")
+      return
+    }
+
+    setKeyStatus("checking")
+    setKeyStatusMessage("Проверяем ключ...")
+
+    const timer = window.setTimeout(() => {
+      fetch(`${API_URL}/api/master-key/check?key=${encodeURIComponent(key)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const available = data?.available ?? data?.Available ?? false
+          const message = data?.message ?? data?.Message ?? ""
+
+          setKeyStatus(available ? "available" : "unavailable")
+          setKeyStatusMessage(message || (available ? "Ключ свободен" : "Ключ занят"))
+        })
+        .catch(() => {
+          setKeyStatus("unavailable")
+          setKeyStatusMessage("Не удалось проверить ключ")
+        })
+    }, 350)
+
+    return () => window.clearTimeout(timer)
+  }, [keyValue])
+
+  function createMasterProfile() {
+    if (!currentTelegramId) {
+      setMessage("Откройте регистрацию из Telegram, чтобы мы поняли ваш аккаунт.")
+      return
+    }
+
+    const key = normalizeKey(keyValue)
+
+    if (key.length < 4) {
+      setMessage("Ключ должен быть минимум 4 символа")
+      return
+    }
+
+    if (keyStatus !== "available") {
+      setMessage("Выберите свободный ключ профиля")
+      return
+    }
+
+    setCreating(true)
+    setMessage("Создаём мастер-профиль...")
+
+    fetch(`${API_URL}/api/user/${currentTelegramId}/become-master`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": currentTelegramId,
+      },
+      body: JSON.stringify({ key }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || "Не удалось создать мастер-профиль")
+        }
+
+        setCreatedKey(data.masterKey || data.MasterKey || key)
+        setMessage(data.message || "Мастер-профиль создан")
+      })
+      .catch((err) => setMessage(err.message || "Ошибка создания профиля"))
+      .finally(() => setCreating(false))
+  }
+
+  const previewKey = normalizeKey(keyValue) || "your_name"
+  const targetKey = createdKey || previewKey
+  const backUrl = currentTelegramId ? `/user/${currentTelegramId}` : "/"
+
+  return (
+    <main className="app">
+      <Link to={backUrl} className="subscriptionBackLink">
+        <ArrowLeft size={18} strokeWidth={2.5} />
+        <span>Назад в кабинет</span>
+      </Link>
+
+      <header className="adminHeader">
+        <h1>Стать мастером</h1>
+        <p>Запустите онлайн-запись за несколько минут</p>
+      </header>
+
+      <section className="becomeMasterHero">
+        <div className="becomeMasterIcon">
+          <BriefcaseBusiness size={34} strokeWidth={2.4} />
+        </div>
+        <h2>Zapisi.Pro поможет вам принимать записи без чатов и блокнотов</h2>
+        <p>Автоматические напоминания, график, свободные окна, клиентская база, услуги, портфолио и публичный профиль в одной мини-апп панели.</p>
+      </section>
+
+      <section className="adminCard becomeMasterBenefits">
+        <strong>Что вы получите</strong>
+        <ul>
+          <li><CalendarCheck size={18} strokeWidth={2.4} /> Клиенты сами выбирают услугу, дату и время</li>
+          <li><Clock size={18} strokeWidth={2.4} /> Расписание и свободные окна всегда под рукой</li>
+          <li><Send size={18} strokeWidth={2.4} /> Напоминания и уведомления по записям</li>
+          <li><Users size={18} strokeWidth={2.4} /> База клиентов и история посещений</li>
+          <li><ImageIcon size={18} strokeWidth={2.4} /> Портфолио работ и красивый публичный профиль</li>
+        </ul>
+      </section>
+
+      <section className="trialNotice">
+        <BadgePercent size={24} strokeWidth={2.4} />
+        <div>
+          <strong>30 дней бесплатно</strong>
+          <small>Вам выдаётся пробный период. Мы заранее напомним об окончании, чтобы вы успели оформить подписку.</small>
+        </div>
+      </section>
+
+      <section className="adminCard becomeMasterForm">
+        <label className="fieldLabel" htmlFor="masterPublicKey">Ваш ключ профиля</label>
+        <input
+          id="masterPublicKey"
+          className="adminInput"
+          value={keyValue}
+          onChange={(event) => setKeyValue(normalizeKey(event.target.value))}
+          placeholder="Например: anna_nails"
+        />
+        {keyStatusMessage && (
+          <div className={`keyStatus ${keyStatus}`}>
+            {keyStatusMessage}
+          </div>
+        )}
+        <div className="keyPreview">
+          <span>Ваш профиль будет:</span>
+          <strong>app-zapisi-pro.site/master/{previewKey}</strong>
+        </div>
+        <button
+          type="button"
+          className="primaryButton"
+          onClick={createMasterProfile}
+          disabled={creating || Boolean(createdKey) || keyStatus !== "available"}
+        >
+          {createdKey ? "Профиль создан" : creating ? "Создаём..." : "Создать мастер-профиль"}
+        </button>
+      </section>
+
+      {message && <div className="profileMessage">{message}</div>}
+
+      {createdKey && (
+        <Link to={`/master/${targetKey}`} className="clientCabinetBanner">
+          <span className="clientCabinetIcon">
+            <BriefcaseBusiness size={22} strokeWidth={2.3} />
+          </span>
+          <span className="clientCabinetText">
+            <strong>Открыть мастер-панель</strong>
+            <small>Настройте профиль, услуги и расписание</small>
+          </span>
+          <ChevronRight size={22} strokeWidth={2.4} />
+        </Link>
+      )}
     </main>
   )
 }

@@ -15,6 +15,13 @@
         public long TelegramId { get; set; }
         public string Username { get; set; }
         public string AvatarUrl { get; set; } = string.Empty;
+        public bool IsFounder { get; set; }
+        public DateTime? TrialEndsAt { get; set; }
+        public DateTime? SubscriptionEndsAt { get; set; }
+        public string SubscriptionPlan { get; set; } = string.Empty;
+        public bool HasAccess { get; set; }
+        public string AccessType { get; set; } = "expired";
+        public int DaysLeft { get; set; }
     }
 
     public class MiniAppUserDto
@@ -29,6 +36,14 @@
     {
         public long TelegramId { get; set; }
         public string Key { get; set; }
+        public bool IsFounder { get; set; }
+        public int SubscriptionMonths { get; set; }
+    }
+
+    public class MiniAppAdminGrantSubscriptionRequest
+    {
+        public bool IsFounder { get; set; }
+        public int SubscriptionMonths { get; set; }
     }
 
     public class MiniAppActionResultDto

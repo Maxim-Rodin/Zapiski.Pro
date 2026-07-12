@@ -35,6 +35,10 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     m.""idMaster"",
                     m.""Key"",
                     COALESCE(m.""AvatarUrl"", '') AS ""AvatarUrl"",
+                    COALESCE(m.""IsFounder"", false) AS ""IsFounder"",
+                    m.""TrialEndsAt"",
+                    m.""SubscriptionEndsAt"",
+                    COALESCE(m.""SubscriptionPlan"", '') AS ""SubscriptionPlan"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -52,8 +56,14 @@ namespace Zapiski.Pro.MiniApp.Repositories
                     Key = row["Key"].ToString(),
                     TelegramId = Convert.ToInt64(row["TelegrammId"]),
                     Username = row["UserName"]?.ToString(),
-                    AvatarUrl = row["AvatarUrl"]?.ToString() ?? string.Empty
+                    AvatarUrl = row["AvatarUrl"]?.ToString() ?? string.Empty,
+                    IsFounder = Convert.ToBoolean(row["IsFounder"]),
+                    TrialEndsAt = ReadNullableDateTime(row["TrialEndsAt"]),
+                    SubscriptionEndsAt = ReadNullableDateTime(row["SubscriptionEndsAt"]),
+                    SubscriptionPlan = row["SubscriptionPlan"]?.ToString() ?? string.Empty
                 });
+
+                FillAccess(masters[^1]);
             }
 
             return masters;
@@ -134,6 +144,11 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 SELECT 
                     m.""idMaster"",
                     m.""Key"",
+                    COALESCE(m.""AvatarUrl"", '') AS ""AvatarUrl"",
+                    COALESCE(m.""IsFounder"", false) AS ""IsFounder"",
+                    m.""TrialEndsAt"",
+                    m.""SubscriptionEndsAt"",
+                    COALESCE(m.""SubscriptionPlan"", '') AS ""SubscriptionPlan"",
                     u.""TelegrammId"",
                     u.""UserName""
                 FROM ""Masters"" m
@@ -151,24 +166,76 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 Id = Convert.ToInt32(row["idMaster"]),
                 Key = row["Key"].ToString(),
                 TelegramId = Convert.ToInt64(row["TelegrammId"]),
-                Username = row["UserName"]?.ToString()
+                Username = row["UserName"]?.ToString(),
+                AvatarUrl = row["AvatarUrl"]?.ToString() ?? string.Empty,
+                IsFounder = Convert.ToBoolean(row["IsFounder"]),
+                TrialEndsAt = ReadNullableDateTime(row["TrialEndsAt"]),
+                SubscriptionEndsAt = ReadNullableDateTime(row["SubscriptionEndsAt"]),
+                SubscriptionPlan = row["SubscriptionPlan"]?.ToString() ?? string.Empty
             };
         }
 
-        public void CreateMaster(long telegramId, string key)
+        public void CreateMaster(long telegramId, string key, bool isFounder, int subscriptionMonths)
         {
             var safeKey = key.Replace("'", "''");
+            var safePlan = subscriptionMonths switch
+            {
+                1 => "month",
+                3 => "quarter",
+                12 => "year",
+                _ => string.Empty
+            };
 
             db.ExecuteNonQuery($@"
-                INSERT INTO public.""Masters"" (""UserId"", ""Key"")
+                INSERT INTO public.""Masters""
+                    (""UserId"", ""Key"", ""IsFounder"", ""TrialStartedAt"", ""TrialEndsAt"", ""SubscriptionEndsAt"", ""SubscriptionPlan"")
                 VALUES (
                     (SELECT ""idUser"" FROM public.""Users"" WHERE ""TelegrammId"" = {telegramId}),
-                    '{safeKey}'
+                    '{safeKey}',
+                    {isFounder.ToString().ToLowerInvariant()},
+                    CASE WHEN {isFounder.ToString().ToLowerInvariant()} THEN NULL ELSE NOW() END,
+                    CASE WHEN {isFounder.ToString().ToLowerInvariant()} THEN NULL ELSE NOW() + INTERVAL '30 days' END,
+                    CASE WHEN {subscriptionMonths} > 0 THEN NOW() + INTERVAL '{subscriptionMonths} months' ELSE NULL END,
+                    {(string.IsNullOrWhiteSpace(safePlan) ? "NULL" : $"'{safePlan}'")}
                 );
 
                 UPDATE public.""Users""
                 SET ""Role"" = 'master'
                 WHERE ""TelegrammId"" = {telegramId};
+            ");
+        }
+
+        public void UpdateMasterSubscription(int masterId, bool isFounder, int subscriptionMonths)
+        {
+            var safePlan = subscriptionMonths switch
+            {
+                1 => "month",
+                3 => "quarter",
+                12 => "year",
+                _ => string.Empty
+            };
+
+            db.ExecuteNonQuery($@"
+                UPDATE ""Masters""
+                SET
+                    ""IsFounder"" = CASE
+                        WHEN {isFounder.ToString().ToLowerInvariant()} THEN true
+                        ELSE ""IsFounder""
+                    END,
+                    ""SubscriptionEndsAt"" = CASE
+                        WHEN {subscriptionMonths} > 0 THEN
+                            GREATEST(
+                                COALESCE(""SubscriptionEndsAt"", NOW()),
+                                COALESCE(""TrialEndsAt"", NOW()),
+                                NOW()
+                            ) + INTERVAL '{subscriptionMonths} months'
+                        ELSE ""SubscriptionEndsAt""
+                    END,
+                    ""SubscriptionPlan"" = CASE
+                        WHEN {subscriptionMonths} > 0 THEN '{safePlan}'
+                        ELSE ""SubscriptionPlan""
+                    END
+                WHERE ""idMaster"" = {masterId}
             ");
         }
 
@@ -219,6 +286,47 @@ namespace Zapiski.Pro.MiniApp.Repositories
     ");
 
             return result != null && result.ToString() == "admin";
+        }
+
+        private static DateTime? ReadNullableDateTime(object value)
+        {
+            if (value == DBNull.Value || value == null)
+                return null;
+
+            return Convert.ToDateTime(value);
+        }
+
+        private static void FillAccess(MiniAppMasterDto master)
+        {
+            var now = DateTime.UtcNow;
+
+            if (master.IsFounder)
+            {
+                master.HasAccess = true;
+                master.AccessType = "founder";
+                master.DaysLeft = 9999;
+                return;
+            }
+
+            if (master.SubscriptionEndsAt.HasValue && master.SubscriptionEndsAt.Value.ToUniversalTime() > now)
+            {
+                master.HasAccess = true;
+                master.AccessType = "paid";
+                master.DaysLeft = Math.Max(0, (int)Math.Ceiling((master.SubscriptionEndsAt.Value.ToUniversalTime() - now).TotalDays));
+                return;
+            }
+
+            if (master.TrialEndsAt.HasValue && master.TrialEndsAt.Value.ToUniversalTime() > now)
+            {
+                master.HasAccess = true;
+                master.AccessType = "trial";
+                master.DaysLeft = Math.Max(0, (int)Math.Ceiling((master.TrialEndsAt.Value.ToUniversalTime() - now).TotalDays));
+                return;
+            }
+
+            master.HasAccess = false;
+            master.AccessType = "expired";
+            master.DaysLeft = 0;
         }
     }
 }

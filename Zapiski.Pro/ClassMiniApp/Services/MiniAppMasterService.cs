@@ -24,6 +24,22 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.GetMasterByKey(key.Trim());
         }
 
+        public MiniAppMasterSubscriptionDto? GetSubscription(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            return repository.GetSubscription(key.Trim());
+        }
+
+        public MiniAppMasterActionResult ExtendSubscriptionAfterPayment(int masterId, int months)
+        {
+            if (masterId <= 0)
+                return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
+
+            return repository.ExtendSubscriptionAfterPayment(masterId, months);
+        }
+
         public List<MiniAppMasterClientDto>? GetClients(string key)
         {
             if (string.IsNullOrWhiteSpace(key))

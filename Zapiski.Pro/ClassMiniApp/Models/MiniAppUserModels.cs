@@ -72,4 +72,24 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public string PaymentDetails { get; set; }
         public string Address { get; set; } = string.Empty;
     }
+
+    public class MiniAppBecomeMasterRequest
+    {
+        public string Key { get; set; } = string.Empty;
+    }
+
+    public class MiniAppBecomeMasterResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string MasterKey { get; set; } = string.Empty;
+        public string TrialEndsAt { get; set; } = string.Empty;
+    }
+
+    public class MiniAppMasterKeyAvailabilityDto
+    {
+        public bool Available { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
 }

@@ -20,6 +20,25 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             return repository.GetDashboard(telegramId);
         }
 
+        public MiniAppBecomeMasterResult BecomeMaster(long telegramId, MiniAppBecomeMasterRequest request)
+        {
+            if (telegramId <= 0)
+            {
+                return new MiniAppBecomeMasterResult
+                {
+                    Success = false,
+                    Message = "Откройте регистрацию из Telegram"
+                };
+            }
+
+            return repository.BecomeMaster(telegramId, request.Key);
+        }
+
+        public MiniAppMasterKeyAvailabilityDto CheckMasterKey(string key)
+        {
+            return repository.CheckMasterKey(key);
+        }
+
         public async Task<bool> CancelBooking(long telegramId, int bookingId)
         {
             if (telegramId <= 0 || bookingId <= 0)

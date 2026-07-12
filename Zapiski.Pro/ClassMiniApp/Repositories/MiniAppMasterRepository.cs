@@ -106,6 +106,68 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Профиль обновлён");
         }
 
+        public MiniAppMasterSubscriptionDto? GetSubscription(string key)
+        {
+            var safeKey = key.Replace("'", "''");
+
+            var dt = db.ExecuteQuery($@"
+                SELECT
+                    COALESCE(""IsFounder"", false) AS ""IsFounder"",
+                    ""TrialEndsAt"",
+                    ""SubscriptionEndsAt"",
+                    COALESCE(""SubscriptionPlan"", '') AS ""SubscriptionPlan""
+                FROM ""Masters""
+                WHERE ""Key"" = '{safeKey}'
+                LIMIT 1
+            ");
+
+            if (dt.Rows.Count == 0)
+                return null;
+
+            var row = dt.Rows[0];
+            var subscription = new MiniAppMasterSubscriptionDto
+            {
+                IsFounder = Convert.ToBoolean(row["IsFounder"]),
+                TrialEndsAt = ReadNullableDateTime(row["TrialEndsAt"]),
+                SubscriptionEndsAt = ReadNullableDateTime(row["SubscriptionEndsAt"]),
+                SubscriptionPlan = row["SubscriptionPlan"]?.ToString() ?? string.Empty,
+                AvailablePlans = GetSubscriptionPlans()
+            };
+
+            FillSubscriptionAccess(subscription);
+
+            return subscription;
+        }
+
+        public MiniAppMasterActionResult ExtendSubscriptionAfterPayment(int masterId, int months)
+        {
+            var plan = GetSubscriptionPlanCode(months);
+
+            if (masterId <= 0)
+                return Failed("Мастер не найден");
+
+            if (string.IsNullOrWhiteSpace(plan))
+                return Failed("Некорректный тариф подписки");
+
+            db.ExecuteNonQuery(@"
+                UPDATE ""Masters""
+                SET
+                    ""SubscriptionEndsAt"" =
+                        GREATEST(
+                            COALESCE(""SubscriptionEndsAt"", NOW()),
+                            COALESCE(""TrialEndsAt"", NOW()),
+                            NOW()
+                        ) + (@months * INTERVAL '1 month'),
+                    ""SubscriptionPlan"" = @plan
+                WHERE ""idMaster"" = @masterId
+            ",
+                new NpgsqlParameter("months", months),
+                new NpgsqlParameter("plan", plan),
+                new NpgsqlParameter("masterId", masterId));
+
+            return Ok($"Подписка продлена на {months} мес.");
+        }
+
         public List<MiniAppMasterAddressDto> GetAddresses(string key)
         {
             var master = GetMasterByKey(key);
@@ -1496,6 +1558,68 @@ namespace Zapiski.Pro.MiniApp.Repositories
                    || value.Contains(')')
                    || digits.StartsWith('7')
                    || digits.StartsWith('8');
+        }
+
+        private static DateTime? ReadNullableDateTime(object value)
+        {
+            if (value == DBNull.Value || value == null)
+                return null;
+
+            return Convert.ToDateTime(value);
+        }
+
+        private static List<MiniAppSubscriptionPlanDto> GetSubscriptionPlans()
+        {
+            return new List<MiniAppSubscriptionPlanDto>
+            {
+                new() { Code = "month", Title = "1 месяц", Months = 1, PriceRub = 399 },
+                new() { Code = "quarter", Title = "3 месяца", Months = 3, PriceRub = 999 },
+                new() { Code = "year", Title = "1 год", Months = 12, PriceRub = 3360 }
+            };
+        }
+
+        private static string GetSubscriptionPlanCode(int months)
+        {
+            return months switch
+            {
+                1 => "month",
+                3 => "quarter",
+                12 => "year",
+                _ => string.Empty
+            };
+        }
+
+        private static void FillSubscriptionAccess(MiniAppMasterSubscriptionDto subscription)
+        {
+            var now = DateTime.UtcNow;
+
+            if (subscription.IsFounder)
+            {
+                subscription.HasAccess = true;
+                subscription.AccessType = "founder";
+                subscription.DaysLeft = 9999;
+                return;
+            }
+
+            if (subscription.SubscriptionEndsAt.HasValue && subscription.SubscriptionEndsAt.Value.ToUniversalTime() > now)
+            {
+                subscription.HasAccess = true;
+                subscription.AccessType = "paid";
+                subscription.DaysLeft = Math.Max(0, (int)Math.Ceiling((subscription.SubscriptionEndsAt.Value.ToUniversalTime() - now).TotalDays));
+                return;
+            }
+
+            if (subscription.TrialEndsAt.HasValue && subscription.TrialEndsAt.Value.ToUniversalTime() > now)
+            {
+                subscription.HasAccess = true;
+                subscription.AccessType = "trial";
+                subscription.DaysLeft = Math.Max(0, (int)Math.Ceiling((subscription.TrialEndsAt.Value.ToUniversalTime() - now).TotalDays));
+                return;
+            }
+
+            subscription.HasAccess = false;
+            subscription.AccessType = "expired";
+            subscription.DaysLeft = 0;
         }
 
         private static InlineKeyboardMarkup PaymentKeyboard(int bookingId)

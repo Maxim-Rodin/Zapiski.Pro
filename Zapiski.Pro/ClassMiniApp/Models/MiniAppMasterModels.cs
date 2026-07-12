@@ -183,4 +183,24 @@
     {
         public MiniAppPortfolioPhotoDto? Photo { get; set; }
     }
+
+    public class MiniAppSubscriptionPlanDto
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public int Months { get; set; }
+        public int PriceRub { get; set; }
+    }
+
+    public class MiniAppMasterSubscriptionDto
+    {
+        public bool HasAccess { get; set; }
+        public bool IsFounder { get; set; }
+        public string AccessType { get; set; } = "expired";
+        public DateTime? TrialEndsAt { get; set; }
+        public DateTime? SubscriptionEndsAt { get; set; }
+        public string SubscriptionPlan { get; set; } = string.Empty;
+        public int DaysLeft { get; set; }
+        public List<MiniAppSubscriptionPlanDto> AvailablePlans { get; set; } = new();
+    }
 }

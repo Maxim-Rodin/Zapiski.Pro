@@ -58,7 +58,13 @@ namespace Zapiski.Pro.MiniApp.Services
                 return MiniAppActionResultDto.Fail("Такой ключ уже существует");
             }
 
-            repository.CreateMaster(request.TelegramId, key);
+            if (request.SubscriptionMonths != 0 && request.SubscriptionMonths != 1 &&
+                request.SubscriptionMonths != 3 && request.SubscriptionMonths != 12)
+            {
+                return MiniAppActionResultDto.Fail("Можно выдать подписку только на 1, 3 или 12 месяцев");
+            }
+
+            repository.CreateMaster(request.TelegramId, key, request.IsFounder, request.SubscriptionMonths);
 
             var masterId = repository.GetMasterIdByKey(key);
 
@@ -86,6 +92,37 @@ namespace Zapiski.Pro.MiniApp.Services
             }
 
             return MiniAppActionResultDto.Ok("Мастер создан");
+        }
+
+        public MiniAppActionResultDto GrantSubscription(int masterId, MiniAppAdminGrantSubscriptionRequest request)
+        {
+            if (masterId <= 0)
+            {
+                return MiniAppActionResultDto.Fail("Некорректный ID мастера");
+            }
+
+            if (request.SubscriptionMonths != 0 && request.SubscriptionMonths != 1 &&
+                request.SubscriptionMonths != 3 && request.SubscriptionMonths != 12)
+            {
+                return MiniAppActionResultDto.Fail("Можно выдать подписку только на 1, 3 или 12 месяцев");
+            }
+
+            var master = repository.GetMasterById(masterId);
+
+            if (master == null)
+            {
+                return MiniAppActionResultDto.Fail("Мастер не найден");
+            }
+
+            repository.UpdateMasterSubscription(masterId, request.IsFounder, request.SubscriptionMonths);
+
+            if (request.IsFounder)
+                return MiniAppActionResultDto.Ok("Мастеру выдан доступ первого мастера");
+
+            if (request.SubscriptionMonths > 0)
+                return MiniAppActionResultDto.Ok($"Подписка продлена на {request.SubscriptionMonths} мес.");
+
+            return MiniAppActionResultDto.Ok("Доступ мастера обновлён");
         }
 
         public async Task<MiniAppActionResultDto> DeleteMaster(int masterId)

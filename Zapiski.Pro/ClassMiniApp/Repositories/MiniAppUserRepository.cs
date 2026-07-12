@@ -46,6 +46,129 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             };
         }
 
+        public MiniAppBecomeMasterResult BecomeMaster(long telegramId, string requestedKey)
+        {
+            var userTable = db.ExecuteQuery($@"
+                SELECT ""idUser"", ""UserName""
+                FROM ""Users""
+                WHERE ""TelegrammId"" = {telegramId}
+                LIMIT 1
+            ");
+
+            if (userTable.Rows.Count == 0)
+            {
+                return new MiniAppBecomeMasterResult
+                {
+                    Success = false,
+                    Message = "Пользователь не найден. Откройте бота хотя бы один раз."
+                };
+            }
+
+            var userId = Convert.ToInt32(userTable.Rows[0]["idUser"]);
+
+            var existsTable = db.ExecuteQuery($@"
+                SELECT ""Key""
+                FROM ""Masters""
+                WHERE ""UserId"" = {userId}
+                LIMIT 1
+            ");
+
+            if (existsTable.Rows.Count > 0)
+            {
+                return new MiniAppBecomeMasterResult
+                {
+                    Success = true,
+                    Message = "Вы уже мастер",
+                    MasterKey = existsTable.Rows[0]["Key"]?.ToString() ?? string.Empty
+                };
+            }
+
+            var username = userTable.Rows[0]["UserName"]?.ToString() ?? string.Empty;
+            var baseKey = NormalizeMasterKey(string.IsNullOrWhiteSpace(requestedKey) ? username : requestedKey);
+
+            if (!IsValidMasterKey(baseKey))
+            {
+                return new MiniAppBecomeMasterResult
+                {
+                    Success = false,
+                    Message = "Ключ должен быть от 4 до 32 символов: латинские буквы, цифры, _ или -"
+                };
+            }
+
+            if (MasterKeyExists(baseKey))
+            {
+                return new MiniAppBecomeMasterResult
+                {
+                    Success = false,
+                    Message = "Такой ключ уже занят"
+                };
+            }
+
+            var key = baseKey;
+            var safeKey = key.Replace("'", "''");
+
+            db.ExecuteNonQuery($@"
+                INSERT INTO ""Masters""
+                    (""UserId"", ""Key"", ""IsFounder"", ""TrialStartedAt"", ""TrialEndsAt"", ""SubscriptionEndsAt"", ""SubscriptionPlan"")
+                VALUES
+                    ({userId}, '{safeKey}', false, NOW(), NOW() + INTERVAL '30 days', NULL, NULL);
+
+                UPDATE ""Users""
+                SET ""Role"" = 'master'
+                WHERE ""idUser"" = {userId};
+            ");
+
+            var masterId = Convert.ToInt32(db.ExecuteScalar($@"
+                SELECT ""idMaster""
+                FROM ""Masters""
+                WHERE ""UserId"" = {userId}
+                AND ""Key"" = '{safeKey}'
+                LIMIT 1
+            "));
+
+            CreateDefaultSchedule(masterId);
+
+            return new MiniAppBecomeMasterResult
+            {
+                Success = true,
+                Message = "Мастер-профиль создан. Вам выдан пробный период на 30 дней.",
+                MasterKey = key,
+                TrialEndsAt = DateTime.UtcNow.AddDays(30).ToString("O")
+            };
+        }
+
+        public MiniAppMasterKeyAvailabilityDto CheckMasterKey(string requestedKey)
+        {
+            var key = NormalizeMasterKey(requestedKey);
+
+            if (!IsValidMasterKey(key))
+            {
+                return new MiniAppMasterKeyAvailabilityDto
+                {
+                    Available = false,
+                    Key = key,
+                    Message = "Минимум 4 символа: латинские буквы, цифры, _ или -"
+                };
+            }
+
+            if (MasterKeyExists(key))
+            {
+                return new MiniAppMasterKeyAvailabilityDto
+                {
+                    Available = false,
+                    Key = key,
+                    Message = "Ключ занят"
+                };
+            }
+
+            return new MiniAppMasterKeyAvailabilityDto
+            {
+                Available = true,
+                Key = key,
+                Message = "Ключ свободен"
+            };
+        }
+
         public async Task<bool> CancelBooking(long telegramId, int bookingId)
         {
             var row = db.ExecuteQuery($@"
@@ -599,6 +722,52 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                     ? masterTable.Rows[0]["Key"]?.ToString()
                     : null
             };
+        }
+
+        private bool MasterKeyExists(string key)
+        {
+            var safeKey = key.Replace("'", "''");
+            var table = db.ExecuteQuery($@"
+                SELECT 1
+                FROM ""Masters""
+                WHERE ""Key"" = '{safeKey}'
+                LIMIT 1
+            ");
+
+            return table.Rows.Count > 0;
+        }
+
+        private static string NormalizeMasterKey(string value)
+        {
+            var raw = (value ?? string.Empty)
+                .Trim()
+                .TrimStart('@')
+                .ToLowerInvariant();
+
+            var chars = raw
+                .Where(ch => (ch >= 'a' && ch <= 'z') || char.IsDigit(ch) || ch == '_' || ch == '-')
+                .Take(32)
+                .ToArray();
+
+            return new string(chars);
+        }
+
+        private static bool IsValidMasterKey(string key)
+        {
+            return key.Length >= 4 && key.Length <= 32;
+        }
+
+        private void CreateDefaultSchedule(int masterId)
+        {
+            for (var day = 1; day <= 7; day++)
+            {
+                db.ExecuteNonQuery($@"
+                    INSERT INTO ""MasterSchedule""
+                        (""MasterId"", ""DayOfWeek"", ""StartTime"", ""EndTime"", ""IsActive"")
+                    VALUES
+                        ({masterId}, {day}, '09:00:00', '18:00:00', false)
+                ");
+            }
         }
 
         private List<MiniAppUserBookingDto> GetBookings(int userId)

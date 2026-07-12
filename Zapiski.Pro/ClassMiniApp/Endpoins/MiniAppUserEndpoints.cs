@@ -70,6 +70,11 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(userService.GetBookingSlots(key, serviceId, date));
             });
 
+            app.MapGet("/api/master-key/check", (string key) =>
+            {
+                return Results.Ok(userService.CheckMasterKey(key));
+            });
+
             app.MapPost("/api/user/{telegramId:long}/bookings", async (long telegramId, MiniAppCreateBookingRequest request, HttpContext context) =>
             {
                 if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))
@@ -108,6 +113,22 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     success = true,
                     message = "Ожидаем подтверждение оплаты от мастера"
                 });
+            });
+
+            app.MapPost("/api/user/{telegramId:long}/become-master", (long telegramId, MiniAppBecomeMasterRequest request, HttpContext context) =>
+            {
+                if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))
+                    return Results.Unauthorized();
+
+                if (currentTelegramId != telegramId)
+                    return Results.Forbid();
+
+                var result = userService.BecomeMaster(telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
             });
         }
     }

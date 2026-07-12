@@ -453,6 +453,297 @@ body {
   margin: 0 0 12px;
 }
 
+.homeSubscriptionBanner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border-radius: 18px;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.homeSubscriptionBanner.active {
+  background: linear-gradient(135deg, #e8fff1, #ffffff);
+  color: #14532d;
+}
+
+.homeSubscriptionBanner.expired,
+.homeSubscriptionBanner.countdown {
+  background: linear-gradient(135deg, #fff1f2, #ffffff);
+  color: #991b1b;
+}
+
+.homeSubscriptionBanner span {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: white;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.homeSubscriptionBanner.expired span,
+.homeSubscriptionBanner.countdown span {
+  color: #ef4444;
+}
+
+.homeSubscriptionBanner strong,
+.homeSubscriptionBanner small {
+  display: block;
+}
+
+.homeSubscriptionBanner strong {
+  color: #172033;
+  font-size: 15px;
+  margin-bottom: 3px;
+}
+
+.homeSubscriptionBanner small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.homeSubscriptionBanner b {
+  min-width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #ef4444;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.becomeMasterBanner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #172033, #4b8df7);
+  color: white;
+  text-decoration: none;
+  box-shadow: 0 10px 28px rgba(75, 141, 247, 0.24);
+}
+
+.becomeMasterBanner span:first-child {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.becomeMasterBanner strong,
+.becomeMasterBanner small {
+  display: block;
+}
+
+.becomeMasterBanner strong {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.becomeMasterBanner small {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.becomeMasterHero {
+  border-radius: 24px;
+  padding: 22px;
+  background: linear-gradient(135deg, #eef5ff, #ffffff);
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.becomeMasterIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: #4b8df7;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.becomeMasterHero h2 {
+  margin: 0 0 10px;
+  color: #172033;
+  font-size: 27px;
+  line-height: 1.08;
+}
+
+.becomeMasterHero p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.becomeMasterBenefits,
+.becomeMasterForm {
+  display: grid;
+  gap: 12px;
+}
+
+.becomeMasterBenefits ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.becomeMasterBenefits li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  align-items: start;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.becomeMasterBenefits svg {
+  color: #4b8df7;
+  margin-top: 1px;
+}
+
+.trialNotice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.trialNotice strong,
+.trialNotice small {
+  display: block;
+}
+
+.trialNotice strong {
+  margin-bottom: 4px;
+}
+
+.trialNotice small {
+  color: #3f7b57;
+  line-height: 1.4;
+}
+
+.keyPreview {
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  background: #f8fbff;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+.keyPreview span,
+.keyPreview strong {
+  display: block;
+}
+
+.keyPreview span {
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.keyPreview strong {
+  color: #172033;
+  font-size: 14px;
+}
+
+.keyStatus {
+  margin-top: -4px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  padding: 9px 11px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.keyStatus.checking {
+  background: #eef4ff;
+  color: #326fd4;
+}
+
+.keyStatus.available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.keyStatus.unavailable {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.adminCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.adminCheckRow input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4b8df7;
+}
+
+.subscriptionBadge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.subscriptionBadge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.subscriptionBadge.expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.adminSubscriptionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.adminSubscriptionActions button {
+  border: none;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #326fd4;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .masterLinkCard {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2249,6 +2540,143 @@ body {
 
 .primaryButton:disabled {
   opacity: 0.7;
+}
+
+.subscriptionStatusCard {
+  border-radius: 22px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.subscriptionBackLink {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: #4b8df7;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.subscriptionStatusCard.active {
+  background: linear-gradient(135deg, #e8fff1, #ffffff);
+}
+
+.subscriptionStatusCard.expired {
+  background: linear-gradient(135deg, #fff1f2, #ffffff);
+}
+
+.subscriptionStatusIcon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: white;
+  color: #4b8df7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subscriptionStatusCard h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.subscriptionStatusCard p,
+.subscriptionFounderCard p,
+.subscriptionNote p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.subscriptionPlans {
+  display: grid;
+  gap: 12px;
+}
+
+.subscriptionPlanCard {
+  border: 1px solid #dbe7ff;
+  background: white;
+  border-radius: 18px;
+  padding: 16px;
+  text-align: left;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
+}
+
+.subscriptionPlanCard span,
+.subscriptionPlanCard strong,
+.subscriptionPlanCard em,
+.subscriptionPlanCard small {
+  display: block;
+}
+
+.subscriptionPlanCard span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.subscriptionPlanCard strong {
+  margin-top: 5px;
+  color: #172033;
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.subscriptionPlanCard em {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.subscriptionPlanCard small {
+  margin-top: 8px;
+  color: #4b8df7;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.subscriptionFounderCard,
+.subscriptionNote {
+  display: grid;
+  gap: 7px;
+}
+
+.subscriptionIncluded {
+  display: grid;
+  gap: 12px;
+}
+
+.subscriptionIncluded ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.subscriptionIncluded li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  align-items: start;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.subscriptionIncluded svg {
+  color: #22c55e;
+  margin-top: 1px;
 }
 
 .iconButton {

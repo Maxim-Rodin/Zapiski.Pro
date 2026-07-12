@@ -54,6 +54,22 @@ public static class MiniAppAdminEndpoints
             return Results.Ok(result);
         });
 
+        app.MapPut("/api/admin/masters/{id:int}/subscription", (
+     HttpContext context,
+     int id,
+     MiniAppAdminGrantSubscriptionRequest request) =>
+        {
+            if (!IsAdmin(context, adminService))
+                return Results.Unauthorized();
+
+            var result = adminService.GrantSubscription(id, request);
+
+            if (!result.Success)
+                return Results.BadRequest(result);
+
+            return Results.Ok(result);
+        });
+
         app.MapGet("/api/admin/stats", (HttpContext context) =>
         {
             if (!IsAdmin(context, adminService))

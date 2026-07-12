@@ -72,6 +72,20 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(stats);
             });
 
+            app.MapGet("/api/master/{key}/subscription", (string key) =>
+            {
+                var subscription = masterService.GetSubscription(key);
+
+                if (subscription == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(subscription);
+            });
+
             app.MapGet("/api/master/{key}/bookings", (HttpRequest httpRequest, string key) =>
             {
                 if (!TryGetTelegramId(httpRequest, out var telegramId))
