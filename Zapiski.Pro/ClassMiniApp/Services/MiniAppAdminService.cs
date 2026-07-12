@@ -114,10 +114,16 @@ namespace Zapiski.Pro.MiniApp.Services
                 return MiniAppActionResultDto.Fail("Мастер не найден");
             }
 
-            repository.UpdateMasterSubscription(masterId, request.IsFounder, request.SubscriptionMonths);
+            repository.UpdateMasterSubscription(
+                masterId,
+                request.ChangeFounderStatus ? request.IsFounder : null,
+                request.SubscriptionMonths);
 
-            if (request.IsFounder)
+            if (request.ChangeFounderStatus && request.IsFounder)
                 return MiniAppActionResultDto.Ok("Мастеру выдан доступ первого мастера");
+
+            if (request.ChangeFounderStatus && !request.IsFounder)
+                return MiniAppActionResultDto.Ok("Доступ первого мастера снят");
 
             if (request.SubscriptionMonths > 0)
                 return MiniAppActionResultDto.Ok($"Подписка продлена на {request.SubscriptionMonths} мес.");

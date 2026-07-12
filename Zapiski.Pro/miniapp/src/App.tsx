@@ -506,7 +506,7 @@ function MastersPage() {
       .catch(() => setMessage("Ошибка соединения с сервером"))
   }
 
-  function grantSubscription(masterId: number, months: number, founder = false) {
+  function grantSubscription(masterId: number, months: number, founder?: boolean) {
     setMessage("Обновляем доступ...")
 
     fetch(`${API_URL}/api/admin/masters/${masterId}/subscription`, {
@@ -516,7 +516,8 @@ function MastersPage() {
         "X-Telegram-Id": telegramId(),
       },
       body: JSON.stringify({
-        isFounder: founder,
+        isFounder: founder ?? false,
+        changeFounderStatus: founder !== undefined,
         subscriptionMonths: months,
       }),
     })
@@ -641,8 +642,8 @@ function MastersPage() {
                         : "Доступ закончился"}
                 </span>
                 <div className="adminSubscriptionActions">
-                  <button type="button" onClick={() => grantSubscription(master.id, 0, true)}>
-                    Founder
+                  <button type="button" onClick={() => grantSubscription(master.id, 0, !master.isFounder)}>
+                    {master.isFounder ? "Снять Founder" : "Founder"}
                   </button>
                   <button type="button" onClick={() => grantSubscription(master.id, 1)}>
                     +1 мес

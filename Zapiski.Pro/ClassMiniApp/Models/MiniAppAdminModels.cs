@@ -43,6 +43,7 @@
     public class MiniAppAdminGrantSubscriptionRequest
     {
         public bool IsFounder { get; set; }
+        public bool ChangeFounderStatus { get; set; }
         public int SubscriptionMonths { get; set; }
     }
 

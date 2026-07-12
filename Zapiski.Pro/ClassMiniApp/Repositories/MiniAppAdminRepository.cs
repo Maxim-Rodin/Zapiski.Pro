@@ -205,7 +205,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
             ");
         }
 
-        public void UpdateMasterSubscription(int masterId, bool isFounder, int subscriptionMonths)
+        public void UpdateMasterSubscription(int masterId, bool? isFounder, int subscriptionMonths)
         {
             var safePlan = subscriptionMonths switch
             {
@@ -219,7 +219,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 UPDATE ""Masters""
                 SET
                     ""IsFounder"" = CASE
-                        WHEN {isFounder.ToString().ToLowerInvariant()} THEN true
+                        WHEN {isFounder.HasValue.ToString().ToLowerInvariant()} THEN {isFounder.GetValueOrDefault().ToString().ToLowerInvariant()}
                         ELSE ""IsFounder""
                     END,
                     ""SubscriptionEndsAt"" = CASE
