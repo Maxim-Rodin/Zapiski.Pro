@@ -27,6 +27,8 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      YooKassa__ShopId: ${YooKassa__ShopId}
+      YooKassa__SecretKey: ${YooKassa__SecretKey}
     expose:
       - "8080"
 
