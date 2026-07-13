@@ -177,20 +177,74 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 .FirstOrDefault(plan => string.Equals(plan.Code, planCode.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
-        public void CreateSubscriptionPayment(int masterId, string paymentId, string planCode, int months, int amountRub)
+        public void CreateSubscriptionPayment(
+            int masterId,
+            string paymentId,
+            string paymentToken,
+            string confirmationUrl,
+            string planCode,
+            int months,
+            int amountRub)
         {
             db.ExecuteNonQuery(@"
                 INSERT INTO ""MasterSubscriptionPayments""
-                    (""MasterId"", ""PaymentId"", ""PlanCode"", ""Months"", ""AmountRub"", ""Status"")
+                    (""MasterId"", ""PaymentId"", ""PaymentToken"", ""ConfirmationUrl"", ""PlanCode"", ""Months"", ""AmountRub"", ""Status"")
                 VALUES
-                    (@masterId, @paymentId, @planCode, @months, @amountRub, 'pending')
+                    (@masterId, @paymentId, @paymentToken, @confirmationUrl, @planCode, @months, @amountRub, 'pending')
                 ON CONFLICT (""PaymentId"") DO NOTHING
             ",
                 new NpgsqlParameter("masterId", masterId),
                 new NpgsqlParameter("paymentId", paymentId),
+                new NpgsqlParameter("paymentToken", paymentToken),
+                new NpgsqlParameter("confirmationUrl", confirmationUrl),
                 new NpgsqlParameter("planCode", planCode),
                 new NpgsqlParameter("months", months),
                 new NpgsqlParameter("amountRub", amountRub));
+        }
+
+        public MiniAppSubscriptionPaymentStatusDto? GetSubscriptionPaymentStatus(string key, long telegramId, string paymentToken)
+        {
+            var dt = db.ExecuteQuery(@"
+                SELECT
+                    p.""PaymentId"",
+                    COALESCE(p.""PaymentToken"", '') AS ""PaymentToken"",
+                    p.""PlanCode"",
+                    p.""Months"",
+                    p.""AmountRub"",
+                    p.""Status"",
+                    COALESCE(p.""ConfirmationUrl"", '') AS ""ConfirmationUrl"",
+                    p.""CreatedAt"",
+                    p.""PaidAt""
+                FROM ""MasterSubscriptionPayments"" p
+                JOIN ""Masters"" m ON m.""idMaster"" = p.""MasterId""
+                JOIN ""Users"" u ON u.""idUser"" = m.""UserId""
+                WHERE m.""Key"" = @key
+                  AND u.""TelegrammId"" = @telegramId
+                  AND p.""PaymentToken"" = @paymentToken
+                LIMIT 1
+            ",
+                new NpgsqlParameter("key", key),
+                new NpgsqlParameter("telegramId", telegramId),
+                new NpgsqlParameter("paymentToken", paymentToken));
+
+            if (dt.Rows.Count == 0)
+                return null;
+
+            var row = dt.Rows[0];
+            return new MiniAppSubscriptionPaymentStatusDto
+            {
+                Success = true,
+                Message = "Статус платежа получен",
+                PaymentId = row["PaymentId"]?.ToString() ?? string.Empty,
+                PaymentToken = row["PaymentToken"]?.ToString() ?? string.Empty,
+                PlanCode = row["PlanCode"]?.ToString() ?? string.Empty,
+                Months = Convert.ToInt32(row["Months"]),
+                AmountRub = Convert.ToInt32(row["AmountRub"]),
+                Status = row["Status"]?.ToString() ?? string.Empty,
+                ConfirmationUrl = row["ConfirmationUrl"]?.ToString() ?? string.Empty,
+                CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
+                PaidAt = ReadNullableDateTime(row["PaidAt"])
+            };
         }
 
         public MiniAppMasterActionResult CompleteSubscriptionPayment(string paymentId)
@@ -1705,9 +1759,9 @@ namespace Zapiski.Pro.MiniApp.Repositories
         {
             return new List<MiniAppSubscriptionPlanDto>
             {
-                new() { Code = "month", Title = "1 месяц", Months = 1, PriceRub = 10 },
-                new() { Code = "quarter", Title = "3 месяца", Months = 3, PriceRub = 999 },
-                new() { Code = "year", Title = "1 год", Months = 12, PriceRub = 3360 }
+                new() { Code = "month", Title = "1 месяц", Months = 1, PriceRub = 349 },
+                new() { Code = "quarter", Title = "3 месяца", Months = 3, PriceRub = 870  },
+                new() { Code = "year", Title = "1 год", Months = 12, PriceRub = 2964 }
             };
         }
 

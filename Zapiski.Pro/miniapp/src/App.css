@@ -2893,6 +2893,110 @@ body {
   text-decoration: none;
 }
 
+.paymentStatusHero {
+  border-radius: 26px;
+  padding: 26px 22px;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  box-shadow: 0 12px 34px rgba(15, 52, 96, 0.1);
+}
+
+.paymentStatusHero.pending {
+  background: linear-gradient(135deg, #eef4ff, #ffffff);
+}
+
+.paymentStatusHero.success {
+  background: linear-gradient(135deg, #e8fff1, #ffffff);
+}
+
+.paymentStatusIcon {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  color: #4b8df7;
+}
+
+.paymentStatusHero.success .paymentStatusIcon {
+  color: #22c55e;
+}
+
+.paymentStatusHero h1 {
+  margin: 0;
+  color: #172033;
+  font-size: 30px;
+  line-height: 1.05;
+}
+
+.paymentStatusHero p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.paymentDetailsCard {
+  display: grid;
+  gap: 12px;
+}
+
+.paymentDetailsCard div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.paymentDetailsCard div:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.paymentDetailsCard span {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.paymentDetailsCard strong {
+  color: #172033;
+  font-size: 15px;
+  text-align: right;
+}
+
+.paymentActionCard {
+  display: grid;
+  gap: 10px;
+}
+
+.secondaryButton {
+  width: 100%;
+  border: 1px solid #dbe7ff;
+  background: white;
+  color: #4b8df7;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.7;
+}
+
+.paymentDoneLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .analyticsHeader {
   margin-bottom: 12px;
 }

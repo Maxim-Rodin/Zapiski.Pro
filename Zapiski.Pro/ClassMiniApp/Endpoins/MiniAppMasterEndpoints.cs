@@ -135,6 +135,23 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(result);
             });
 
+            app.MapGet("/api/master/{key}/subscription/payments/{paymentToken}", (
+                HttpRequest httpRequest,
+                string key,
+                string paymentToken) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var payment = yooKassaPaymentService.GetSubscriptionPaymentStatus(key, telegramId, paymentToken);
+
+                if (payment == null)
+                    return Results.NotFound(new { success = false, message = "Платеж не найден" });
+
+                return Results.Ok(payment);
+            });
+
             app.MapPost("/api/payments/yookassa/webhook", async (HttpRequest httpRequest) =>
             {
                 using var document = await JsonDocument.ParseAsync(httpRequest.Body);

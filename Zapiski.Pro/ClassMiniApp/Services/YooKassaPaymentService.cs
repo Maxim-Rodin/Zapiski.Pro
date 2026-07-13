@@ -50,7 +50,8 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             if (plan == null)
                 return Failed("Некорректный тариф подписки");
 
-            var returnUrl = BuildReturnUrl(master.Key);
+            var paymentToken = Guid.NewGuid().ToString("N");
+            var returnUrl = BuildReturnUrl(master.Key, paymentToken);
             var body = new
             {
                 amount = new
@@ -69,6 +70,7 @@ namespace Zapiski.Pro.ClassMiniApp.Services
                 {
                     master_id = master.Id.ToString(CultureInfo.InvariantCulture),
                     master_key = master.Key,
+                    payment_token = paymentToken,
                     plan_code = plan.Code,
                     months = plan.Months.ToString(CultureInfo.InvariantCulture)
                 }
@@ -95,15 +97,24 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             if (string.IsNullOrWhiteSpace(paymentId) || string.IsNullOrWhiteSpace(confirmationUrl))
                 return Failed("ЮKassa вернула некорректный ответ");
 
-            repository.CreateSubscriptionPayment(master.Id, paymentId, plan.Code, plan.Months, plan.PriceRub);
+            repository.CreateSubscriptionPayment(master.Id, paymentId, paymentToken, confirmationUrl, plan.Code, plan.Months, plan.PriceRub);
 
             return new MiniAppCreateSubscriptionPaymentResult
             {
                 Success = true,
                 Message = "Платеж создан",
                 PaymentId = paymentId,
+                PaymentToken = paymentToken,
                 ConfirmationUrl = confirmationUrl
             };
+        }
+
+        public MiniAppSubscriptionPaymentStatusDto? GetSubscriptionPaymentStatus(string key, long telegramId, string paymentToken)
+        {
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(paymentToken))
+                return null;
+
+            return repository.GetSubscriptionPaymentStatus(key.Trim(), telegramId, paymentToken.Trim());
         }
 
         public async Task<MiniAppMasterActionResult> ProcessWebhook(JsonElement body)
@@ -151,15 +162,24 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             return paid && status == "succeeded";
         }
 
-        private static string BuildReturnUrl(string masterKey)
+        private static string BuildReturnUrl(string masterKey, string paymentToken)
         {
             var explicitReturnUrl = Environment.GetEnvironmentVariable("YooKassa__ReturnUrl");
 
             if (!string.IsNullOrWhiteSpace(explicitReturnUrl))
-                return explicitReturnUrl;
+            {
+                if (explicitReturnUrl.Contains("{paymentToken}") || explicitReturnUrl.Contains("{masterKey}"))
+                {
+                    return explicitReturnUrl
+                        .Replace("{masterKey}", masterKey)
+                        .Replace("{paymentToken}", paymentToken);
+                }
+
+                return $"{explicitReturnUrl.TrimEnd('/')}/master/{masterKey}/subscription/payment/{paymentToken}";
+            }
 
             var miniAppUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
-            return $"{miniAppUrl.TrimEnd('/')}/master/{masterKey}/subscription";
+            return $"{miniAppUrl.TrimEnd('/')}/master/{masterKey}/subscription/payment/{paymentToken}";
         }
 
         private static MiniAppCreateSubscriptionPaymentResult Failed(string message)

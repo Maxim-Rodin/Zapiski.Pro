@@ -1,5 +1,5 @@
 ﻿import { type ChangeEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import { Link, Route, Routes, useParams, useSearchParams } from "react-router-dom"
+import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   Bot,
   BriefcaseBusiness,
@@ -105,6 +105,20 @@ type MasterSubscription = {
   availablePlans: SubscriptionPlan[]
 }
 
+type SubscriptionPaymentStatus = {
+  success: boolean
+  message: string
+  paymentId: string
+  paymentToken: string
+  planCode: string
+  months: number
+  amountRub: number
+  status: string
+  confirmationUrl: string
+  createdAt: string
+  paidAt: string | null
+}
+
 const subscriptionPlanPrice = (code: string, months: number) => {
   if (code === "month" || months === 1) return 399
   if (code === "quarter" || months === 3) return 999
@@ -132,6 +146,20 @@ const normalizeSubscription = (subscription: any): MasterSubscription => ({
       priceRub,
     }
   }),
+})
+
+const normalizePaymentStatus = (payment: any): SubscriptionPaymentStatus => ({
+  success: payment?.success ?? payment?.Success ?? false,
+  message: payment?.message ?? payment?.Message ?? "",
+  paymentId: payment?.paymentId ?? payment?.PaymentId ?? "",
+  paymentToken: payment?.paymentToken ?? payment?.PaymentToken ?? "",
+  planCode: payment?.planCode ?? payment?.PlanCode ?? "",
+  months: payment?.months ?? payment?.Months ?? 0,
+  amountRub: payment?.amountRub ?? payment?.AmountRub ?? 0,
+  status: payment?.status ?? payment?.Status ?? "",
+  confirmationUrl: payment?.confirmationUrl ?? payment?.ConfirmationUrl ?? "",
+  createdAt: payment?.createdAt ?? payment?.CreatedAt ?? "",
+  paidAt: payment?.paidAt ?? payment?.PaidAt ?? null,
 })
 
 type MasterClient = {
@@ -375,6 +403,7 @@ function App() {
       <Route path="/master/:key/clients" element={<MasterClientsPage />} />
       <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
       <Route path="/master/:key/subscription" element={<MasterSubscriptionPage />} />
+      <Route path="/master/:key/subscription/payment/:paymentToken" element={<MasterSubscriptionPaymentPage />} />
       <Route path="/master/:key/info" element={<InformationPage mode="master" />} />
       <Route path="/master/:key/profile" element={<MasterProfilePage />} />
       <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
@@ -1318,6 +1347,7 @@ function AnalyticsNumber({ title, value, loading }: { title: string; value: numb
 
 function MasterSubscriptionPage() {
   const { key } = useParams()
+  const navigate = useNavigate()
   const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("")
@@ -1371,11 +1401,7 @@ function MasterSubscriptionPage() {
         throw new Error(data.message || "Не удалось создать платеж")
       }
 
-      if (window.Telegram?.WebApp?.openLink) {
-        window.Telegram.WebApp.openLink(data.confirmationUrl)
-      } else {
-        window.location.href = data.confirmationUrl
-      }
+      navigate(`/master/${key}/subscription/payment/${data.paymentToken}?open=1`)
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Ошибка создания платежа")
     } finally {
@@ -1475,6 +1501,141 @@ function MasterSubscriptionPage() {
         <strong>Как это будет работать</strong>
         <p>После успешной оплаты ЮKassa отправит уведомление, и подписка автоматически продлится. Если доступ уже активен, новый срок добавится сверху.</p>
       </section>
+
+      <MasterBottomNav masterKey={key ?? ""} />
+    </main>
+  )
+}
+
+function MasterSubscriptionPaymentPage() {
+  const { key, paymentToken } = useParams()
+  const [searchParams] = useSearchParams()
+  const [payment, setPayment] = useState<SubscriptionPaymentStatus | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [checking, setChecking] = useState(false)
+  const [message, setMessage] = useState("")
+  const openedPaymentRef = useRef(false)
+
+  const isSucceeded = payment?.status === "succeeded"
+  const isPending = !payment || payment.status === "pending"
+
+  function openPayment(url?: string) {
+    if (!url) return
+
+    if (window.Telegram?.WebApp?.openLink) {
+      window.Telegram.WebApp.openLink(url)
+      return
+    }
+
+    window.location.href = url
+  }
+
+  async function loadPayment(showLoader = false) {
+    if (!key || !paymentToken) return
+
+    if (showLoader) setChecking(true)
+
+    try {
+      const res = await fetch(`${API_URL}/api/master/${key}/subscription/payments/${paymentToken}`, {
+        headers: { "X-Telegram-Id": telegramId() },
+      })
+      const data = await res.json()
+
+      if (!res.ok || data.success === false) {
+        throw new Error(data.message || "Не удалось получить статус платежа")
+      }
+
+      setPayment(normalizePaymentStatus(data))
+      setMessage("")
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Ошибка проверки платежа")
+    } finally {
+      setLoading(false)
+      setChecking(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPayment()
+  }, [key, paymentToken])
+
+  useEffect(() => {
+    if (!payment || payment.status === "succeeded") return
+
+    const timer = window.setInterval(() => {
+      loadPayment()
+    }, 4000)
+
+    return () => window.clearInterval(timer)
+  }, [payment?.status, key, paymentToken])
+
+  useEffect(() => {
+    if (!payment || openedPaymentRef.current || searchParams.get("open") !== "1") return
+
+    openedPaymentRef.current = true
+    openPayment(payment.confirmationUrl)
+  }, [payment, searchParams])
+
+  const title = loading
+    ? "Проверяем платеж"
+    : isSucceeded
+      ? "Оплата прошла"
+      : "Ожидаем оплату"
+
+  const text = loading
+    ? "Секунду, получаем статус от сервера."
+    : isSucceeded
+      ? "Спасибо! Подписка уже продлена, можно возвращаться в мастер-панель."
+      : "После оплаты ЮKassa пришлет подтверждение, и мы автоматически обновим этот экран."
+
+  return (
+    <main className="app">
+      <Link to={`/master/${key ?? ""}/subscription`} className="subscriptionBackLink">
+        <ArrowLeft size={18} strokeWidth={2.5} />
+        <span>Назад к подписке</span>
+      </Link>
+
+      <section className={`paymentStatusHero ${isSucceeded ? "success" : "pending"}`}>
+        <div className="paymentStatusIcon">
+          {isSucceeded ? <ShieldCheck size={34} strokeWidth={2.4} /> : <Clock size={34} strokeWidth={2.4} />}
+        </div>
+        <h1>{title}</h1>
+        <p>{text}</p>
+      </section>
+
+      <section className="adminCard paymentDetailsCard">
+        <div>
+          <span>Тариф</span>
+          <strong>{payment?.months ? `${payment.months} мес.` : "..."}</strong>
+        </div>
+        <div>
+          <span>Сумма</span>
+          <strong>{payment ? `${payment.amountRub.toLocaleString("ru-RU")} ₽` : "..."}</strong>
+        </div>
+        <div>
+          <span>Статус</span>
+          <strong>{isSucceeded ? "Оплачено" : isPending ? "Ожидает оплаты" : payment?.status}</strong>
+        </div>
+      </section>
+
+      {!isSucceeded && (
+        <section className="paymentActionCard">
+          <button type="button" className="primaryButton" onClick={() => openPayment(payment?.confirmationUrl)} disabled={!payment?.confirmationUrl}>
+            Перейти к оплате
+          </button>
+          <button type="button" className="secondaryButton" onClick={() => loadPayment(true)} disabled={checking}>
+            {checking ? "Проверяем..." : "Я оплатил, проверить"}
+          </button>
+        </section>
+      )}
+
+      {isSucceeded && (
+        <Link to={`/master/${key ?? ""}`} className="primaryButton paymentDoneLink">
+          Вернуться в мастер-панель
+        </Link>
+      )}
+
+      {message && <div className="profileMessage">{message}</div>}
 
       <MasterBottomNav masterKey={key ?? ""} />
     </main>

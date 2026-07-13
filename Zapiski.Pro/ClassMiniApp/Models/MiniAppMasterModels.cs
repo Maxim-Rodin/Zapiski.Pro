@@ -232,6 +232,20 @@
     public class MiniAppCreateSubscriptionPaymentResult : MiniAppMasterActionResult
     {
         public string PaymentId { get; set; } = string.Empty;
+        public string PaymentToken { get; set; } = string.Empty;
         public string ConfirmationUrl { get; set; } = string.Empty;
+    }
+
+    public class MiniAppSubscriptionPaymentStatusDto : MiniAppMasterActionResult
+    {
+        public string PaymentId { get; set; } = string.Empty;
+        public string PaymentToken { get; set; } = string.Empty;
+        public string PlanCode { get; set; } = string.Empty;
+        public int Months { get; set; }
+        public int AmountRub { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string ConfirmationUrl { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? PaidAt { get; set; }
     }
 }
