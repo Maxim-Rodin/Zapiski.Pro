@@ -1321,6 +1321,7 @@ function MasterSubscriptionPage() {
   const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("")
+  const [payingPlan, setPayingPlan] = useState("")
 
   useEffect(() => {
     if (!key) return
@@ -1348,12 +1349,38 @@ function MasterSubscriptionPage() {
     })
   }
 
-  function planClick(plan: SubscriptionPlan) {
-    const actionText = subscription?.hasAccess
-      ? "После оплаты срок добавится к текущей дате окончания доступа."
-      : "После оплаты доступ к мастер-панели откроется сразу."
+  async function planClick(plan: SubscriptionPlan) {
+    if (!key) return
 
-    setMessage(`Оплата тарифа "${plan.title}" скоро появится. ${actionText} Пока подписку может выдать администратор.`)
+    setMessage("")
+    setPayingPlan(plan.code)
+
+    try {
+      const res = await fetch(`${API_URL}/api/master/${key}/subscription/payments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Telegram-Id": telegramId(),
+        },
+        body: JSON.stringify({ planCode: plan.code }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Не удалось создать платеж")
+      }
+
+      if (window.Telegram?.WebApp?.openLink) {
+        window.Telegram.WebApp.openLink(data.confirmationUrl)
+      } else {
+        window.location.href = data.confirmationUrl
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Ошибка создания платежа")
+    } finally {
+      setPayingPlan("")
+    }
   }
 
   const subscriptionFeatures = [
@@ -1412,11 +1439,17 @@ function MasterSubscriptionPage() {
       {subscription && subscription.accessType !== "founder" && (
         <section className="subscriptionPlans">
           {subscription.availablePlans.map((plan) => (
-            <button type="button" className="subscriptionPlanCard" key={plan.code} onClick={() => planClick(plan)}>
+            <button
+              type="button"
+              className="subscriptionPlanCard"
+              key={plan.code}
+              onClick={() => planClick(plan)}
+              disabled={payingPlan === plan.code}
+            >
               <span>{plan.title}</span>
               <strong>{plan.priceRub.toLocaleString("ru-RU")} ₽</strong>
               <em>{`${Math.round(plan.priceRub / Math.max(plan.months, 1))} ₽ / месяц`}</em>
-              <small>{subscription.hasAccess ? "Продлить подписку" : "Оформить подписку"}</small>
+              <small>{payingPlan === plan.code ? "Создаем платеж..." : subscription.hasAccess ? "Продлить подписку" : "Оформить подписку"}</small>
             </button>
           ))}
         </section>
@@ -1440,7 +1473,7 @@ function MasterSubscriptionPage() {
 
       <section className="adminCard subscriptionNote">
         <strong>Как это будет работать</strong>
-        <p>После подключения оплаты успешный платёж будет автоматически продлевать дату подписки. Сейчас доступ можно выдать через админ-панель.</p>
+        <p>После успешной оплаты ЮKassa отправит уведомление, и подписка автоматически продлится. Если доступ уже активен, новый срок добавится сверху.</p>
       </section>
 
       <MasterBottomNav masterKey={key ?? ""} />

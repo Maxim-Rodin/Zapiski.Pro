@@ -99,12 +99,13 @@ namespace Zapisi.Pro
             var miniAppMasterRepository = new MiniAppMasterRepository(db);
             var cloudinaryImageService = new CloudinaryImageService();
             var miniAppMasterService = new MiniAppMasterService(miniAppMasterRepository, cloudinaryImageService);
+            var yooKassaPaymentService = new YooKassaPaymentService(miniAppMasterRepository);
 
             var miniAppUserRepository = new MiniAppUserRepository(db);
             var miniAppUserService = new MiniAppUserService(miniAppUserRepository);
 
             app.MapMiniAppAdminEndpoints(miniAppAdminService);
-            app.MapMiniAppMasterEndpoints(miniAppMasterService);
+            app.MapMiniAppMasterEndpoints(miniAppMasterService, yooKassaPaymentService);
             app.MapMiniAppUserEndpoints(miniAppUserService);
    
             app.RunAsync();

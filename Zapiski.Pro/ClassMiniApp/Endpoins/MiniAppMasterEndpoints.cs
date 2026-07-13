@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using System.Text.Json;
 using Zapiski.Pro.MiniApp.Models;
 using Zapiski.Pro.MiniApp.Services;
 using CloudinaryDotNet.Actions;
@@ -12,7 +13,8 @@ namespace Zapiski.Pro.MiniApp.Endpoints
     {
         public static void MapMiniAppMasterEndpoints(
             this WebApplication app,
-            MiniAppMasterService masterService)
+            MiniAppMasterService masterService,
+            YooKassaPaymentService yooKassaPaymentService)
         {
             app.MapGet("/api/master/{key}", (string key) =>
             {
@@ -114,6 +116,34 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     });
 
                 return Results.Ok(subscription);
+            });
+
+            app.MapPost("/api/master/{key}/subscription/payments", async (
+                HttpRequest httpRequest,
+                string key,
+                MiniAppCreateSubscriptionPaymentRequest request) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var result = await yooKassaPaymentService.CreateSubscriptionPayment(key, telegramId, request);
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
+            });
+
+            app.MapPost("/api/payments/yookassa/webhook", async (HttpRequest httpRequest) =>
+            {
+                using var document = await JsonDocument.ParseAsync(httpRequest.Body);
+                var result = await yooKassaPaymentService.ProcessWebhook(document.RootElement.Clone());
+
+                if (!result.Success)
+                    return Results.BadRequest(result);
+
+                return Results.Ok(result);
             });
 
             app.MapGet("/api/master/{key}/bookings", (HttpRequest httpRequest, string key) =>

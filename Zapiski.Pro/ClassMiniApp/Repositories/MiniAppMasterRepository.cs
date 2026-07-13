@@ -168,6 +168,67 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok($"Подписка продлена на {months} мес.");
         }
 
+        public MiniAppSubscriptionPlanDto? GetSubscriptionPlan(string planCode)
+        {
+            if (string.IsNullOrWhiteSpace(planCode))
+                return null;
+
+            return GetSubscriptionPlans()
+                .FirstOrDefault(plan => string.Equals(plan.Code, planCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void CreateSubscriptionPayment(int masterId, string paymentId, string planCode, int months, int amountRub)
+        {
+            db.ExecuteNonQuery(@"
+                INSERT INTO ""MasterSubscriptionPayments""
+                    (""MasterId"", ""PaymentId"", ""PlanCode"", ""Months"", ""AmountRub"", ""Status"")
+                VALUES
+                    (@masterId, @paymentId, @planCode, @months, @amountRub, 'pending')
+                ON CONFLICT (""PaymentId"") DO NOTHING
+            ",
+                new NpgsqlParameter("masterId", masterId),
+                new NpgsqlParameter("paymentId", paymentId),
+                new NpgsqlParameter("planCode", planCode),
+                new NpgsqlParameter("months", months),
+                new NpgsqlParameter("amountRub", amountRub));
+        }
+
+        public MiniAppMasterActionResult CompleteSubscriptionPayment(string paymentId)
+        {
+            var dt = db.ExecuteQuery(@"
+                UPDATE ""MasterSubscriptionPayments""
+                SET
+                    ""Status"" = 'succeeded',
+                    ""PaidAt"" = NOW()
+                WHERE ""PaymentId"" = @paymentId
+                  AND ""Status"" <> 'succeeded'
+                RETURNING ""MasterId"", ""Months""
+            ",
+                new NpgsqlParameter("paymentId", paymentId));
+
+            if (dt.Rows.Count == 0)
+            {
+                var existing = db.ExecuteQuery(@"
+                    SELECT ""Status""
+                    FROM ""MasterSubscriptionPayments""
+                    WHERE ""PaymentId"" = @paymentId
+                    LIMIT 1
+                ",
+                    new NpgsqlParameter("paymentId", paymentId));
+
+                if (existing.Rows.Count == 0)
+                    return Failed("Платеж не найден");
+
+                return Ok("Платеж уже обработан");
+            }
+
+            var row = dt.Rows[0];
+            var masterId = Convert.ToInt32(row["MasterId"]);
+            var months = Convert.ToInt32(row["Months"]);
+
+            return ExtendSubscriptionAfterPayment(masterId, months);
+        }
+
         public List<MiniAppMasterAddressDto> GetAddresses(string key)
         {
             var master = GetMasterByKey(key);

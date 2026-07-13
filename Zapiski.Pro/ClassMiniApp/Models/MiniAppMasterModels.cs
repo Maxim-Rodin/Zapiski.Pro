@@ -223,4 +223,15 @@
         public int DaysLeft { get; set; }
         public List<MiniAppSubscriptionPlanDto> AvailablePlans { get; set; } = new();
     }
+
+    public class MiniAppCreateSubscriptionPaymentRequest
+    {
+        public string PlanCode { get; set; } = string.Empty;
+    }
+
+    public class MiniAppCreateSubscriptionPaymentResult : MiniAppMasterActionResult
+    {
+        public string PaymentId { get; set; } = string.Empty;
+        public string ConfirmationUrl { get; set; } = string.Empty;
+    }
 }
