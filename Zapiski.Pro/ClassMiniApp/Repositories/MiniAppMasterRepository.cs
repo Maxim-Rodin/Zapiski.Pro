@@ -1705,7 +1705,7 @@ namespace Zapiski.Pro.MiniApp.Repositories
         {
             return new List<MiniAppSubscriptionPlanDto>
             {
-                new() { Code = "month", Title = "1 месяц", Months = 1, PriceRub = 399 },
+                new() { Code = "month", Title = "1 месяц", Months = 1, PriceRub = 10 },
                 new() { Code = "quarter", Title = "3 месяца", Months = 3, PriceRub = 999 },
                 new() { Code = "year", Title = "1 год", Months = 12, PriceRub = 3360 }
             };
