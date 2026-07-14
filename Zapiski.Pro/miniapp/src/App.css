@@ -693,6 +693,387 @@ body {
   font-size: 20px;
 }
 
+.onboardingHomeBanner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #eef4ff, #ffffff);
+  color: #172033;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(15, 52, 96, 0.08);
+}
+
+.onboardingHomeBanner > span {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #4b8df7;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboardingHomeBanner strong,
+.onboardingHomeBanner small {
+  display: block;
+}
+
+.onboardingHomeBanner strong {
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.onboardingHomeBanner small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.onboardingHomeBanner i,
+.onboardingProgress i {
+  display: block;
+  height: 7px;
+  margin-top: 10px;
+  border-radius: 99px;
+  background: #dbe7ff;
+  overflow: hidden;
+}
+
+.onboardingHomeBanner i b,
+.onboardingProgress i b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4b8df7;
+}
+
+.onboardingHero {
+  border-radius: 28px;
+  padding: 22px;
+  background: linear-gradient(135deg, #172033, #4b8df7);
+  color: white;
+  box-shadow: 0 14px 36px rgba(75, 141, 247, 0.24);
+}
+
+.onboardingHeroTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.onboardingHeroTop span {
+  width: 64px;
+  height: 64px;
+  border-radius: 21px;
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboardingHeroTop b {
+  min-width: 64px;
+  height: 42px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.onboardingHero h1 {
+  margin: 0 0 10px;
+  font-size: 30px;
+  line-height: 1.05;
+  color: white;
+}
+
+.onboardingHero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.onboardingProgress {
+  margin-top: 16px;
+}
+
+.onboardingProgress i {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.onboardingProgress i b {
+  background: white;
+}
+
+.onboardingProgress small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.onboardingHeroActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.onboardingPrimaryLink,
+.onboardingSecondaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.onboardingHero .onboardingPrimaryLink {
+  background: white;
+  color: #172033;
+}
+
+.onboardingHero .onboardingSecondaryLink {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+
+.onboardingNextCard {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 8px 24px rgba(15, 52, 96, 0.08);
+}
+
+.onboardingNextCard small {
+  color: #4b8df7;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.onboardingNextCard strong {
+  color: #172033;
+  font-size: 21px;
+}
+
+.onboardingNextCard p,
+.onboardingHint p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.onboardingImportantCard {
+  display: grid;
+  gap: 12px;
+}
+
+.onboardingSectionTitle {
+  display: grid;
+  gap: 3px;
+}
+
+.onboardingSectionTitle strong {
+  color: #172033;
+  font-size: 19px;
+}
+
+.onboardingSectionTitle small {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.onboardingTips {
+  display: grid;
+  gap: 10px;
+}
+
+.onboardingTip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+  background: white;
+  color: #172033;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.06);
+}
+
+.onboardingTip span {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef4ff;
+  color: #4b8df7;
+}
+
+.onboardingTip strong,
+.onboardingTip small {
+  display: block;
+}
+
+.onboardingTip strong {
+  margin-bottom: 3px;
+  font-size: 15px;
+}
+
+.onboardingTip small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.onboardingTip.danger {
+  border: 1px solid #fecdd3;
+  background: linear-gradient(135deg, #fff1f2, #ffffff);
+}
+
+.onboardingTip.danger span {
+  background: #ffe4e6;
+  color: #ef4444;
+}
+
+.onboardingTip.success {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, #f0fff6, #ffffff);
+}
+
+.onboardingTip.success span {
+  background: #dcfce7;
+  color: #22c55e;
+}
+
+.onboardingSteps {
+  display: grid;
+  gap: 10px;
+}
+
+.onboardingStep {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #dbe7ff;
+  border-radius: 20px;
+  background: white;
+  color: #172033;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(15, 52, 96, 0.06);
+}
+
+.onboardingStep.done {
+  border-color: #c7f4d7;
+  background: linear-gradient(135deg, #f0fff6, #ffffff);
+}
+
+.onboardingStep.danger {
+  border-color: #fecdd3;
+  background: linear-gradient(135deg, #fff1f2, #ffffff);
+}
+
+.onboardingStep.warning {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, #fffbeb, #ffffff);
+}
+
+.onboardingStepNumber,
+.onboardingStepIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.onboardingStepNumber {
+  background: #eef4ff;
+  color: #4b8df7;
+}
+
+.onboardingStep.done .onboardingStepNumber {
+  background: #dcfce7;
+  color: #22c55e;
+}
+
+.onboardingStep.danger .onboardingStepNumber {
+  background: #ffe4e6;
+  color: #ef4444;
+}
+
+.onboardingStep.warning .onboardingStepNumber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.onboardingStepIcon {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.onboardingStepText strong,
+.onboardingStepText small {
+  display: block;
+}
+
+.onboardingStepText strong {
+  margin-bottom: 3px;
+  font-size: 15px;
+}
+
+.onboardingStepText small {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.onboardingStepText b {
+  display: block;
+  margin-top: 7px;
+  color: #ef4444;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.onboardingStep.warning .onboardingStepText b {
+  color: #d97706;
+}
+
+.onboardingStep em {
+  padding: 6px 9px;
+  border-radius: 99px;
+  background: #eef4ff;
+  color: #4b8df7;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.onboardingHint {
+  display: grid;
+  gap: 7px;
+}
+
 .becomeMasterBanner {
   display: grid;
   grid-template-columns: auto 1fr auto;

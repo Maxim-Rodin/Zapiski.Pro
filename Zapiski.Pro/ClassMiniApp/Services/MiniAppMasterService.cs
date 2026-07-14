@@ -68,6 +68,14 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.GetStats(key.Trim());
         }
 
+        public MiniAppMasterOnboardingDto? GetOnboarding(string key, long telegramId)
+        {
+            if (string.IsNullOrWhiteSpace(key) || telegramId <= 0)
+                return null;
+
+            return repository.GetOnboarding(key.Trim(), telegramId);
+        }
+
         public MiniAppMasterAnalyticsDto? GetAnalytics(string key, string? fromText, string? toText)
         {
             if (string.IsNullOrWhiteSpace(key))

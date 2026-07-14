@@ -467,6 +467,153 @@ namespace Zapiski.Pro.MiniApp.Repositories
             };
         }
 
+        public MiniAppMasterOnboardingDto? GetOnboarding(string key, long telegramId)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null || master.TelegramId != telegramId)
+                return null;
+
+            var servicesCount = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""Services""
+                WHERE ""MasterId"" = @masterId
+            ", new NpgsqlParameter("masterId", master.Id)));
+
+            EnsureSchedule(master.Id);
+
+            var activeScheduleDays = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""MasterSchedule""
+                WHERE ""MasterId"" = @masterId
+                  AND ""IsActive"" = true
+            ", new NpgsqlParameter("masterId", master.Id)));
+
+            var portfolioCount = GetPortfolioPhotosCount(master.Id);
+            var profileDone = !string.IsNullOrWhiteSpace(master.Name)
+                              && !string.IsNullOrWhiteSpace(master.Description)
+                              && !string.IsNullOrWhiteSpace(master.PhoneNumber);
+
+            var steps = new List<MiniAppMasterOnboardingStepDto>
+            {
+                new()
+                {
+                    Code = "profile",
+                    Title = "Оформите профиль",
+                    Text = "Имя, описание и телефон помогают клиенту понять, к кому он записывается.",
+                    Url = $"/master/{master.Key}/profile",
+                    IsDone = profileDone,
+                    IsRequired = true,
+                    Severity = profileDone ? "normal" : "warning",
+                    WarningText = profileDone
+                        ? string.Empty
+                        : "Пока профиль пустой, клиенту сложнее довериться и понять, как с вами связаться."
+                },
+                new()
+                {
+                    Code = "avatar",
+                    Title = "Добавьте фото",
+                    Text = "Аватар делает профиль живым и заметным в списке мастеров.",
+                    Url = $"/master/{master.Key}/profile",
+                    IsDone = !string.IsNullOrWhiteSpace(master.AvatarUrl),
+                    IsRequired = false
+                },
+                new()
+                {
+                    Code = "services",
+                    Title = "Создайте услуги",
+                    Text = "Без услуг клиент пока не сможет выбрать, на что записаться.",
+                    Url = $"/master/{master.Key}/services",
+                    IsDone = servicesCount > 0,
+                    IsRequired = true,
+                    Severity = servicesCount > 0 ? "normal" : "danger",
+                    WarningText = servicesCount > 0
+                        ? string.Empty
+                        : "Критично: без услуг клиенты не смогут оформить запись."
+                },
+                new()
+                {
+                    Code = "schedule",
+                    Title = "Проверьте график",
+                    Text = "Мы уже поставили базовый график, но лучше сразу проверить рабочие дни и часы.",
+                    Url = $"/master/{master.Key}/schedule",
+                    IsDone = activeScheduleDays > 0,
+                    IsRequired = true,
+                    Severity = activeScheduleDays > 0 ? "normal" : "danger",
+                    WarningText = activeScheduleDays > 0
+                        ? string.Empty
+                        : "Критично: если нет рабочих дней или окон, клиент не увидит свободное время для записи."
+                },
+                new()
+                {
+                    Code = "portfolio",
+                    Title = "Добавьте работы",
+                    Text = "Портфолио повышает доверие. Можно загрузить до 9 фото.",
+                    Url = $"/master/{master.Key}/profile",
+                    IsDone = portfolioCount > 0,
+                    IsRequired = false
+                },
+                new()
+                {
+                    Code = "publicProfile",
+                    Title = "Посмотрите глазами клиента",
+                    Text = "Откройте публичный профиль и проверьте, как он выглядит перед отправкой ссылки.",
+                    Url = $"/master/{master.Key}/public-profile",
+                    IsDone = profileDone && servicesCount > 0,
+                    IsRequired = true
+                }
+            };
+
+            var completed = steps.Count(step => step.IsDone);
+            var next = steps.FirstOrDefault(step => !step.IsDone) ?? steps.Last();
+            var tips = new List<MiniAppMasterOnboardingTipDto>
+            {
+                new()
+                {
+                    Code = "servicesRequired",
+                    Title = servicesCount > 0 ? "Услуги добавлены" : "Нет услуг",
+                    Text = servicesCount > 0
+                        ? "Клиенты смогут выбрать услугу, цену и длительность перед записью."
+                        : "Добавьте хотя бы одну услугу. Без нее кнопка записи не приведет клиента к выбору времени.",
+                    Url = $"/master/{master.Key}/services",
+                    Severity = servicesCount > 0 ? "success" : "danger"
+                },
+                new()
+                {
+                    Code = "scheduleRequired",
+                    Title = activeScheduleDays > 0 ? "График есть" : "Нет рабочих окон",
+                    Text = activeScheduleDays > 0
+                        ? "Проверьте рабочие дни и часы, чтобы клиент видел только актуальные свободные окна."
+                        : "Настройте график. Если нет активных дней или свободных окон, записаться к вам не получится.",
+                    Url = $"/master/{master.Key}/schedule",
+                    Severity = activeScheduleDays > 0 ? "success" : "danger"
+                },
+                new()
+                {
+                    Code = "blockTime",
+                    Title = "Как блокировать время",
+                    Text = "Если у вас перерыв, личная встреча или занятый день, нажмите плюс в нижнем меню и выберите блокировку времени. Этот интервал пропадет из записи для клиентов.",
+                    Url = $"/master/{master.Key}/block-time",
+                    Severity = "info"
+                }
+            };
+
+            return new MiniAppMasterOnboardingDto
+            {
+                CompletedCount = completed,
+                TotalCount = steps.Count,
+                ProgressPercent = (int)Math.Round((double)completed / steps.Count * 100),
+                IsComplete = steps.All(step => step.IsDone),
+                NextTitle = next.IsDone ? "Профиль готов" : next.Title,
+                NextText = next.IsDone
+                    ? "Можно принимать записи и делиться ссылкой с клиентами."
+                    : next.Text,
+                NextUrl = next.Url,
+                Steps = steps,
+                Tips = tips
+            };
+        }
+
         public MiniAppMasterAnalyticsDto GetAnalytics(string key, DateTime from, DateTime to)
         {
             var fromDate = from.Date;

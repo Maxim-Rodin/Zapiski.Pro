@@ -30,6 +30,40 @@
         public int Services { get; set; }
     }
 
+    public class MiniAppMasterOnboardingDto
+    {
+        public int CompletedCount { get; set; }
+        public int TotalCount { get; set; }
+        public int ProgressPercent { get; set; }
+        public bool IsComplete { get; set; }
+        public string NextTitle { get; set; } = string.Empty;
+        public string NextText { get; set; } = string.Empty;
+        public string NextUrl { get; set; } = string.Empty;
+        public List<MiniAppMasterOnboardingStepDto> Steps { get; set; } = new();
+        public List<MiniAppMasterOnboardingTipDto> Tips { get; set; } = new();
+    }
+
+    public class MiniAppMasterOnboardingStepDto
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public bool IsDone { get; set; }
+        public bool IsRequired { get; set; }
+        public string Severity { get; set; } = "normal";
+        public string WarningText { get; set; } = string.Empty;
+    }
+
+    public class MiniAppMasterOnboardingTipDto
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string Severity { get; set; } = "info";
+    }
+
     public class MiniAppMasterAnalyticsDto
     {
         public string From { get; set; } = string.Empty;

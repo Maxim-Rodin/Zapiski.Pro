@@ -105,6 +105,37 @@ type MasterSubscription = {
   availablePlans: SubscriptionPlan[]
 }
 
+type MasterOnboardingStep = {
+  code: string
+  title: string
+  text: string
+  url: string
+  isDone: boolean
+  isRequired: boolean
+  severity: string
+  warningText: string
+}
+
+type MasterOnboardingTip = {
+  code: string
+  title: string
+  text: string
+  url: string
+  severity: string
+}
+
+type MasterOnboarding = {
+  completedCount: number
+  totalCount: number
+  progressPercent: number
+  isComplete: boolean
+  nextTitle: string
+  nextText: string
+  nextUrl: string
+  steps: MasterOnboardingStep[]
+  tips: MasterOnboardingTip[]
+}
+
 type SubscriptionPaymentStatus = {
   success: boolean
   message: string
@@ -160,6 +191,33 @@ const normalizePaymentStatus = (payment: any): SubscriptionPaymentStatus => ({
   confirmationUrl: payment?.confirmationUrl ?? payment?.ConfirmationUrl ?? "",
   createdAt: payment?.createdAt ?? payment?.CreatedAt ?? "",
   paidAt: payment?.paidAt ?? payment?.PaidAt ?? null,
+})
+
+const normalizeOnboarding = (onboarding: any): MasterOnboarding => ({
+  completedCount: onboarding?.completedCount ?? onboarding?.CompletedCount ?? 0,
+  totalCount: onboarding?.totalCount ?? onboarding?.TotalCount ?? 0,
+  progressPercent: onboarding?.progressPercent ?? onboarding?.ProgressPercent ?? 0,
+  isComplete: onboarding?.isComplete ?? onboarding?.IsComplete ?? false,
+  nextTitle: onboarding?.nextTitle ?? onboarding?.NextTitle ?? "",
+  nextText: onboarding?.nextText ?? onboarding?.NextText ?? "",
+  nextUrl: onboarding?.nextUrl ?? onboarding?.NextUrl ?? "",
+  steps: (onboarding?.steps ?? onboarding?.Steps ?? []).map((step: any) => ({
+    code: step?.code ?? step?.Code ?? "",
+    title: step?.title ?? step?.Title ?? "",
+    text: step?.text ?? step?.Text ?? "",
+    url: step?.url ?? step?.Url ?? "",
+    isDone: step?.isDone ?? step?.IsDone ?? false,
+    isRequired: step?.isRequired ?? step?.IsRequired ?? false,
+    severity: step?.severity ?? step?.Severity ?? "normal",
+    warningText: step?.warningText ?? step?.WarningText ?? "",
+  })),
+  tips: (onboarding?.tips ?? onboarding?.Tips ?? []).map((tip: any) => ({
+    code: tip?.code ?? tip?.Code ?? "",
+    title: tip?.title ?? tip?.Title ?? "",
+    text: tip?.text ?? tip?.Text ?? "",
+    url: tip?.url ?? tip?.Url ?? "",
+    severity: tip?.severity ?? tip?.Severity ?? "info",
+  })),
 })
 
 type MasterClient = {
@@ -395,6 +453,7 @@ function App() {
       <Route path="/admin/profile" element={<ComingSoon title="Профиль" subtitle="Раздел администратора" nav="admin" />} />
 
       <Route path="/master/:key" element={<MasterHomePage />} />
+      <Route path="/master/:key/onboarding" element={<MasterOnboardingPage />} />
       <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
       <Route path="/master/:key/block-time" element={<MasterTimeBlockPage />} />
       <Route path="/master/:key/analytics" element={<MasterAnalyticsPage />} />
@@ -632,6 +691,12 @@ function getMasterTopMenuItems(masterKey: string): TopMenuItem[] {
       title: "Главная",
       subtitle: "Сводка мастер-панели",
       icon: <Home size={21} strokeWidth={2.3} />,
+    },
+    {
+      to: `/master/${masterKey}/onboarding`,
+      title: "Настройка",
+      subtitle: "Шаги для запуска профиля",
+      icon: <LayoutDashboard size={21} strokeWidth={2.3} />,
     },
     {
       to: `/master/${masterKey}/bookings`,
@@ -988,6 +1053,7 @@ function MasterHomePage() {
   const { key } = useParams()
   const [master, setMaster] = useState<Master | null>(null)
   const [subscription, setSubscription] = useState<MasterSubscription | null>(null)
+  const [onboarding, setOnboarding] = useState<MasterOnboarding | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
   const [copyMessage, setCopyMessage] = useState("")
@@ -1014,6 +1080,17 @@ function MasterHomePage() {
       .then((data) => setSubscription(data ? normalizeSubscription(data) : null))
       .catch(() => setSubscription(null))
   }, [key])
+
+  useEffect(() => {
+    if (!key || !master) return
+
+    fetch(`${API_URL}/api/master/${key}/onboarding`, {
+      headers: { "X-Telegram-Id": telegramId() || String(master.telegramId) },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => setOnboarding(data ? normalizeOnboarding(data) : null))
+      .catch(() => setOnboarding(null))
+  }, [key, master])
 
   if (loading) {
     return <ComingSoon title="Загрузка..." subtitle="Получаем данные мастера" />
@@ -1065,6 +1142,7 @@ function MasterHomePage() {
       ? `Осталось ${subscription.daysLeft} дн. Продлите доступ, чтобы панель не остановилась.`
       : `Осталось ${subscription.daysLeft} дн. Приятного пользования.`
     : "Оформите подписку, чтобы продолжить пользоваться мастер-панелью."
+  const needsOnboarding = Boolean(onboarding && onboarding.completedCount < onboarding.totalCount)
 
   function copyPublicLink() {
     navigator.clipboard?.writeText(clientBotLink)
@@ -1114,6 +1192,22 @@ function MasterHomePage() {
         </Link>
       )}
 
+      {needsOnboarding && onboarding && (
+        <Link to={`/master/${master.key}/onboarding`} className="onboardingHomeBanner">
+          <span>
+            <LayoutDashboard size={24} strokeWidth={2.4} />
+          </span>
+          <div>
+            <strong>Завершите настройку</strong>
+            <small>{onboarding.completedCount} из {onboarding.totalCount} шагов готово. Следующий шаг: {onboarding.nextTitle.toLowerCase()}.</small>
+            <i>
+              <b style={{ width: `${onboarding.progressPercent}%` }} />
+            </i>
+          </div>
+          <ChevronRight size={22} strokeWidth={2.5} />
+        </Link>
+      )}
+
       <ClientCabinetBanner telegramId={master.telegramId} />
 
       <section className="adminCard masterLinkCard">
@@ -1150,6 +1244,151 @@ function MasterHomePage() {
         <Link to={`/master/${master.key}/public-profile`} className="cardLink">
           <Card icon={<Globe />} title="Профиль" text="Так страницу будут видеть клиенты" />
         </Link>
+      </section>
+
+      <MasterBottomNav masterKey={master.key} />
+    </main>
+  )
+}
+
+function onboardingStepIcon(code: string) {
+  if (code === "profile") return <User size={22} strokeWidth={2.4} />
+  if (code === "avatar") return <Camera size={22} strokeWidth={2.4} />
+  if (code === "services") return <BriefcaseBusiness size={22} strokeWidth={2.4} />
+  if (code === "schedule") return <CalendarDays size={22} strokeWidth={2.4} />
+  if (code === "blockTime") return <Clock size={22} strokeWidth={2.4} />
+  if (code === "portfolio") return <ImageIcon size={22} strokeWidth={2.4} />
+  if (code === "publicProfile") return <Globe size={22} strokeWidth={2.4} />
+  if (code === "servicesRequired") return <BriefcaseBusiness size={22} strokeWidth={2.4} />
+  if (code === "scheduleRequired") return <CalendarDays size={22} strokeWidth={2.4} />
+  return <ShieldCheck size={22} strokeWidth={2.4} />
+}
+
+function MasterOnboardingPage() {
+  const { key } = useParams()
+  const [master, setMaster] = useState<Master | null>(null)
+  const [onboarding, setOnboarding] = useState<MasterOnboarding | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState("")
+
+  useEffect(() => {
+    if (!key) return
+
+    setLoading(true)
+    setMessage("")
+
+    fetch(`${API_URL}/api/master/${key}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Мастер не найден")
+        return normalizeMaster(await res.json())
+      })
+      .then((masterData) => {
+        setMaster(masterData)
+        return fetch(`${API_URL}/api/master/${key}/onboarding`, {
+          headers: { "X-Telegram-Id": telegramId() || String(masterData.telegramId) },
+        })
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => null)
+          throw new Error(data?.message || "Не удалось загрузить онбординг")
+        }
+
+        return res.json()
+      })
+      .then((data) => setOnboarding(normalizeOnboarding(data)))
+      .catch((err) => setMessage(err.message || "Ошибка загрузки онбординга"))
+      .finally(() => setLoading(false))
+  }, [key])
+
+  if (loading) {
+    return <ComingSoon title="Готовим старт" subtitle="Собираем шаги настройки мастера" />
+  }
+
+  if (!master || !onboarding) {
+    return <ComingSoon title="Не получилось открыть старт" subtitle={message || "Попробуйте вернуться в мастер-панель"} />
+  }
+
+  return (
+    <main className="app">
+      <Link to={`/master/${master.key}`} className="subscriptionBackLink">
+        <ArrowLeft size={18} strokeWidth={2.5} />
+        <span>В мастер-панель</span>
+      </Link>
+
+      <section className="onboardingHero">
+        <div className="onboardingHeroTop">
+          <span>
+            <BriefcaseBusiness size={34} strokeWidth={2.3} />
+          </span>
+          <b>{onboarding.progressPercent}%</b>
+        </div>
+        <h1>{onboarding.isComplete ? "Профиль готов к работе" : "Настройте профиль мастера"}</h1>
+        <p>
+          {onboarding.isComplete
+            ? "Можно делиться ссылкой, принимать записи и возвращаться к настройкам в любой момент."
+            : "Пройдите несколько коротких шагов, чтобы клиентам было понятно, кто вы, какие услуги доступны и когда можно записаться."}
+        </p>
+        <div className="onboardingProgress">
+          <i>
+            <b style={{ width: `${onboarding.progressPercent}%` }} />
+          </i>
+          <small>{onboarding.completedCount} из {onboarding.totalCount} шагов готово</small>
+        </div>
+        <div className="onboardingHeroActions">
+          <Link to={onboarding.nextUrl || `/master/${master.key}`} className="primaryButton onboardingPrimaryLink">
+            {onboarding.isComplete ? "Открыть панель" : "Продолжить настройку"}
+          </Link>
+          <Link to={`/master/${master.key}/public-profile`} className="secondaryButton onboardingSecondaryLink">
+            Посмотреть профиль
+          </Link>
+        </div>
+      </section>
+
+      <section className="onboardingNextCard">
+        <small>Следующий шаг</small>
+        <strong>{onboarding.nextTitle}</strong>
+        <p>{onboarding.nextText}</p>
+      </section>
+
+      <section className="onboardingImportantCard">
+        <div className="onboardingSectionTitle">
+          <strong>Важно для записи</strong>
+          <small>Что влияет на то, сможет ли клиент записаться</small>
+        </div>
+        <div className="onboardingTips">
+          {onboarding.tips.map((tip) => (
+            <Link to={tip.url} className={`onboardingTip ${tip.severity}`} key={tip.code}>
+              <span>{onboardingStepIcon(tip.code)}</span>
+              <div>
+                <strong>{tip.title}</strong>
+                <small>{tip.text}</small>
+              </div>
+              <ChevronRight size={19} strokeWidth={2.5} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="onboardingSteps">
+        {onboarding.steps.map((step, index) => (
+          <Link to={step.url} className={`onboardingStep ${step.isDone ? "done" : ""} ${!step.isDone ? step.severity : ""}`} key={step.code}>
+            <span className="onboardingStepNumber">{step.isDone ? <ShieldCheck size={21} strokeWidth={2.5} /> : index + 1}</span>
+            <span className="onboardingStepIcon">{onboardingStepIcon(step.code)}</span>
+            <span className="onboardingStepText">
+              <strong>{step.title}</strong>
+              <small>{step.text}</small>
+              {!step.isDone && step.warningText && <b>{step.warningText}</b>}
+            </span>
+            {!step.isRequired && <em>Совет</em>}
+            <ChevronRight size={20} strokeWidth={2.5} />
+          </Link>
+        ))}
+      </section>
+
+      <section className="adminCard onboardingHint">
+        <strong>Можно делать не по порядку</strong>
+        <p>Главное для старта: услуги, график и понятный профиль. Фото и портфолио можно добавить позже, но они повышают доверие.</p>
       </section>
 
       <MasterBottomNav masterKey={master.key} />

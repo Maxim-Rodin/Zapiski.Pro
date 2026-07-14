@@ -86,6 +86,28 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(stats);
             });
 
+            app.MapGet("/api/master/{key}/onboarding", (HttpRequest httpRequest, string key) =>
+            {
+                if (!TryGetTelegramId(httpRequest, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var accessError = EnsureMasterAccess(masterService, key);
+                if (accessError != null)
+                    return accessError;
+
+                var onboarding = masterService.GetOnboarding(key, telegramId);
+
+                if (onboarding == null)
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Мастер не найден"
+                    });
+
+                return Results.Ok(onboarding);
+            });
+
             app.MapGet("/api/master/{key}/analytics", (string key, string? from, string? to) =>
             {
                 var accessError = EnsureMasterAccess(masterService, key);
