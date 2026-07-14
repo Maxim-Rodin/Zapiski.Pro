@@ -289,6 +289,7 @@ type BookingSlot = {
 
 type PublicAvailableSlot = {
   serviceId: number
+  serviceName: string
   date: string
   label: string
   time: string
@@ -1703,20 +1704,28 @@ function MasterSubscriptionPage() {
 
       {subscription && subscription.accessType !== "founder" && (
         <section className="subscriptionPlans">
-          {subscription.availablePlans.map((plan) => (
-            <button
-              type="button"
-              className="subscriptionPlanCard"
-              key={plan.code}
-              onClick={() => planClick(plan)}
-              disabled={payingPlan === plan.code}
-            >
-              <span>{plan.title}</span>
-              <strong>{plan.priceRub.toLocaleString("ru-RU")} ₽</strong>
-              <em>{`${Math.round(plan.priceRub / Math.max(plan.months, 1))} ₽ / месяц`}</em>
-              <small>{payingPlan === plan.code ? "Создаем платеж..." : subscription.hasAccess ? "Продлить подписку" : "Оформить подписку"}</small>
-            </button>
-          ))}
+          {subscription.availablePlans.map((plan) => {
+            const monthlyPrice = Math.round(plan.priceRub / Math.max(plan.months, 1))
+            const totalText = plan.months === 1
+              ? "Оплата за 1 месяц"
+              : `Итого ${plan.priceRub.toLocaleString("ru-RU")} ₽ за ${plan.title.toLowerCase()}`
+
+            return (
+              <button
+                type="button"
+                className="subscriptionPlanCard"
+                key={plan.code}
+                onClick={() => planClick(plan)}
+                disabled={payingPlan === plan.code}
+              >
+                <span>{plan.title}</span>
+                <strong>{monthlyPrice.toLocaleString("ru-RU")} ₽</strong>
+                <em>в месяц</em>
+                <p>{totalText}</p>
+                <small>{payingPlan === plan.code ? "Создаем платеж..." : subscription.hasAccess ? "Продлить подписку" : "Оформить подписку"}</small>
+              </button>
+            )
+          })}
         </section>
       )}
 
@@ -1736,10 +1745,12 @@ function MasterSubscriptionPage() {
 
       {message && <div className="profileMessage">{message}</div>}
 
-      <section className="adminCard subscriptionNote">
-        <strong>Как это будет работать</strong>
-        <p>После успешной оплаты ЮKassa отправит уведомление, и подписка автоматически продлится. Если доступ уже активен, новый срок добавится сверху.</p>
-      </section>
+      {subscription?.accessType !== "founder" && (
+        <section className="adminCard subscriptionNote">
+          <strong>Как это будет работать</strong>
+          <p>После успешной оплаты ЮKassa отправит уведомление, и подписка автоматически продлится. Если доступ уже активен, новый срок добавится сверху.</p>
+        </section>
+      )}
 
       <MasterBottomNav masterKey={key ?? ""} />
     </main>
@@ -1933,32 +1944,36 @@ function PublicProfileStub() {
       return
     }
 
-    const firstService = services[0]
-    const days = buildCalendarDays(14)
+    const days = buildCalendarDays(45)
 
     setSlotsLoading(true)
 
     Promise.all(
-      days.map((day) =>
-        fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${firstService.id}&date=${day.value}`)
-          .then((res) => (res.ok ? res.json() : []))
-          .then((slots) => ({
-            day,
-            slots: Array.isArray(slots) ? slots.filter((slot: BookingSlot) => !slot.isBusy).slice(0, 2) : [],
-          }))
-          .catch(() => ({ day, slots: [] }))
+      services.flatMap((service) =>
+        days.map((day) =>
+          fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${service.id}&date=${day.value}`)
+            .then((res) => (res.ok ? res.json() : []))
+            .then((slots) => ({
+              day,
+              service,
+              slots: Array.isArray(slots) ? slots.filter((slot: BookingSlot) => !slot.isBusy).slice(0, 2) : [],
+            }))
+            .catch(() => ({ day, service, slots: [] }))
+        )
       )
     )
       .then((items) => {
         const nextSlots = items
-          .flatMap(({ day, slots }) =>
+          .flatMap(({ day, service, slots }) =>
             slots.map((slot: BookingSlot) => ({
-              serviceId: firstService.id,
+              serviceId: service.id,
+              serviceName: service.name,
               date: day.value,
               label: `${day.weekday}, ${day.day} ${day.month}`,
               time: slot.time,
             }))
           )
+          .sort((first, second) => `${first.date} ${first.time}`.localeCompare(`${second.date} ${second.time}`))
           .slice(0, 6)
 
         setAvailableSlots(nextSlots)
@@ -2210,7 +2225,7 @@ function PublicProfileStub() {
                 key={`${slot.date}-${slot.time}`}
               >
                 <CalendarCheck size={18} strokeWidth={2.3} />
-                <span>{slot.label}</span>
+                <span>{slot.label} · {slot.serviceName}</span>
                 <strong>{slot.time}</strong>
               </Link>
             ))}
@@ -2361,6 +2376,7 @@ function PublicBookingStub() {
   const [selectedTime, setSelectedTime] = useState(searchParams.get("time") || "")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [slots, setSlots] = useState<BookingSlot[]>([])
+  const [dateAvailability, setDateAvailability] = useState<Record<string, "loading" | "available" | "unavailable">>({})
   const [loadingServices, setLoadingServices] = useState(true)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [message, setMessage] = useState("")
@@ -2410,6 +2426,50 @@ function PublicBookingStub() {
 
   const selectedService = services.find((service) => service.id === selectedServiceId) ?? null
   const calendarDays = buildCalendarDays(45)
+
+  useEffect(() => {
+    if (!key || !selectedServiceId) {
+      setDateAvailability({})
+      return
+    }
+
+    const days = buildCalendarDays(45)
+    setDateAvailability(
+      days.reduce<Record<string, "loading" | "available" | "unavailable">>((result, day) => {
+        result[day.value] = "loading"
+        return result
+      }, {})
+    )
+
+    Promise.all(
+      days.map((day) =>
+        fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${selectedServiceId}&date=${day.value}`)
+          .then((res) => (res.ok ? res.json() : []))
+          .then((data) => ({
+            day: day.value,
+            status: Array.isArray(data) && data.some((slot: BookingSlot) => !slot.isBusy)
+              ? "available"
+              : "unavailable",
+          }))
+          .catch(() => ({ day: day.value, status: "unavailable" }))
+      )
+    ).then((items) => {
+      const nextAvailability = items.reduce<Record<string, "available" | "unavailable">>((result, item) => {
+        result[item.day] = item.status as "available" | "unavailable"
+        return result
+      }, {})
+
+      setDateAvailability(nextAvailability)
+
+      if (nextAvailability[selectedDate] !== "available") {
+        const firstAvailable = days.find((day) => nextAvailability[day.value] === "available")
+
+        if (firstAvailable) {
+          setSelectedDate(firstAvailable.value)
+        }
+      }
+    })
+  }, [key, selectedServiceId])
 
   function createBooking() {
     if (!key || !selectedServiceId || !selectedTime || !currentTelegramId) {
@@ -2539,18 +2599,22 @@ function PublicBookingStub() {
           <section className="publicInfoCard">
             <h3>Дата</h3>
             <div className="calendarStrip">
-              {calendarDays.map((day) => (
-                <button
-                  type="button"
-                  className={selectedDate === day.value ? "active" : ""}
-                  key={day.value}
-                  onClick={() => setSelectedDate(day.value)}
-                >
-                  <span>{day.weekday}</span>
-                  <strong>{day.day}</strong>
-                  <small>{day.month}</small>
-                </button>
-              ))}
+              {calendarDays.map((day) => {
+                const availability = dateAvailability[day.value] ?? "loading"
+
+                return (
+                  <button
+                    type="button"
+                    className={`${selectedDate === day.value ? "active" : ""} ${availability}`}
+                    key={day.value}
+                    onClick={() => setSelectedDate(day.value)}
+                  >
+                    <span>{day.weekday}</span>
+                    <strong>{day.day}</strong>
+                    <small>{availability === "loading" ? "..." : availability === "available" ? "Есть" : "Нет мест"}</small>
+                  </button>
+                )
+              })}
             </div>
           </section>
 

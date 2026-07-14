@@ -621,6 +621,9 @@ body {
   padding: 16px;
   box-shadow: 0 6px 20px rgba(15, 52, 96, 0.07);
 }
+.adminCard.subscriptionNote {
+  margin-top: 16px;
+}
 
 .adminCard h2 {
   margin: 0 0 12px;
@@ -2904,6 +2907,34 @@ body {
   color: white;
 }
 
+.calendarStrip button.available {
+  border-color: #bcd4ff;
+  background: #eef4ff;
+  color: #172033;
+}
+
+.calendarStrip button.available.active {
+  border-color: #4b8df7;
+  background: #4b8df7;
+  color: white;
+}
+
+.calendarStrip button.unavailable {
+  border-color: #e5e7eb;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.calendarStrip button.unavailable.active {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.calendarStrip button.loading {
+  opacity: 0.72;
+}
+
 .calendarStrip span,
 .calendarStrip strong,
 .calendarStrip small {
@@ -3148,11 +3179,14 @@ body {
   margin: 0;
   color: #64748b;
   line-height: 1.45;
+  
+  
 }
 
 .subscriptionPlans {
   display: grid;
   gap: 12px;
+  padding: 20px;
 }
 
 .subscriptionPlanCard {
@@ -3167,6 +3201,7 @@ body {
 .subscriptionPlanCard span,
 .subscriptionPlanCard strong,
 .subscriptionPlanCard em,
+.subscriptionPlanCard p,
 .subscriptionPlanCard small {
   display: block;
 }
@@ -3185,10 +3220,17 @@ body {
 }
 
 .subscriptionPlanCard em {
-  margin-top: 5px;
+  margin-top: 2px;
+  color: #172033;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.subscriptionPlanCard p {
+  margin: 8px 0 0;
   color: #64748b;
   font-size: 13px;
-  font-style: normal;
   font-weight: 800;
 }
 
@@ -3203,11 +3245,13 @@ body {
 .subscriptionNote {
   display: grid;
   gap: 7px;
+ 
 }
 
 .subscriptionIncluded {
   display: grid;
   gap: 12px;
+  
 }
 
 .subscriptionIncluded ul {
