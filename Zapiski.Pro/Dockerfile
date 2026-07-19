@@ -3,8 +3,9 @@ WORKDIR /app
 
 COPY . ./
 
-RUN dotnet restore
-RUN dotnet publish -c Release -o out
+RUN dotnet restore \
+    && dotnet publish -c Release -o out --no-restore \
+    && rm -rf /root/.nuget/packages /root/.local/share/NuGet
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
