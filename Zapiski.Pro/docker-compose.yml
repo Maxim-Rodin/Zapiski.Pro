@@ -12,6 +12,7 @@ services:
 
   bot:
     build: .
+    pull_policy: build
     container_name: zapiski-bot
     restart: unless-stopped
     depends_on:
@@ -38,6 +39,7 @@ services:
       dockerfile: Dockerfile.web
       args:
         VITE_API_URL: https://api.app-zapisi-pro.site
+    pull_policy: build
     container_name: zapiski-web
     restart: unless-stopped
     depends_on:

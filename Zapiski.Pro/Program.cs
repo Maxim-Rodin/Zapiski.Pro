@@ -199,10 +199,37 @@ namespace Zapisi.Pro
                     if (message.Text.StartsWith("/start"))
                     {
                         
-                        var parts = message.Text.Split(' ');
+                        var parts = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length > 1) 
                         {
                             var key = parts[1];
+
+                            if (string.Equals(key, "register_master", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(key, "become_master", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var becomeMasterBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
+                                var becomeMasterUrl = $"{becomeMasterBaseUrl.TrimEnd('/')}/user/{telegramId}/become-master";
+                                var becomeMasterKeyboard = new InlineKeyboardMarkup(new[]
+                                {
+                                    new[]
+                                    {
+                                        InlineKeyboardButton.WithWebApp(
+                                            "🚀 Завершить регистрацию",
+                                            new WebAppInfo(becomeMasterUrl)
+                                        )
+                                    }
+                                });
+
+                                await botClient.SendMessage(
+                                    chat.Id,
+                                    $"Привет, {message.From.FirstName}! 👋\n\n" +
+                                    "Вы почти стали мастером в Zapisi Pro. Нажмите кнопку ниже, чтобы завершить регистрацию, создать свой профиль и запустить онлайн-запись.\n\n" +
+                                    "Первый месяц — бесплатно.",
+                                    replyMarkup: becomeMasterKeyboard
+                                );
+                                return;
+                            }
+
                             await masterService.ShowProfileFromStart( chat.Id, message.From.Id, key );
                             return;
                         }

@@ -385,3 +385,11 @@ postgres_data/
 logs/
 *.log
 .DS_Store
+
+# Node / Next.js build artifacts
+**/node_modules/
+**/.next/
+**/.next-dev/
+**/dist/
+**/out/
+npm-debug.log*

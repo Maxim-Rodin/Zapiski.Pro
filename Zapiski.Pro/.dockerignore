@@ -4,5 +4,9 @@ obj/
 .env
 miniapp/node_modules/
 miniapp/dist/
+landing/node_modules/
+landing/.next/
+landing/.next-dev/
+landing/out/
 **/*.user
 **/*.suo
