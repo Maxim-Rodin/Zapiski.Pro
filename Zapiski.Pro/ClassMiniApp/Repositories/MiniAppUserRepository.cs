@@ -46,7 +46,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             };
         }
 
-        public MiniAppBecomeMasterResult BecomeMaster(long telegramId, string requestedKey)
+        public MiniAppBecomeMasterResult BecomeMaster(long telegramId, string requestedKey, string registrationSource)
         {
             var userTable = db.ExecuteQuery($@"
                 SELECT ""idUser"", ""UserName""
@@ -106,12 +106,13 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 
             var key = baseKey;
             var safeKey = key.Replace("'", "''");
+            var safeRegistrationSource = registrationSource == "landing" ? "landing" : "direct";
 
             db.ExecuteNonQuery($@"
                 INSERT INTO ""Masters""
-                    (""UserId"", ""Key"", ""IsFounder"", ""TrialStartedAt"", ""TrialEndsAt"", ""SubscriptionEndsAt"", ""SubscriptionPlan"")
+                    (""UserId"", ""Key"", ""IsFounder"", ""TrialStartedAt"", ""TrialEndsAt"", ""SubscriptionEndsAt"", ""SubscriptionPlan"", ""RegistrationSource"")
                 VALUES
-                    ({userId}, '{safeKey}', false, NOW(), NOW() + INTERVAL '30 days', NULL, NULL);
+                    ({userId}, '{safeKey}', false, NOW(), NOW() + INTERVAL '30 days', NULL, NULL, '{safeRegistrationSource}');
 
                 UPDATE ""Users""
                 SET ""Role"" = 'master'

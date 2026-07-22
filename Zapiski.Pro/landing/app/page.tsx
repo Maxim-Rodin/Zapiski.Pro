@@ -10,7 +10,7 @@ import { useRef, useState } from "react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 
-const TELEGRAM_URL = "https://t.me/ZapisiProBot?start=register_master"
+const TELEGRAM_URL = "https://t.me/ZapisiProBot?start=register_master_landing"
 
 const reveal = { initial: { opacity: 0, y: 28 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-80px" }, transition: { duration: .65 } }
 
@@ -57,7 +57,7 @@ export default function Home() {
         <nav className={menuOpen ? "open" : ""}>
           <a href="#features" onClick={() => setMenuOpen(false)}>Возможности</a><a href="#how" onClick={() => setMenuOpen(false)}>Как работает</a><a href="#pricing" onClick={() => setMenuOpen(false)}>Тарифы</a><a href="#faq" onClick={() => setMenuOpen(false)}>Вопросы</a>
         </nav>
-        <Button size="sm" asChild><a href={TELEGRAM_URL} target="_blank">Попробовать <ArrowRight size={16} /></a></Button>
+        <Button size="sm" asChild><a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Попробовать <ArrowRight size={16} /></a></Button>
         <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Открыть меню"><Menu /></button>
       </header>
 
@@ -68,7 +68,7 @@ export default function Home() {
           <motion.h1 initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .08, duration: .7 }}>Клиенты записываются сами.<br /><span>Вы занимаетесь любимым делом.</span></motion.h1>
           <motion.p initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .16 }}>Zapisi Pro показывает клиентам свободное время, принимает записи и собирает расписание прямо в Telegram — без отдельного приложения.</motion.p>
           <motion.div className="hero-actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .24 }}>
-            <Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank">Попробовать бесплатно <ArrowRight size={18} /></a></Button>
+            <Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Попробовать бесплатно <ArrowRight size={18} /></a></Button>
           </motion.div>
           <motion.div className="hero-proof" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .4 }}><span><CheckCircle2 /> Запуск за 5 минут</span><span><CheckCircle2 /> Без банковской карты</span></motion.div>
         </div>
@@ -97,7 +97,7 @@ export default function Home() {
         <div className="profile-showcase-copy">
           <SectionTitle eyebrow="Ваш публичный профиль" title="Страница мастера, которой хочется поделиться" text="Фото, портфолио, услуги и запись — в одном красивом профиле. Клиент сразу видит вашу работу и выбирает подходящую услугу." />
           <div className="profile-points"><span><CheckCircle2 /> Выглядит профессионально</span><span><CheckCircle2 /> Открывается внутри Telegram</span><span><CheckCircle2 /> Готов к записи клиентов</span></div>
-          <Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank">Создать свой профиль <ArrowRight size={18} /></a></Button>
+          <Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Создать свой профиль <ArrowRight size={18} /></a></Button>
         </div>
         <motion.div className="public-profile" {...reveal}>
           <div className="profile-telegram"><span>×</span><div><i><BriefcaseBusiness /></i> Zapisi.Pro</div><b>•••</b></div>
@@ -115,7 +115,7 @@ export default function Home() {
               <article><span><BriefcaseBusiness /></span><div><b>Свадебная причёска</b><small>от 5 000 ₽ · 2 часа</small><em><MapPin /> С выездом или в студии</em></div><ChevronRight /></article>
             </div>
           </div>
-          <a className="book-live" href={TELEGRAM_URL} target="_blank">Записаться</a>
+          <a className="book-live" href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Записаться</a>
         </motion.div>
       </section>
 
@@ -149,7 +149,7 @@ export default function Home() {
       <section className="pricing-section" id="pricing">
         <SectionTitle eyebrow="Простая стоимость" title="Меньше цены одной записи" text="Все возможности доступны сразу. Выберите только удобный период оплаты." />
         <div className="pricing-grid">
-          {[{name:'1 месяц',price:'349 ₽',note:'Оплата 349 ₽ за 1 месяц'},{name:'3 месяца',price:'290 ₽',note:'Оплата 870 ₽ за 3 месяца',badge:'Популярный'},{name:'1 год',price:'247 ₽',note:'Оплата 2 964 ₽ за 1 год',badge:'Выгодно'}].map((p,i)=><motion.article className={`price-card ${i===1?'featured':''}`} key={p.name} {...reveal} transition={{delay:i*.08}}>{p.badge&&<span className="price-badge">{p.badge}</span>}<small>{p.name}</small><h3>{p.price}</h3><b className="per-month">в месяц</b><p>{p.note}</p><ul><li><Check /> Онлайн-запись клиентов</li><li><Check /> Расписание и услуги</li><li><Check /> Профиль мастера</li><li><Check /> Telegram-напоминания</li></ul><Button variant={i===1?'primary':'secondary'} asChild><a href={TELEGRAM_URL} target="_blank">Попробовать бесплатно</a></Button></motion.article>)}
+          {[{name:'1 месяц',price:'349 ₽',note:'Оплата 349 ₽ за 1 месяц'},{name:'3 месяца',price:'290 ₽',note:'Оплата 870 ₽ за 3 месяца',badge:'Популярный'},{name:'1 год',price:'247 ₽',note:'Оплата 2 964 ₽ за 1 год',badge:'Выгодно'}].map((p,i)=><motion.article className={`price-card ${i===1?'featured':''}`} key={p.name} {...reveal} transition={{delay:i*.08}}>{p.badge&&<span className="price-badge">{p.badge}</span>}<small>{p.name}</small><h3>{p.price}</h3><b className="per-month">в месяц</b><p>{p.note}</p><ul><li><Check /> Онлайн-запись клиентов</li><li><Check /> Расписание и услуги</li><li><Check /> Профиль мастера</li><li><Check /> Telegram-напоминания</li></ul><Button variant={i===1?'primary':'secondary'} asChild><a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Попробовать бесплатно</a></Button></motion.article>)}
         </div>
         <p className="pricing-note"><CheckCircle2 /> Без банковской карты для старта</p>
       </section>
@@ -169,12 +169,12 @@ export default function Home() {
 
       <section className="final-cta">
         <div className="cta-glow" />
-        <motion.div {...reveal}><span className="eyebrow">Можно начать сегодня</span><h2>Пусть следующая запись<br />придёт сама</h2><p>Настройте Zapisi Pro за несколько минут и отправьте клиентам первую ссылку.</p><Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank">Попробовать бесплатно <Send size={18} /></a></Button><small>Откроется прямо в Telegram</small></motion.div>
+        <motion.div {...reveal}><span className="eyebrow">Можно начать сегодня</span><h2>Пусть следующая запись<br />придёт сама</h2><p>Настройте Zapisi Pro за несколько минут и отправьте клиентам первую ссылку.</p><Button size="lg" asChild><a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Попробовать бесплатно <Send size={18} /></a></Button><small>Откроется прямо в Telegram</small></motion.div>
         <div className="cta-visual mascot-cta"><div className="cta-orbit"><Sparkles /></div><img src="/images/robot-beach.png" alt="Робот-маскот Zapisi Pro работает с ноутбуком на пляже" /><div className="mascot-note"><strong>Zapisi Pro работает</strong><span>пока вы отдыхаете</span></div></div>
       </section>
 
-      <footer><Logo /><p>Онлайн-запись для мастеров внутри Telegram.</p><div><a href="#features">Возможности</a><a href="#pricing">Тарифы</a><a href="#faq">Поддержка</a><a href="#">Конфиденциальность</a></div><span>© 2026 Zapisi Pro</span></footer>
-      <a className="mobile-sticky" href={TELEGRAM_URL} target="_blank">Попробовать бесплатно <ArrowRight size={17} /></a>
+      <footer><Logo /><p>Онлайн-запись для мастеров внутри Telegram.</p><div><a href="#features">Возможности</a><a href="#pricing">Тарифы</a><a href="#faq">Поддержка</a><a href="/privacy">Конфиденциальность</a><a href="/consent">Согласие</a></div><span>© 2026 Zapisi Pro</span></footer>
+      <a className="mobile-sticky" href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Попробовать бесплатно <ArrowRight size={17} /></a>
     </main>
   )
 }

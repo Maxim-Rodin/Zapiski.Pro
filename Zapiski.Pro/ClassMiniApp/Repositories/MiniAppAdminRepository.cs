@@ -15,16 +15,33 @@ namespace Zapiski.Pro.MiniApp.Repositories
 
         public MiniAppAdminStatsDto GetStats()
         {
+            var masters = Convert.ToInt32(db.ExecuteScalar(@"SELECT COUNT(*) FROM ""Masters"""));
+            var landingMasters = Convert.ToInt32(db.ExecuteScalar(@"
+                SELECT COUNT(*)
+                FROM ""Masters""
+                WHERE ""RegistrationSource"" = 'landing'
+            "));
+
             return new MiniAppAdminStatsDto
             {
                 Users = Convert.ToInt32(db.ExecuteScalar(@"SELECT COUNT(*) FROM ""Users""")),
-                Masters = Convert.ToInt32(db.ExecuteScalar(@"SELECT COUNT(*) FROM ""Masters""")),
+                Masters = masters,
                 Bookings = Convert.ToInt32(db.ExecuteScalar(@"SELECT COUNT(*) FROM ""Bookings""")),
                 Payments = Convert.ToInt32(db.ExecuteScalar(@"
                     SELECT COUNT(*) 
                     FROM ""Bookings""
                     WHERE ""Status"" = 'waiting_payment_confirm'
-                "))
+                ")),
+                LandingMasters = landingMasters,
+                DirectMasters = masters - landingMasters,
+                RegistrationsLast30Days = Convert.ToInt32(db.ExecuteScalar(@"
+                    SELECT COUNT(*)
+                    FROM ""Masters""
+                    WHERE ""RegisteredAt"" >= NOW() - INTERVAL '30 days'
+                ")),
+                LandingSharePercent = masters == 0
+                    ? 0
+                    : Math.Round(landingMasters * 100m / masters, 1)
             };
         }
 

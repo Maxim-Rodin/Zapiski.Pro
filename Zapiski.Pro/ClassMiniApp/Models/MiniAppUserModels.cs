@@ -76,6 +76,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
     public class MiniAppBecomeMasterRequest
     {
         public string Key { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
     }
 
     public class MiniAppBecomeMasterResult

@@ -6,6 +6,10 @@
         public int Masters { get; set; }
         public int Bookings { get; set; }
         public int Payments { get; set; }
+        public int LandingMasters { get; set; }
+        public int DirectMasters { get; set; }
+        public int RegistrationsLast30Days { get; set; }
+        public decimal LandingSharePercent { get; set; }
     }
 
     public class MiniAppMasterDto

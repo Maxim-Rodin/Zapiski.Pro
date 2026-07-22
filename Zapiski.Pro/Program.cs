@@ -73,6 +73,21 @@ namespace Zapisi.Pro
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
+            db.ExecuteNonQuery(@"
+                ALTER TABLE ""Masters""
+                ADD COLUMN IF NOT EXISTS ""RegistrationSource"" varchar(20) NOT NULL DEFAULT 'direct';
+
+                ALTER TABLE ""Masters""
+                ADD COLUMN IF NOT EXISTS ""RegisteredAt"" timestamptz;
+
+                UPDATE ""Masters""
+                SET ""RegisteredAt"" = COALESCE(""TrialStartedAt"", NOW())
+                WHERE ""RegisteredAt"" IS NULL;
+
+                ALTER TABLE ""Masters""
+                ALTER COLUMN ""RegisteredAt"" SET DEFAULT NOW(),
+                ALTER COLUMN ""RegisteredAt"" SET NOT NULL;
+            ");
             Console.WriteLine("===== ENV DEBUG =====");
             Console.WriteLine($"DB_HOST = {Environment.GetEnvironmentVariable("DB_HOST")}");
             Console.WriteLine($"DB_USER = {Environment.GetEnvironmentVariable("DB_USER")}");
@@ -204,11 +219,19 @@ namespace Zapisi.Pro
                         {
                             var key = parts[1];
 
-                            if (string.Equals(key, "register_master", StringComparison.OrdinalIgnoreCase) ||
+                            var isLandingRegistration = string.Equals(
+                                key,
+                                "register_master_landing",
+                                StringComparison.OrdinalIgnoreCase
+                            );
+
+                            if (isLandingRegistration ||
+                                string.Equals(key, "register_master", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(key, "become_master", StringComparison.OrdinalIgnoreCase))
                             {
                                 var becomeMasterBaseUrl = Environment.GetEnvironmentVariable("MINIAPP_URL") ?? "https://app-zapisi-pro.site";
-                                var becomeMasterUrl = $"{becomeMasterBaseUrl.TrimEnd('/')}/user/{telegramId}/become-master";
+                                var sourceQuery = isLandingRegistration ? "?source=landing" : string.Empty;
+                                var becomeMasterUrl = $"{becomeMasterBaseUrl.TrimEnd('/')}/user/{telegramId}/become-master{sourceQuery}";
                                 var becomeMasterKeyboard = new InlineKeyboardMarkup(new[]
                                 {
                                     new[]

@@ -414,11 +414,156 @@ body {
   opacity: 0.9;
 }
 
+.adminHeaderEyebrow {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.adminAttributionCard {
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid #dce9f9;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(75, 141, 247, 0.14), transparent 42%),
+    white;
+  box-shadow: 0 8px 28px rgba(15, 52, 96, 0.08);
+}
+
+.adminAttributionTitle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.adminAttributionTitle > span {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 15px;
+  background: #e8f2ff;
+  color: #3f86ef;
+  display: grid;
+  place-items: center;
+}
+
+.adminAttributionTitle div,
+.adminAttributionTitle strong,
+.adminAttributionTitle small {
+  display: block;
+}
+
+.adminAttributionTitle strong {
+  font-size: 16px;
+}
+
+.adminAttributionTitle small {
+  margin-top: 3px;
+  color: #748295;
+  font-size: 12px;
+}
+
+.adminAttributionMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 18px 0 15px;
+}
+
+.adminAttributionMetrics > div {
+  min-width: 0;
+  padding: 12px 10px;
+  border-radius: 15px;
+  background: rgba(239, 246, 255, 0.82);
+}
+
+.adminAttributionMetrics strong,
+.adminAttributionMetrics small {
+  display: block;
+}
+
+.adminAttributionMetrics strong {
+  color: #18243a;
+  font-size: 23px;
+  line-height: 1.1;
+}
+
+.adminAttributionMetrics small {
+  margin-top: 5px;
+  color: #748295;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.adminSourceBar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #e7edf5;
+}
+
+.adminSourceBar span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3097f3, #6aa8ff);
+  transition: width 0.5s ease;
+}
+
+.adminSourceLegend {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  color: #748295;
+  font-size: 10px;
+}
+
+.adminSourceLegend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.adminSourceLegend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d5dde8;
+}
+
+.adminSourceLegend i.landing {
+  background: #3f92ef;
+}
+
+.adminPrivacyNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid #e9eff7;
+  color: #63758b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.adminPrivacyNote svg {
+  flex: 0 0 auto;
+  color: #28a477;
 }
 
 .clientCabinetBanner {
@@ -3709,6 +3854,56 @@ body {
 .infoContentCard li::marker {
   color: #4b8df7;
   font-weight: 900;
+}
+
+.infoLegalLinks {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.infoLegalLinks > a {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 13px;
+  color: #172033;
+  text-decoration: none;
+  border: 1px solid #e1ebf6;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 7px 22px rgba(15, 52, 96, 0.06);
+}
+
+.infoLegalLinks > a > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  color: #4b8df7;
+  border-radius: 14px;
+  background: #e8f2ff;
+}
+
+.infoLegalLinks > a > div,
+.infoLegalLinks strong,
+.infoLegalLinks small {
+  display: block;
+}
+
+.infoLegalLinks strong {
+  font-size: 14px;
+}
+
+.infoLegalLinks small {
+  margin-top: 3px;
+  color: #718096;
+  font-size: 11px;
+}
+
+.infoLegalLinks > a > svg {
+  color: #94a3b8;
 }
 
 .iconButton {

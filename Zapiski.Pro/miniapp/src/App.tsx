@@ -339,6 +339,10 @@ type AdminStats = {
   masters: number
   bookings: number
   payments: number
+  landingMasters: number
+  directMasters: number
+  registrationsLast30Days: number
+  landingSharePercent: number
 }
 
 type UserDashboard = {
@@ -389,7 +393,7 @@ type TopMenuItem = {
 }
 
 type InfoMode = "user" | "master"
-type InfoTabId = "faq" | "rules" | "privacy" | "offer" | "statuses"
+type InfoTabId = "faq" | "rules" | "privacy" | "offer" | "details" | "statuses"
 
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
@@ -623,18 +627,57 @@ function AdminPage() {
       </header>
 
       <section className="adminHeader">
-        <h1>Основная</h1>
-        <p>Сводка по приложению и быстрые разделы</p>
+        <span className="adminHeaderEyebrow">Статистика продукта</span>
+        <h1>Всё важное — одним взглядом</h1>
+        <p>Регистрации, мастера и активность сервиса</p>
       </section>
-
-      <ClientCabinetBanner />
 
       <section className="statsGrid">
         <AdminStat title="Пользователи" value={stats?.users ?? "..."} icon={<Users />} />
         <AdminStat title="Мастера" value={stats?.masters ?? "..."} icon={<BriefcaseBusiness />} />
         <AdminStat title="Записи" value={stats?.bookings ?? "..."} icon={<CalendarDays />} />
-        <AdminStat title="Оплаты" value={stats?.payments ?? "..."} icon={<CreditCard />} />
+        <AdminStat title="Ждут оплаты" value={stats?.payments ?? "..."} icon={<CreditCard />} />
       </section>
+
+      <section className="adminAttributionCard">
+        <div className="adminAttributionTitle">
+          <span><Globe size={22} strokeWidth={2.3} /></span>
+          <div>
+            <strong>Регистрации с лендинга</strong>
+            <small>Только завершённые регистрации мастеров</small>
+          </div>
+        </div>
+
+        <div className="adminAttributionMetrics">
+          <div>
+            <strong>{stats?.landingMasters ?? "..."}</strong>
+            <small>пришли с лендинга</small>
+          </div>
+          <div>
+            <strong>{stats ? `${stats.landingSharePercent}%` : "..."}</strong>
+            <small>доля всех мастеров</small>
+          </div>
+          <div>
+            <strong>{stats?.registrationsLast30Days ?? "..."}</strong>
+            <small>новых за 30 дней</small>
+          </div>
+        </div>
+
+        <div className="adminSourceBar" aria-label="Доля регистраций с лендинга">
+          <span style={{ width: `${Math.min(100, Math.max(0, stats?.landingSharePercent ?? 0))}%` }} />
+        </div>
+        <div className="adminSourceLegend">
+          <span><i className="landing" /> Лендинг · {stats?.landingMasters ?? "..."}</span>
+          <span><i /> Другие источники · {stats?.directMasters ?? "..."}</span>
+        </div>
+
+        <p className="adminPrivacyNote">
+          <ShieldCheck size={17} strokeWidth={2.3} />
+          Метка источника без cookies, IP-адресов и отслеживания действий на сайте
+        </p>
+      </section>
+
+      <ClientCabinetBanner />
 
       <section className="grid">
         <Link to="/admin/masters" className="cardLink">
@@ -3660,6 +3703,7 @@ function InformationPage({ mode }: { mode: InfoMode }) {
     { id: "rules", title: "Правила", icon: <FileText size={19} strokeWidth={2.3} /> },
     { id: "privacy", title: "Конфиденциальность", icon: <Shield size={19} strokeWidth={2.3} /> },
     { id: "offer", title: "Оферта", icon: <FileText size={19} strokeWidth={2.3} /> },
+    { id: "details", title: "Реквизиты", icon: <BriefcaseBusiness size={19} strokeWidth={2.3} /> },
     { id: "statuses", title: "Статусы", icon: <Star size={19} strokeWidth={2.3} /> },
   ]
 
@@ -3684,22 +3728,39 @@ function InformationPage({ mode }: { mode: InfoMode }) {
         "Используйте сервис только для реальных записей и корректных данных.",
         "Не передавайте чужие персональные данные без законного основания.",
         "Мастер отвечает за актуальность услуг, цен, адресов и расписания.",
+        "В публичном профиле можно размещать только свои материалы или материалы, на использование которых получено разрешение.",
+        "Запрещены спам, мошенничество, незаконные услуги и действия, нарушающие права других пользователей.",
+        "Для удаления аккаунта или данных обратитесь на r.maks8805@mail.ru или в @Zapisi_Support.",
       ],
     },
     privacy: {
       title: "Конфиденциальность",
       items: [
-        "Zapisi.Pro обрабатывает Telegram ID, username, записи, контактные данные и данные профилей.",
-        "Фотографии профиля и портфолио используются для отображения публичного профиля мастера.",
-        "Данные применяются для работы записи, уведомлений, клиентской базы и поддержки.",
+        "Оператор: Родин Максим Юрьевич, плательщик НПД (самозанятый), ИНН 325503464785.",
+        "Zapisi.Pro обрабатывает Telegram ID, username, записи, телефон, данные профиля, расписания и подписки только для работы сервиса.",
+        "Фотографии, имя, описание, телефон и портфолио мастера отображаются клиентам в его публичном профиле.",
+        "На лендинге нет Яндекс Метрики, рекламных cookies и отслеживания поведения посетителей.",
+        "Запросить данные, исправление, удаление или отозвать согласие можно по адресу r.maks8805@mail.ru.",
       ],
     },
     offer: {
       title: "Оферта",
       items: [
-        "Полный текст оферты будет добавлен перед запуском оплаты.",
-        "После подключения оплаты условия подписки будут отображаться в разделе 'Подписка'.",
-        "Продолжение использования сервиса означает согласие с актуальными условиями.",
+        "Исполнитель: Родин Максим Юрьевич, самозанятый, ИНН 325503464785.",
+        "Стоимость и срок подписки показываются до оплаты в разделе 'Подписка'.",
+        "Оплата выполняется через ЮKassa. Zapisi.Pro не хранит данные банковской карты.",
+        "Каждый платеж пользователь запускает самостоятельно; автоматических повторных списаний сервис не выполняет.",
+        "Доступ продлевается после подтверждения оплаты платёжным сервисом. Обращения по оплате и возврату: r.maks8805@mail.ru.",
+      ],
+    },
+    details: {
+      title: "Реквизиты оператора",
+      items: [
+        "Родин Максим Юрьевич.",
+        "Статус: плательщик налога на профессиональный доход (самозанятый).",
+        "ИНН: 325503464785.",
+        "Электронная почта: r.maks8805@mail.ru.",
+        "Поддержка в Telegram: @Zapisi_Support.",
       ],
     },
     statuses: {
@@ -3753,6 +3814,19 @@ function InformationPage({ mode }: { mode: InfoMode }) {
         </ol>
       </section>
 
+      <section className="infoLegalLinks">
+        <a href="https://app-zapisi-pro.site/privacy" target="_blank" rel="noopener noreferrer">
+          <span><Shield size={19} strokeWidth={2.3} /></span>
+          <div><strong>Полная политика</strong><small>Открыть документ на сайте</small></div>
+          <ChevronRight size={20} strokeWidth={2.4} />
+        </a>
+        <a href="https://app-zapisi-pro.site/consent" target="_blank" rel="noopener noreferrer">
+          <span><FileText size={19} strokeWidth={2.3} /></span>
+          <div><strong>Согласие на обработку</strong><small>Отдельный текст согласия</small></div>
+          <ChevronRight size={20} strokeWidth={2.4} />
+        </a>
+      </section>
+
       {isMaster ? (
         <MasterBottomNav masterKey={key ?? ""} />
       ) : (
@@ -3764,7 +3838,9 @@ function InformationPage({ mode }: { mode: InfoMode }) {
 
 function BecomeMasterPage() {
   const { telegramId: routeTelegramId } = useParams()
+  const [searchParams] = useSearchParams()
   const currentTelegramId = routeTelegramId || telegramId()
+  const registrationSource = searchParams.get("source") === "landing" ? "landing" : "direct"
   const [keyValue, setKeyValue] = useState("")
   const [message, setMessage] = useState("")
   const [creating, setCreating] = useState(false)
@@ -3851,7 +3927,7 @@ function BecomeMasterPage() {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
       },
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, source: registrationSource }),
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)

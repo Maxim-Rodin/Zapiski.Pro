@@ -31,7 +31,11 @@ namespace Zapiski.Pro.ClassMiniApp.Services
                 };
             }
 
-            return repository.BecomeMaster(telegramId, request.Key);
+            var registrationSource = string.Equals(request.Source, "landing", StringComparison.OrdinalIgnoreCase)
+                ? "landing"
+                : "direct";
+
+            return repository.BecomeMaster(telegramId, request.Key, registrationSource);
         }
 
         public MiniAppMasterKeyAvailabilityDto CheckMasterKey(string key)
