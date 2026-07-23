@@ -37,7 +37,7 @@ export function LegalPage({
         <aside className="legalAside">
           <ShieldCheck size={24} />
           <strong>Коротко</strong>
-          <p>Мы не используем Яндекс Метрику, рекламные cookies и скрытое отслеживание поведения на лендинге.</p>
+          <p>Яндекс Метрика загружается только после добровольного согласия посетителя. Вебвизор отключён.</p>
           <a href={legalDetails.supportUrl} target="_blank" rel="noopener noreferrer">
             <Send size={16} /> Связаться с нами
           </a>

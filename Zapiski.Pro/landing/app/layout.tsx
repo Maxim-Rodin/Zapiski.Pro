@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import "./globals.css"
+import { YandexMetrikaConsent } from "./yandex-metrica-consent"
 
 export const metadata: Metadata = {
   title: "Zapisi Pro — онлайн-запись внутри Telegram",
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        {children}
+        <YandexMetrikaConsent />
+      </body>
     </html>
   )
 }
