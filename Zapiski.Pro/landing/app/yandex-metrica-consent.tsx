@@ -51,9 +51,18 @@ export function YandexMetrikaConsent() {
   useEffect(() => {
     const saved = localStorage.getItem(CONSENT_KEY) as Consent
     setConsent(saved)
-    setOpen(saved !== "accepted" && saved !== "rejected")
+    setOpen(saved !== "accepted")
     if (saved === "accepted") loadMetrika()
   }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
 
   const accept = useCallback(() => {
     localStorage.setItem(CONSENT_KEY, "accepted")
@@ -62,12 +71,16 @@ export function YandexMetrikaConsent() {
     loadMetrika()
   }, [])
 
-  const reject = useCallback(() => {
+  const leaveSite = useCallback(() => {
     localStorage.setItem(CONSENT_KEY, "rejected")
     window.disableYaCounter110942038 = true
     removeMetrikaCookies()
     setConsent("rejected")
-    setOpen(false)
+    const referrer = document.referrer
+    const destination = referrer && new URL(referrer).origin !== location.origin
+      ? referrer
+      : "https://yandex.ru"
+    location.replace(destination)
   }, [])
 
   if (!open && !consent) return null
@@ -75,19 +88,23 @@ export function YandexMetrikaConsent() {
   return (
     <>
       {open && (
-        <aside className="analytics-consent" role="dialog" aria-label="Настройки аналитики">
-          <div>
-            <strong>Помогите нам улучшать Zapisi Pro</strong>
-            <p>
-              С вашего согласия мы включим Яндекс Метрику, чтобы считать переходы в Telegram.
-              Вебвизор отключён. Подробнее — в <a href="/privacy">политике конфиденциальности</a>.
-            </p>
-          </div>
-          <div className="analytics-actions">
-            <button type="button" className="analytics-reject" onClick={reject}>Только необходимые</button>
-            <button type="button" className="analytics-accept" onClick={accept}>Разрешить аналитику</button>
-          </div>
-        </aside>
+        <>
+          <div className="analytics-consent-backdrop" aria-hidden="true" />
+          <aside className="analytics-consent" role="dialog" aria-modal="true" aria-label="Согласие на использование cookies">
+            <div>
+              <strong>Для работы сайта нужны cookies</strong>
+              <p>
+                Мы используем Яндекс Метрику, чтобы видеть посещения и переходы в Telegram.
+                Продолжая, вы соглашаетесь на использование аналитических cookies.
+                Вебвизор отключён. Подробнее — в <a href="/privacy">политике конфиденциальности</a>.
+              </p>
+            </div>
+            <div className="analytics-actions">
+              <button type="button" className="analytics-reject" onClick={leaveSite}>Покинуть сайт</button>
+              <button type="button" className="analytics-accept" onClick={accept}>Принять и продолжить</button>
+            </div>
+          </aside>
+        </>
       )}
       {!open && (
         <button className="analytics-settings" type="button" onClick={() => setOpen(true)}>
