@@ -1580,28 +1580,29 @@ function MasterOnboardingPage() {
     setLoading(true)
     setMessage("")
 
-    fetch(`${API_URL}/api/master/${key}/private-profile`, {
-      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
-    })
-      .then(async (res) => {
+    const headers = {
+      "X-Telegram-Id": telegramId(),
+      "X-Telegram-Init-Data": telegramInitData(),
+    }
+
+    Promise.all([
+      fetch(`${API_URL}/api/master/${key}/private-profile`, { headers }).then(async (res) => {
         if (!res.ok) throw new Error("Мастер не найден")
         return normalizeMaster(await res.json())
-      })
-      .then((masterData) => {
-        setMaster(masterData)
-        return fetch(`${API_URL}/api/master/${key}/onboarding`, {
-          headers: { "X-Telegram-Id": telegramId() || String(masterData.telegramId), "X-Telegram-Init-Data": telegramInitData() },
-        })
-      })
-      .then(async (res) => {
+      }),
+      fetch(`${API_URL}/api/master/${key}/onboarding`, { headers }).then(async (res) => {
         if (!res.ok) {
           const data = await res.json().catch(() => null)
           throw new Error(data?.message || "Не удалось загрузить онбординг")
         }
 
-        return res.json()
+        return normalizeOnboarding(await res.json())
+      }),
+    ])
+      .then(([masterData, onboardingData]) => {
+        setMaster(masterData)
+        setOnboarding(onboardingData)
       })
-      .then((data) => setOnboarding(normalizeOnboarding(data)))
       .catch((err) => setMessage(err.message || "Ошибка загрузки онбординга"))
       .finally(() => setLoading(false))
   }, [key])
@@ -4250,12 +4251,12 @@ function ClientOnboarding({ telegramId: userTelegramId }: { telegramId: number }
 function BecomeMasterPage() {
   const { telegramId: routeTelegramId } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const currentTelegramId = routeTelegramId || telegramId()
   const registrationSource = searchParams.get("source") === "landing" ? "landing" : "direct"
   const [keyValue, setKeyValue] = useState("")
   const [message, setMessage] = useState("")
   const [creating, setCreating] = useState(false)
-  const [createdKey, setCreatedKey] = useState("")
   const [keyStatus, setKeyStatus] = useState<"idle" | "checking" | "available" | "unavailable">("idle")
   const [keyStatusMessage, setKeyStatusMessage] = useState("")
 
@@ -4348,15 +4349,14 @@ function BecomeMasterPage() {
           throw new Error(data?.message || "Не удалось создать мастер-профиль")
         }
 
-        setCreatedKey(data.masterKey || data.MasterKey || key)
-        setMessage(data.message || "Мастер-профиль создан")
+        const masterKey = data.masterKey || data.MasterKey || key
+        navigate(`/master/${encodeURIComponent(masterKey)}/onboarding`, { replace: true })
       })
       .catch((err) => setMessage(err.message || "Ошибка создания профиля"))
       .finally(() => setCreating(false))
   }
 
   const previewKey = normalizeKey(keyValue) || "your_name"
-  const targetKey = createdKey || previewKey
   const backUrl = currentTelegramId ? `/user/${currentTelegramId}` : "/"
 
   return (
@@ -4420,26 +4420,13 @@ function BecomeMasterPage() {
           type="button"
           className="primaryButton"
           onClick={createMasterProfile}
-          disabled={creating || Boolean(createdKey) || keyStatus !== "available"}
+          disabled={creating || keyStatus !== "available"}
         >
-          {createdKey ? "Профиль создан" : creating ? "Создаём..." : "Создать мастер-профиль"}
+          {creating ? "Создаём..." : "Создать мастер-профиль"}
         </button>
       </section>
 
       {message && <div className="profileMessage">{message}</div>}
-
-      {createdKey && (
-        <Link to={`/master/${targetKey}`} className="clientCabinetBanner">
-          <span className="clientCabinetIcon">
-            <BriefcaseBusiness size={22} strokeWidth={2.3} />
-          </span>
-          <span className="clientCabinetText">
-            <strong>Открыть мастер-панель</strong>
-            <small>Настройте профиль, услуги и расписание</small>
-          </span>
-          <ChevronRight size={22} strokeWidth={2.4} />
-        </Link>
-      )}
     </main>
   )
 }
