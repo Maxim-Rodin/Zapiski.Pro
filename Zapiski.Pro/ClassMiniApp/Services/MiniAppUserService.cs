@@ -1,15 +1,22 @@
 using Zapiski.Pro.ClassMiniApp.Models;
 using Zapiski.Pro.ClassMiniApp.Repositories;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Zapiski.Pro.ClassMiniApp.Services
 {
     public class MiniAppUserService
     {
         private readonly MiniAppUserRepository repository;
+        private readonly ITelegramBotClient botClient;
 
-        public MiniAppUserService(MiniAppUserRepository repository)
+        public MiniAppUserService(
+            MiniAppUserRepository repository,
+            ITelegramBotClient botClient)
         {
             this.repository = repository;
+            this.botClient = botClient;
         }
 
         public MiniAppUserDashboardDto? GetDashboard(long telegramId)
@@ -20,7 +27,7 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             return repository.GetDashboard(telegramId);
         }
 
-        public MiniAppBecomeMasterResult BecomeMaster(long telegramId, MiniAppBecomeMasterRequest request)
+        public async Task<MiniAppBecomeMasterResult> BecomeMaster(long telegramId, MiniAppBecomeMasterRequest request)
         {
             if (telegramId <= 0)
             {
@@ -35,7 +42,41 @@ namespace Zapiski.Pro.ClassMiniApp.Services
                 ? "landing"
                 : "direct";
 
-            return repository.BecomeMaster(telegramId, request.Key, registrationSource);
+            var result = repository.BecomeMaster(telegramId, request.Key, registrationSource);
+
+            if (!result.Success || !result.Created || string.IsNullOrWhiteSpace(result.MasterKey))
+                return result;
+
+            try
+            {
+                var miniAppUrl = Environment.GetEnvironmentVariable("MINIAPP_URL")
+                    ?? "https://app-zapisi-pro.site";
+                var masterPanelUrl =
+                    $"{miniAppUrl.TrimEnd('/')}/master/{Uri.EscapeDataString(result.MasterKey)}";
+
+                await botClient.SendMessage(
+                    telegramId,
+                    "🎉 Поздравляем, вы стали мастером Zapisi.Pro!\n\n" +
+                    "Мастер-профиль создан, а пробный период на 30 дней уже активирован.\n" +
+                    "Нажмите кнопку ниже, чтобы вернуться в мастер-панель и настроить услуги, расписание и публичный профиль.",
+                    replyMarkup: new InlineKeyboardMarkup(new[]
+                    {
+                        new[]
+                        {
+                            InlineKeyboardButton.WithWebApp(
+                                "💼 Открыть мастер-панель",
+                                new WebAppInfo(masterPanelUrl)
+                            )
+                        }
+                    })
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BecomeMaster Notify ERROR] {ex.Message}");
+            }
+
+            return result;
         }
 
         public MiniAppMasterKeyAvailabilityDto CheckMasterKey(string key)

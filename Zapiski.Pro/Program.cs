@@ -117,7 +117,7 @@ namespace Zapisi.Pro
             var yooKassaPaymentService = new YooKassaPaymentService(miniAppMasterRepository);
 
             var miniAppUserRepository = new MiniAppUserRepository(db);
-            var miniAppUserService = new MiniAppUserService(miniAppUserRepository);
+            var miniAppUserService = new MiniAppUserService(miniAppUserRepository, botClient);
 
             app.MapMiniAppAdminEndpoints(miniAppAdminService);
             app.MapMiniAppMasterEndpoints(miniAppMasterService, yooKassaPaymentService);

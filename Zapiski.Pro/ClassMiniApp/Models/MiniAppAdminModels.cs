@@ -10,6 +10,10 @@
         public int DirectMasters { get; set; }
         public int RegistrationsLast30Days { get; set; }
         public decimal LandingSharePercent { get; set; }
+        public int ActiveTrials { get; set; }
+        public int ActivePaidSubscriptions { get; set; }
+        public int UnpaidOrExpired { get; set; }
+        public int Founders { get; set; }
     }
 
     public class MiniAppMasterDto

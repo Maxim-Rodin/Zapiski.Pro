@@ -82,6 +82,7 @@ namespace Zapiski.Pro.ClassMiniApp.Models
     public class MiniAppBecomeMasterResult
     {
         public bool Success { get; set; }
+        public bool Created { get; set; }
         public string Message { get; set; } = string.Empty;
         public string MasterKey { get; set; } = string.Empty;
         public string TrialEndsAt { get; set; } = string.Empty;

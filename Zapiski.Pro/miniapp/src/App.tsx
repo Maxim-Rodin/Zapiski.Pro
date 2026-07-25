@@ -343,6 +343,10 @@ type AdminStats = {
   directMasters: number
   registrationsLast30Days: number
   landingSharePercent: number
+  activeTrials: number
+  activePaidSubscriptions: number
+  unpaidOrExpired: number
+  founders: number
 }
 
 type UserDashboard = {
@@ -394,6 +398,14 @@ type TopMenuItem = {
 
 type InfoMode = "user" | "master"
 type InfoTabId = "faq" | "rules" | "privacy" | "offer" | "details" | "statuses"
+type InfoTab = {
+  id: InfoTabId | "support"
+  title: string
+  icon: ReactNode
+  href?: string
+}
+
+const SUPPORT_URL = "https://t.me/Zapisi_Support"
 
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
@@ -637,6 +649,22 @@ function AdminPage() {
         <AdminStat title="Мастера" value={stats?.masters ?? "..."} icon={<BriefcaseBusiness />} />
         <AdminStat title="Записи" value={stats?.bookings ?? "..."} icon={<CalendarDays />} />
         <AdminStat title="Ждут оплаты" value={stats?.payments ?? "..."} icon={<CreditCard />} />
+      </section>
+
+      <section className="adminSubscriptionOverview">
+        <div className="adminSectionHeading">
+          <div>
+            <strong>Подписки мастеров</strong>
+            <small>Текущее состояние доступа</small>
+          </div>
+          <CreditCard size={21} strokeWidth={2.3} />
+        </div>
+        <div className="statsGrid">
+          <AdminStat title="Пробный период" value={stats?.activeTrials ?? "..."} icon={<BadgePercent />} />
+          <AdminStat title="Оплаченная подписка" value={stats?.activePaidSubscriptions ?? "..."} icon={<CreditCard />} />
+          <AdminStat title="Не оплатили" value={stats?.unpaidOrExpired ?? "..."} icon={<XCircle />} />
+          <AdminStat title="Founder-доступ" value={stats?.founders ?? "..."} icon={<Star />} />
+        </div>
       </section>
 
       <section className="adminAttributionCard">
@@ -971,13 +999,19 @@ function MastersPage() {
         ) : (
           masters.map((master) => (
             <div className="masterCard" key={master.id}>
-              <div className="masterAvatar">
+              <Link
+                to={`/master/${master.key}/public-profile`}
+                className="masterAvatar masterAvatarLink"
+                aria-label={`Открыть публичный профиль ${master.username || master.key}`}
+                title="Открыть публичный профиль"
+              >
                 {master.avatarUrl ? (
                   <img src={master.avatarUrl} alt={master.username || "Мастер"} />
                 ) : (
                   <BriefcaseBusiness size={23} strokeWidth={2.3} />
                 )}
-              </div>
+                <span className="masterAvatarOpen"><ArrowRight size={11} strokeWidth={3} /></span>
+              </Link>
 
               <div className="masterInfo">
                 <h3>@{master.username || "unknown"}</h3>
@@ -3636,6 +3670,8 @@ function UserHomePage() {
         menuItems={userMenuItems}
       />
 
+      <ClientOnboarding telegramId={dashboard.profile.telegramId} />
+
       <section className="hero">
         <div>
           <h2>Привет!</h2>
@@ -3698,13 +3734,14 @@ function InformationPage({ mode }: { mode: InfoMode }) {
     ? getMasterTopMenuItems(key ?? "")
     : getUserTopMenuItems(Number(routeTelegramId ?? 0))
   const title = isMaster ? "Информация для мастера" : "Информация для клиента"
-  const tabs: Array<{ id: InfoTabId; title: string; icon: ReactNode }> = [
+  const tabs: InfoTab[] = [
     { id: "faq", title: "FAQ", icon: <CircleHelp size={19} strokeWidth={2.3} /> },
     { id: "rules", title: "Правила", icon: <FileText size={19} strokeWidth={2.3} /> },
     { id: "privacy", title: "Конфиденциальность", icon: <Shield size={19} strokeWidth={2.3} /> },
     { id: "offer", title: "Оферта", icon: <FileText size={19} strokeWidth={2.3} /> },
     { id: "details", title: "Реквизиты", icon: <BriefcaseBusiness size={19} strokeWidth={2.3} /> },
     { id: "statuses", title: "Статусы", icon: <Star size={19} strokeWidth={2.3} /> },
+    { id: "support", title: "Поддержка", icon: <Send size={19} strokeWidth={2.3} />, href: SUPPORT_URL },
   ]
 
   const content = {
@@ -3739,8 +3776,9 @@ function InformationPage({ mode }: { mode: InfoMode }) {
         "Оператор: Родин Максим Юрьевич, плательщик НПД (самозанятый), ИНН 325503464785.",
         "Zapisi.Pro обрабатывает Telegram ID, username, записи, телефон, данные профиля, расписания и подписки только для работы сервиса.",
         "Фотографии, имя, описание, телефон и портфолио мастера отображаются клиентам в его публичном профиле.",
-        "На лендинге нет Яндекс Метрики, рекламных cookies и отслеживания поведения посетителей.",
-        "Запросить данные, исправление, удаление или отозвать согласие можно по адресу r.maks8805@mail.ru.",
+        "На лендинге после отдельного согласия посетителя используется Яндекс Метрика. Она может обрабатывать IP-адрес, cookies, источник перехода, сведения об устройстве и браузере, просмотры страниц и нажатия кнопок перехода в Telegram. Вебвизор и карта кликов отключены.",
+        "До согласия код Метрики не загружается. Согласие на аналитику можно отозвать через кнопку «Настройки аналитики» на лендинге.",
+        "Запросить данные, исправление, удаление или отозвать иное согласие можно по адресу r.maks8805@mail.ru или через @Zapisi_Support.",
       ],
     },
     offer: {
@@ -3792,12 +3830,29 @@ function InformationPage({ mode }: { mode: InfoMode }) {
       </section>
 
       <section className="infoTabs">
-        {tabs.map((tab) => (
+        {tabs.map((tab) => tab.href ? (
+          <a
+            href={tab.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="support"
+            key={tab.id}
+            onClick={(event) => {
+              if (typeof window.Telegram?.WebApp?.openTelegramLink === "function") {
+                event.preventDefault()
+                window.Telegram.WebApp.openTelegramLink(SUPPORT_URL)
+              }
+            }}
+          >
+            {tab.icon}
+            <span>{tab.title}</span>
+          </a>
+        ) : (
           <button
             type="button"
             className={activeTab === tab.id ? "active" : ""}
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => setActiveTab(tab.id as InfoTabId)}
           >
             {tab.icon}
             <span>{tab.title}</span>
@@ -3815,6 +3870,22 @@ function InformationPage({ mode }: { mode: InfoMode }) {
       </section>
 
       <section className="infoLegalLinks">
+        <a
+          href={SUPPORT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="infoSupportLink"
+          onClick={(event) => {
+            if (typeof window.Telegram?.WebApp?.openTelegramLink === "function") {
+              event.preventDefault()
+              window.Telegram.WebApp.openTelegramLink(SUPPORT_URL)
+            }
+          }}
+        >
+          <span><Send size={19} strokeWidth={2.3} /></span>
+          <div><strong>Написать в поддержку</strong><small>@Zapisi_Support · откроется диалог в Telegram</small></div>
+          <ChevronRight size={20} strokeWidth={2.4} />
+        </a>
         <a href="https://app-zapisi-pro.site/privacy" target="_blank" rel="noopener noreferrer">
           <span><Shield size={19} strokeWidth={2.3} /></span>
           <div><strong>Полная политика</strong><small>Открыть документ на сайте</small></div>
@@ -3833,6 +3904,109 @@ function InformationPage({ mode }: { mode: InfoMode }) {
         <UserBottomNav telegramId={Number(routeTelegramId ?? 0)} />
       )}
     </main>
+  )
+}
+
+function ClientOnboarding({ telegramId: userTelegramId }: { telegramId: number }) {
+  const storageKey = `zapisi_client_onboarding_v1:${userTelegramId}`
+  const [open, setOpen] = useState(false)
+  const [step, setStep] = useState(0)
+
+  const steps = [
+    {
+      icon: <ShieldCheck size={38} strokeWidth={2.2} />,
+      eyebrow: "Добро пожаловать",
+      title: "Ваш клиентский кабинет",
+      text: "Здесь собраны ваши записи и мастера. Больше не нужно искать дату и время визита в переписке.",
+      points: ["Все записи в одном месте", "Быстрый доступ внутри Telegram"],
+    },
+    {
+      icon: <CalendarCheck size={38} strokeWidth={2.2} />,
+      eyebrow: "Раздел «Записи»",
+      title: "Следите за визитами",
+      text: "В «Моих записях» видны предстоящие и прошлые визиты, услуга, время, адрес и статус записи.",
+      points: ["Можно отменить активную запись", "История визитов сохраняется"],
+    },
+    {
+      icon: <BriefcaseBusiness size={38} strokeWidth={2.2} />,
+      eyebrow: "Раздел «Мастера»",
+      title: "Возвращайтесь к любимым мастерам",
+      text: "После записи мастер останется в вашем кабинете. Откройте его профиль, посмотрите услуги и выберите новое время.",
+      points: ["Публичный профиль и портфолио", "Повторная запись за несколько шагов"],
+    },
+    {
+      icon: <Info size={38} strokeWidth={2.2} />,
+      eyebrow: "Меню и помощь",
+      title: "Всё важное всегда рядом",
+      text: "Через меню доступны правила, политика конфиденциальности и поддержка. Если захотите принимать записи сами — выберите «Стать мастером».",
+      points: ["Поддержка: @Zapisi_Support", "Мастер-панель — 30 дней бесплатно"],
+    },
+  ]
+
+  useEffect(() => {
+    setOpen(localStorage.getItem(storageKey) !== "done")
+  }, [storageKey])
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
+
+  function closeOnboarding() {
+    localStorage.setItem(storageKey, "done")
+    setOpen(false)
+  }
+
+  if (!open) return null
+
+  const current = steps[step]
+  const isLastStep = step === steps.length - 1
+
+  return (
+    <div className="clientOnboardingOverlay" role="dialog" aria-modal="true" aria-label="Знакомство с клиентским кабинетом">
+      <section className="clientOnboardingCard">
+        <button type="button" className="clientOnboardingSkip" onClick={closeOnboarding}>
+          Пропустить
+        </button>
+
+        <div className="clientOnboardingVisual">
+          <span>{current.icon}</span>
+          <div className="clientOnboardingDots" aria-label={`Шаг ${step + 1} из ${steps.length}`}>
+            {steps.map((_, index) => <i className={index === step ? "active" : ""} key={index} />)}
+          </div>
+        </div>
+
+        <small className="clientOnboardingEyebrow">{current.eyebrow}</small>
+        <h2>{current.title}</h2>
+        <p>{current.text}</p>
+
+        <ul>
+          {current.points.map((point) => (
+            <li key={point}><ShieldCheck size={17} strokeWidth={2.5} /> {point}</li>
+          ))}
+        </ul>
+
+        <div className="clientOnboardingActions">
+          {step > 0 && (
+            <button type="button" className="clientOnboardingBack" onClick={() => setStep((value) => value - 1)}>
+              Назад
+            </button>
+          )}
+          <button
+            type="button"
+            className="clientOnboardingNext"
+            onClick={() => isLastStep ? closeOnboarding() : setStep((value) => value + 1)}
+          >
+            {isLastStep ? "Начать пользоваться" : "Далее"}
+            {!isLastStep && <ArrowRight size={18} strokeWidth={2.5} />}
+          </button>
+        </div>
+      </section>
+    </div>
   )
 }
 

@@ -78,6 +78,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 return new MiniAppBecomeMasterResult
                 {
                     Success = true,
+                    Created = false,
                     Message = "Вы уже мастер",
                     MasterKey = existsTable.Rows[0]["Key"]?.ToString() ?? string.Empty
                 };
@@ -132,6 +133,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
             return new MiniAppBecomeMasterResult
             {
                 Success = true,
+                Created = true,
                 Message = "Мастер-профиль создан. Вам выдан пробный период на 30 дней.",
                 MasterKey = key,
                 TrialEndsAt = DateTime.UtcNow.AddDays(30).ToString("O")

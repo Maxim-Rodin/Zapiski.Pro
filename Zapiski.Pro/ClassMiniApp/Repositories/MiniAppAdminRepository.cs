@@ -41,7 +41,32 @@ namespace Zapiski.Pro.MiniApp.Repositories
                 ")),
                 LandingSharePercent = masters == 0
                     ? 0
-                    : Math.Round(landingMasters * 100m / masters, 1)
+                    : Math.Round(landingMasters * 100m / masters, 1),
+                ActiveTrials = Convert.ToInt32(db.ExecuteScalar(@"
+                    SELECT COUNT(*)
+                    FROM ""Masters""
+                    WHERE COALESCE(""IsFounder"", false) = false
+                      AND ""TrialEndsAt"" > NOW()
+                      AND (""SubscriptionEndsAt"" IS NULL OR ""SubscriptionEndsAt"" <= NOW())
+                ")),
+                ActivePaidSubscriptions = Convert.ToInt32(db.ExecuteScalar(@"
+                    SELECT COUNT(*)
+                    FROM ""Masters""
+                    WHERE COALESCE(""IsFounder"", false) = false
+                      AND ""SubscriptionEndsAt"" > NOW()
+                ")),
+                UnpaidOrExpired = Convert.ToInt32(db.ExecuteScalar(@"
+                    SELECT COUNT(*)
+                    FROM ""Masters""
+                    WHERE COALESCE(""IsFounder"", false) = false
+                      AND (""TrialEndsAt"" IS NULL OR ""TrialEndsAt"" <= NOW())
+                      AND (""SubscriptionEndsAt"" IS NULL OR ""SubscriptionEndsAt"" <= NOW())
+                ")),
+                Founders = Convert.ToInt32(db.ExecuteScalar(@"
+                    SELECT COUNT(*)
+                    FROM ""Masters""
+                    WHERE COALESCE(""IsFounder"", false) = true
+                "))
             };
         }
 

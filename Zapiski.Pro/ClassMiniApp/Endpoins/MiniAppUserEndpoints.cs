@@ -115,7 +115,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 });
             });
 
-            app.MapPost("/api/user/{telegramId:long}/become-master", (long telegramId, MiniAppBecomeMasterRequest request, HttpContext context) =>
+            app.MapPost("/api/user/{telegramId:long}/become-master", async (long telegramId, MiniAppBecomeMasterRequest request, HttpContext context) =>
             {
                 if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))
                     return Results.Unauthorized();
@@ -123,7 +123,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 if (currentTelegramId != telegramId)
                     return Results.Forbid();
 
-                var result = userService.BecomeMaster(telegramId, request);
+                var result = await userService.BecomeMaster(telegramId, request);
 
                 if (!result.Success)
                     return Results.BadRequest(result);
