@@ -456,34 +456,38 @@ namespace Zapisi.Pro.CallBacks
             }
 
             InlineKeyboardMarkup keyboard;
+            var miniAppProfileUrl =
+                $"{miniAppBaseUrl.TrimEnd('/')}/master/{Uri.EscapeDataString(key)}/public-profile";
 
             if (isOwner)
             {
                 keyboard = new InlineKeyboardMarkup(new[]
                 {
-          
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"master:master_panel:{key}")
-            },
-
-        });
+                    new[]
+                    {
+                        InlineKeyboardButton.WithWebApp(
+                            "📱 Открыть публичный профиль",
+                            new WebAppInfo(miniAppProfileUrl)
+                        )
+                    },
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData("⬅️ В мастер-панель", $"master:master_panel:{key}")
+                    }
+                });
             }
             else
             {
-                var miniAppProfileUrl = $"{miniAppBaseUrl.TrimEnd('/')}/master/{key}/public-profile";
-
                 keyboard = new InlineKeyboardMarkup(new[]
                 {
-            new[]
-            {
-                InlineKeyboardButton.WithWebApp(
-                    "📱 Открыть профиль",
-                    new WebAppInfo(miniAppProfileUrl)
-                )
-            }
-            
-        });
+                    new[]
+                    {
+                        InlineKeyboardButton.WithWebApp(
+                            "📱 Открыть профиль",
+                            new WebAppInfo(miniAppProfileUrl)
+                        )
+                    }
+                });
             }
 
             return (text, keyboard);

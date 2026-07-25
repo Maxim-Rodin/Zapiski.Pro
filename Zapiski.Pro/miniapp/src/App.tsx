@@ -2258,12 +2258,13 @@ function PublicProfileStub() {
       return
     }
 
-    const days = buildCalendarDays(45)
+    const days = buildCalendarDays(7)
+    const servicesForPreview = services.slice(0, 3)
 
     setSlotsLoading(true)
 
     Promise.all(
-      services.flatMap((service) =>
+      servicesForPreview.flatMap((service) =>
         days.map((day) =>
           fetch(`${API_URL}/api/public/master/${key}/slots?serviceId=${service.id}&date=${day.value}`)
             .then((res) => (res.ok ? res.json() : []))
