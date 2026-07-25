@@ -1,5 +1,5 @@
 ﻿import { type ChangeEvent, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
-import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   Bot,
   BriefcaseBusiness,
@@ -502,6 +502,8 @@ function App() {
 }
 
 function PersonalDataConsentGate({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  const isPublicMasterRoute = /^\/master\/[^/]+\/public-(profile|services)\/?$/.test(location.pathname)
   const isLocalConsentPreview =
     import.meta.env.DEV &&
     new URLSearchParams(window.location.search).get("previewConsent") === "1"
@@ -514,6 +516,8 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState("")
 
   const loadConsent = () => {
+    if (isPublicMasterRoute) return
+
     if (isLocalConsentPreview) {
       setAccepted(false)
       setError("")
@@ -549,7 +553,7 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadConsent()
-  }, [currentTelegramId])
+  }, [currentTelegramId, isPublicMasterRoute])
 
   const openDocument = (url: string) => {
     if (typeof window.Telegram?.WebApp?.openLink === "function") {
@@ -591,15 +595,10 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
       .finally(() => setSaving(false))
   }
 
-  if (accepted === true) return <>{children}</>
+  if (isPublicMasterRoute || accepted === true) return <>{children}</>
 
   if (accepted === null) {
-    return (
-      <main className="personalConsentScreen personalConsentLoading" aria-live="polite">
-        <span className="personalConsentLoader" />
-        <p>Проверяем настройки конфиденциальности…</p>
-      </main>
-    )
+    return <ComingSoon title="Загрузка..." subtitle="Открываем приложение" />
   }
 
   return (

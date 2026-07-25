@@ -4795,27 +4795,6 @@ body {
   color: #111d31;
 }
 
-.personalConsentLoading {
-  flex-direction: column;
-  gap: 14px;
-  color: #65758b;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.personalConsentLoader {
-  width: 34px;
-  height: 34px;
-  border: 3px solid #d6e5fb;
-  border-top-color: #4b8df7;
-  border-radius: 50%;
-  animation: personalConsentSpin 0.8s linear infinite;
-}
-
-@keyframes personalConsentSpin {
-  to { transform: rotate(360deg); }
-}
-
 .personalConsentCard {
   width: 100%;
   max-width: 430px;
