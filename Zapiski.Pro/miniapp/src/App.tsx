@@ -2217,17 +2217,10 @@ function PublicProfileStub() {
   useEffect(() => {
     if (!key) return
 
-    const profileRequest = currentTelegramId
-      ? fetch(`${API_URL}/api/master/${key}/private-profile`, {
-          headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
-        }).then((res) => res.ok ? res.json() : fetch(`${API_URL}/api/master/${key}`).then((publicRes) => {
-          if (!publicRes.ok) throw new Error("Мастер не найден")
-          return publicRes.json()
-        }))
-      : fetch(`${API_URL}/api/master/${key}`).then((res) => {
-          if (!res.ok) throw new Error("Мастер не найден")
-          return res.json()
-        })
+    const profileRequest = fetch(`${API_URL}/api/master/${key}`).then((res) => {
+      if (!res.ok) throw new Error("Мастер не найден")
+      return res.json()
+    })
 
     Promise.all([
       profileRequest,

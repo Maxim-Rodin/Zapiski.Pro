@@ -735,7 +735,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.NotFound(new { success = false, message = "Мастер не найден" });
 
                 if (master.TelegramId != telegramId)
-                    return Results.Forbid();
+                    return Results.Json(
+                        new { success = false, message = "Нет доступа к этому профилю" },
+                        statusCode: StatusCodes.Status403Forbidden);
                 try
                 {
                     var imageService = new CloudinaryImageService();
@@ -795,7 +797,9 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.NotFound(new { success = false, message = "Мастер не найден" });
 
             if (master.TelegramId != telegramId)
-                return Results.Forbid();
+                return Results.Json(
+                    new { success = false, message = "Нет доступа к этому профилю" },
+                    statusCode: StatusCodes.Status403Forbidden);
 
             return null;
         }

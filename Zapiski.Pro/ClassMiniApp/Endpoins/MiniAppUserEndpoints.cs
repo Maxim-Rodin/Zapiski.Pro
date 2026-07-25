@@ -17,7 +17,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Unauthorized();
 
                 if (currentTelegramId != telegramId)
-                    return Results.Forbid();
+                    return Forbidden();
 
                 return Results.Ok(userService.GetPersonalDataConsent(telegramId));
             });
@@ -28,7 +28,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Unauthorized();
 
                 if (currentTelegramId != telegramId)
-                    return Results.Forbid();
+                    return Forbidden();
 
                 var consent = userService.AcceptPersonalDataConsent(telegramId);
 
@@ -53,7 +53,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 if (currentTelegramId != telegramId)
                 {
-                    return Results.Forbid();
+                    return Forbidden();
                 }
 
                 var dashboard = userService.GetDashboard(telegramId);
@@ -77,7 +77,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 if (currentTelegramId != telegramId)
                 {
-                    return Results.Forbid();
+                    return Forbidden();
                 }
 
                 var success = await userService.CancelBooking(telegramId, bookingId);
@@ -114,7 +114,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Unauthorized();
 
                 if (currentTelegramId != telegramId)
-                    return Results.Forbid();
+                    return Forbidden();
 
                 var result = await userService.CreateBooking(telegramId, request);
 
@@ -130,7 +130,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Unauthorized();
 
                 if (currentTelegramId != telegramId)
-                    return Results.Forbid();
+                    return Forbidden();
 
                 var success = await userService.MarkBookingPaid(telegramId, bookingId);
 
@@ -154,7 +154,7 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Unauthorized();
 
                 if (currentTelegramId != telegramId)
-                    return Results.Forbid();
+                    return Forbidden();
 
                 var result = await userService.BecomeMaster(telegramId, request);
 
@@ -163,6 +163,11 @@ namespace Zapiski.Pro.MiniApp.Endpoints
 
                 return Results.Ok(result);
             });
+
+            static IResult Forbidden() =>
+                Results.Json(
+                    new { success = false, message = "Нет доступа к этому профилю" },
+                    statusCode: StatusCodes.Status403Forbidden);
         }
     }
 }
