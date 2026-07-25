@@ -13,6 +13,17 @@
         public string AvatarUrl { get; set; } = string.Empty;
     }
 
+    public class MiniAppPublicMasterProfileDto
+    {
+        public int Id { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string AvatarUrl { get; set; } = string.Empty;
+    }
+
     public class MiniAppMasterClientDto
     {
         public int Id { get; set; }

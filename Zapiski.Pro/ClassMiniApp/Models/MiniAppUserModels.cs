@@ -8,6 +8,13 @@ namespace Zapiski.Pro.ClassMiniApp.Models
         public List<MiniAppUserMasterDto> Masters { get; set; } = new();
     }
 
+    public class MiniAppPersonalDataConsentDto
+    {
+        public bool Accepted { get; set; }
+        public string Version { get; set; } = string.Empty;
+        public string AcceptedAt { get; set; } = string.Empty;
+    }
+
     public class MiniAppUserRoleDto
     {
         public bool IsAdmin { get; set; }

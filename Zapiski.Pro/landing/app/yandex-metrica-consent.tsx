@@ -51,7 +51,7 @@ export function YandexMetrikaConsent() {
   useEffect(() => {
     const saved = localStorage.getItem(CONSENT_KEY) as Consent
     setConsent(saved)
-    setOpen(saved !== "accepted")
+    setOpen(saved !== "accepted" && saved !== "rejected")
     if (saved === "accepted") loadMetrika()
   }, [])
 
@@ -71,16 +71,12 @@ export function YandexMetrikaConsent() {
     loadMetrika()
   }, [])
 
-  const leaveSite = useCallback(() => {
+  const continueWithoutAnalytics = useCallback(() => {
     localStorage.setItem(CONSENT_KEY, "rejected")
     window.disableYaCounter110942038 = true
     removeMetrikaCookies()
     setConsent("rejected")
-    const referrer = document.referrer
-    const destination = referrer && new URL(referrer).origin !== location.origin
-      ? referrer
-      : "https://yandex.ru"
-    location.replace(destination)
+    setOpen(false)
   }, [])
 
   if (!open && !consent) return null
@@ -92,15 +88,17 @@ export function YandexMetrikaConsent() {
           <div className="analytics-consent-backdrop" aria-hidden="true" />
           <aside className="analytics-consent" role="dialog" aria-modal="true" aria-label="Согласие на использование cookies">
             <div>
-              <strong>Для работы сайта нужны cookies</strong>
+              <strong>Настройте аналитические cookies</strong>
               <p>
-                Мы используем Яндекс Метрику, чтобы видеть посещения и переходы в Telegram.
-                Продолжая, вы соглашаетесь на использование аналитических cookies.
+                С вашего согласия мы используем Яндекс Метрику, чтобы видеть посещения и переходы в Telegram.
+                Сайт работает и без аналитических cookies.
                 Вебвизор отключён. Подробнее — в <a href="/privacy">политике конфиденциальности</a>.
               </p>
             </div>
             <div className="analytics-actions">
-              <button type="button" className="analytics-reject" onClick={leaveSite}>Покинуть сайт</button>
+              <button type="button" className="analytics-reject" onClick={continueWithoutAnalytics}>
+                Продолжить без аналитики
+              </button>
               <button type="button" className="analytics-accept" onClick={accept}>Принять и продолжить</button>
             </div>
           </aside>

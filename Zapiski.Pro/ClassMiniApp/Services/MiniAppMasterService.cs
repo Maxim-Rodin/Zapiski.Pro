@@ -24,6 +24,14 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.GetMasterByKey(key.Trim());
         }
 
+        public MiniAppPublicMasterProfileDto? GetPublicMasterProfile(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            return repository.GetPublicMasterByKey(key.Trim());
+        }
+
         public MiniAppMasterSubscriptionDto? GetSubscription(string key)
         {
             if (string.IsNullOrWhiteSpace(key))
@@ -281,28 +289,28 @@ namespace Zapiski.Pro.MiniApp.Services
             return repository.DeleteAddress(key.Trim(), telegramId, addressId);
         }
 
-        public MiniAppMasterActionResult CreateService(string key, MiniAppCreateMasterServiceRequest request)
+        public MiniAppMasterActionResult CreateService(string key, long telegramId, MiniAppCreateMasterServiceRequest request)
         {
             if (string.IsNullOrWhiteSpace(key))
                 return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
 
-            return repository.CreateService(key.Trim(), request);
+            return repository.CreateService(key.Trim(), telegramId, request);
         }
 
-        public MiniAppMasterActionResult DeleteService(string key, int serviceId)
+        public MiniAppMasterActionResult DeleteService(string key, long telegramId, int serviceId)
         {
             if (string.IsNullOrWhiteSpace(key))
                 return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
 
-            return repository.DeleteService(key.Trim(), serviceId);
+            return repository.DeleteService(key.Trim(), telegramId, serviceId);
         }
 
-        public MiniAppMasterActionResult UpdateService(string key, int serviceId, MiniAppCreateMasterServiceRequest request)
+        public MiniAppMasterActionResult UpdateService(string key, long telegramId, int serviceId, MiniAppCreateMasterServiceRequest request)
         {
             if (string.IsNullOrWhiteSpace(key))
                 return new MiniAppMasterActionResult { Success = false, Message = "Мастер не найден" };
 
-            return repository.UpdateService(key.Trim(), serviceId, request);
+            return repository.UpdateService(key.Trim(), telegramId, serviceId, request);
         }
 
         public async Task<MiniAppMasterActionResult> SendBroadcast(string key, long telegramId, MiniAppMasterBroadcastRequest request)

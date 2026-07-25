@@ -9,6 +9,7 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
 {
     public class MiniAppUserRepository
     {
+        public const string CurrentPersonalDataConsentVersion = "2026-07-25";
         private readonly DbHelper db;
 
         public MiniAppUserRepository(DbHelper db)
@@ -44,6 +45,74 @@ namespace Zapiski.Pro.ClassMiniApp.Repositories
                 Bookings = GetBookings(userId),
                 Masters = GetMasters(userId)
             };
+        }
+
+        public MiniAppPersonalDataConsentDto GetPersonalDataConsent(long telegramId)
+        {
+            var consentTable = db.ExecuteQuery($@"
+                SELECT c.""Version"", c.""AcceptedAt""
+                FROM ""PersonalDataConsents"" c
+                INNER JOIN ""Users"" u ON u.""idUser"" = c.""UserId""
+                WHERE u.""TelegrammId"" = {telegramId}
+                  AND c.""IsActive"" = true
+                  AND c.""Version"" = '{CurrentPersonalDataConsentVersion}'
+                ORDER BY c.""AcceptedAt"" DESC
+                LIMIT 1
+            ");
+
+            if (consentTable.Rows.Count == 0)
+            {
+                return new MiniAppPersonalDataConsentDto
+                {
+                    Accepted = false,
+                    Version = CurrentPersonalDataConsentVersion
+                };
+            }
+
+            var row = consentTable.Rows[0];
+            var acceptedAt = Convert.ToDateTime(row["AcceptedAt"]).ToUniversalTime();
+
+            return new MiniAppPersonalDataConsentDto
+            {
+                Accepted = true,
+                Version = row["Version"]?.ToString() ?? CurrentPersonalDataConsentVersion,
+                AcceptedAt = acceptedAt.ToString("O")
+            };
+        }
+
+        public MiniAppPersonalDataConsentDto AcceptPersonalDataConsent(long telegramId)
+        {
+            var userIdValue = db.ExecuteScalar($@"
+                SELECT ""idUser""
+                FROM ""Users""
+                WHERE ""TelegrammId"" = {telegramId}
+                LIMIT 1
+            ");
+
+            if (userIdValue == null || userIdValue == DBNull.Value)
+            {
+                return new MiniAppPersonalDataConsentDto
+                {
+                    Accepted = false,
+                    Version = CurrentPersonalDataConsentVersion
+                };
+            }
+
+            var userId = Convert.ToInt32(userIdValue);
+
+            db.ExecuteNonQuery($@"
+                UPDATE ""PersonalDataConsents""
+                SET ""IsActive"" = false
+                WHERE ""UserId"" = {userId}
+                  AND ""IsActive"" = true;
+
+                INSERT INTO ""PersonalDataConsents""
+                    (""UserId"", ""Version"", ""AcceptedAt"", ""Method"", ""IsActive"")
+                VALUES
+                    ({userId}, '{CurrentPersonalDataConsentVersion}', NOW(), 'miniapp_explicit_button', true);
+            ");
+
+            return GetPersonalDataConsent(telegramId);
         }
 
         public MiniAppBecomeMasterResult BecomeMaster(long telegramId, string requestedKey, string registrationSource)

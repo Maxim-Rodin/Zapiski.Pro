@@ -4781,3 +4781,269 @@ body {
   text-decoration: none;
   font-weight: 700;
 }
+
+.personalConsentScreen {
+  min-height: 100svh;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 14px;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(75, 141, 247, 0.22), transparent 38%),
+    linear-gradient(180deg, #f5f9ff 0%, #eaf3ff 100%);
+  color: #111d31;
+}
+
+.personalConsentLoading {
+  flex-direction: column;
+  gap: 14px;
+  color: #65758b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.personalConsentLoader {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #d6e5fb;
+  border-top-color: #4b8df7;
+  border-radius: 50%;
+  animation: personalConsentSpin 0.8s linear infinite;
+}
+
+@keyframes personalConsentSpin {
+  to { transform: rotate(360deg); }
+}
+
+.personalConsentCard {
+  width: 100%;
+  max-width: 430px;
+  box-sizing: border-box;
+  padding: 20px;
+  border: 1px solid rgba(197, 216, 242, 0.9);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(40, 76, 126, 0.18);
+  text-align: left;
+}
+
+.personalConsentBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.personalConsentBrand > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: linear-gradient(145deg, #5795f8, #3479e5);
+  box-shadow: 0 8px 22px rgba(75, 141, 247, 0.28);
+}
+
+.personalConsentBrand strong,
+.personalConsentBrand small {
+  display: block;
+}
+
+.personalConsentBrand strong {
+  color: #111d31;
+  font-size: 17px;
+}
+
+.personalConsentBrand small {
+  margin-top: 1px;
+  color: #748399;
+  font-size: 11px;
+}
+
+.personalConsentIcon {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 16px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4386ed;
+  background: #eaf3ff;
+  box-shadow: inset 0 0 0 1px #d8e8fb;
+}
+
+.personalConsentEyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #4386ed;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.personalConsentCard h1 {
+  margin: 0;
+  color: #111d31;
+  font-size: clamp(26px, 7vw, 34px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.personalConsentLead {
+  margin: 12px 0 0;
+  color: #65758b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.personalConsentSummary {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.personalConsentSummary > div {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  color: #35465e;
+  background: #f4f8fe;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.personalConsentSummary svg {
+  color: #4b8df7;
+}
+
+.personalConsentDocuments {
+  display: grid;
+  gap: 2px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  border: 1px solid #dce8f6;
+  border-radius: 16px;
+  background: #dce8f6;
+}
+
+.personalConsentDocuments button {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  color: #3378df;
+  background: white;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.personalConsentCheckbox {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #cfdff3;
+  border-radius: 16px;
+  color: #33435a;
+  background: #f8fbff;
+  font-size: 12px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.personalConsentCheckbox input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: #4b8df7;
+}
+
+.personalConsentError {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  color: #a32e2e;
+  background: #fff0f0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.personalConsentError button {
+  margin-left: 7px;
+  border: 0;
+  padding: 0;
+  color: #3378df;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.personalConsentAccept {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 16px;
+  color: white;
+  background: linear-gradient(135deg, #5292f6, #367de8);
+  box-shadow: 0 12px 26px rgba(75, 141, 247, 0.27);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.personalConsentAccept:disabled {
+  color: #92a1b4;
+  background: #e6edf6;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.personalConsentConsequence {
+  margin: 10px 4px 0;
+  color: #8995a5;
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-height: 720px) {
+  .personalConsentScreen {
+    align-items: flex-start;
+    padding-block: 10px;
+  }
+
+  .personalConsentCard {
+    padding: 16px;
+    border-radius: 23px;
+  }
+
+  .personalConsentBrand {
+    margin-bottom: 12px;
+  }
+
+  .personalConsentIcon {
+    width: 58px;
+    height: 58px;
+    border-radius: 19px;
+  }
+
+  .personalConsentLead {
+    font-size: 12px;
+  }
+}

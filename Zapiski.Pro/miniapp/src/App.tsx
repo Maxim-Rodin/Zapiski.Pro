@@ -410,6 +410,9 @@ const SUPPORT_URL = "https://t.me/Zapisi_Support"
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
 
+const telegramInitData = () =>
+  String(window.Telegram?.WebApp?.initData ?? "")
+
 const formatDateInput = (date: Date) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -462,37 +465,212 @@ const formatServicePrice = (service: Pick<MasterServiceItem, "price" | "isVariab
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="/admin/masters" element={<MastersPage />} />
-      <Route path="/admin/users" element={<UsersPage />} />
-      <Route path="/admin/profile" element={<ComingSoon title="Профиль" subtitle="Раздел администратора" nav="admin" />} />
+    <PersonalDataConsentGate>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/masters" element={<MastersPage />} />
+        <Route path="/admin/users" element={<UsersPage />} />
+        <Route path="/admin/profile" element={<ComingSoon title="Профиль" subtitle="Раздел администратора" nav="admin" />} />
 
-      <Route path="/master/:key" element={<MasterHomePage />} />
-      <Route path="/master/:key/onboarding" element={<MasterOnboardingPage />} />
-      <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
-      <Route path="/master/:key/block-time" element={<MasterTimeBlockPage />} />
-      <Route path="/master/:key/analytics" element={<MasterAnalyticsPage />} />
-      <Route path="/master/:key/services" element={<MasterServicesPage />} />
-      <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
-      <Route path="/master/:key/clients" element={<MasterClientsPage />} />
-      <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
-      <Route path="/master/:key/subscription" element={<MasterSubscriptionPage />} />
-      <Route path="/master/:key/subscription/payment/:paymentToken" element={<MasterSubscriptionPaymentPage />} />
-      <Route path="/master/:key/info" element={<InformationPage mode="master" />} />
-      <Route path="/master/:key/profile" element={<MasterProfilePage />} />
-      <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
-      <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
-      <Route path="/master/:key/public-booking" element={<PublicBookingStub />} />
+        <Route path="/master/:key" element={<MasterHomePage />} />
+        <Route path="/master/:key/onboarding" element={<MasterOnboardingPage />} />
+        <Route path="/master/:key/bookings" element={<MasterBookingsPage />} />
+        <Route path="/master/:key/block-time" element={<MasterTimeBlockPage />} />
+        <Route path="/master/:key/analytics" element={<MasterAnalyticsPage />} />
+        <Route path="/master/:key/services" element={<MasterServicesPage />} />
+        <Route path="/master/:key/schedule" element={<MasterSchedulePage />} />
+        <Route path="/master/:key/clients" element={<MasterClientsPage />} />
+        <Route path="/master/:key/broadcast" element={<MasterBroadcastPage />} />
+        <Route path="/master/:key/subscription" element={<MasterSubscriptionPage />} />
+        <Route path="/master/:key/subscription/payment/:paymentToken" element={<MasterSubscriptionPaymentPage />} />
+        <Route path="/master/:key/info" element={<InformationPage mode="master" />} />
+        <Route path="/master/:key/profile" element={<MasterProfilePage />} />
+        <Route path="/master/:key/public-profile" element={<PublicProfileStub />} />
+        <Route path="/master/:key/public-services" element={<PublicServicesPage />} />
+        <Route path="/master/:key/public-booking" element={<PublicBookingStub />} />
 
-      <Route path="/user/:telegramId" element={<UserHomePage />} />
-      <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
-      <Route path="/user/:telegramId/masters" element={<UserMastersPage />} />
-      <Route path="/user/:telegramId/info" element={<InformationPage mode="user" />} />
-      <Route path="/user/:telegramId/become-master" element={<BecomeMasterPage />} />
-      <Route path="/become-master" element={<BecomeMasterPage />} />
-    </Routes>
+        <Route path="/user/:telegramId" element={<UserHomePage />} />
+        <Route path="/user/:telegramId/bookings" element={<UserBookingsPage />} />
+        <Route path="/user/:telegramId/masters" element={<UserMastersPage />} />
+        <Route path="/user/:telegramId/info" element={<InformationPage mode="user" />} />
+        <Route path="/user/:telegramId/become-master" element={<BecomeMasterPage />} />
+        <Route path="/become-master" element={<BecomeMasterPage />} />
+      </Routes>
+    </PersonalDataConsentGate>
+  )
+}
+
+function PersonalDataConsentGate({ children }: { children: ReactNode }) {
+  const isLocalConsentPreview =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get("previewConsent") === "1"
+  const currentTelegramId = telegramId()
+  const [accepted, setAccepted] = useState<boolean | null>(
+    isLocalConsentPreview ? false : currentTelegramId ? null : true
+  )
+  const [confirmed, setConfirmed] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  const loadConsent = () => {
+    if (isLocalConsentPreview) {
+      setAccepted(false)
+      setError("")
+      return
+    }
+
+    if (!currentTelegramId) {
+      setAccepted(true)
+      return
+    }
+
+    setAccepted(null)
+    setError("")
+
+    fetch(`${API_URL}/api/user/${currentTelegramId}/personal-data-consent`, {
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
+    })
+      .then(async (res) => {
+        const text = await res.text()
+        const data = text ? JSON.parse(text) : {}
+
+        if (!res.ok) {
+          throw new Error(data.message || "Не удалось проверить согласие")
+        }
+
+        setAccepted(Boolean(data.accepted ?? data.Accepted))
+      })
+      .catch((reason) => {
+        setAccepted(false)
+        setError(reason instanceof Error ? reason.message : "Ошибка соединения с сервером")
+      })
+  }
+
+  useEffect(() => {
+    loadConsent()
+  }, [currentTelegramId])
+
+  const openDocument = (url: string) => {
+    if (typeof window.Telegram?.WebApp?.openLink === "function") {
+      window.Telegram.WebApp.openLink(url)
+      return
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer")
+  }
+
+  const acceptConsent = () => {
+    if (isLocalConsentPreview && confirmed) {
+      setAccepted(true)
+      return
+    }
+
+    if (!currentTelegramId || !confirmed || saving) return
+
+    setSaving(true)
+    setError("")
+
+    fetch(`${API_URL}/api/user/${currentTelegramId}/personal-data-consent`, {
+      method: "POST",
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
+    })
+      .then(async (res) => {
+        const text = await res.text()
+        const data = text ? JSON.parse(text) : {}
+
+        if (!res.ok || !(data.accepted ?? data.Accepted)) {
+          throw new Error(data.message || "Не удалось сохранить согласие")
+        }
+
+        setAccepted(true)
+      })
+      .catch((reason) => {
+        setError(reason instanceof Error ? reason.message : "Ошибка соединения с сервером")
+      })
+      .finally(() => setSaving(false))
+  }
+
+  if (accepted === true) return <>{children}</>
+
+  if (accepted === null) {
+    return (
+      <main className="personalConsentScreen personalConsentLoading" aria-live="polite">
+        <span className="personalConsentLoader" />
+        <p>Проверяем настройки конфиденциальности…</p>
+      </main>
+    )
+  }
+
+  return (
+    <main className="personalConsentScreen">
+      <section className="personalConsentCard" role="dialog" aria-modal="true" aria-labelledby="personal-consent-title">
+        <div className="personalConsentBrand">
+          <span><BriefcaseBusiness size={23} strokeWidth={2.4} /></span>
+          <div><strong>Zapisi.Pro</strong><small>безопасная работа с данными</small></div>
+        </div>
+
+        <div className="personalConsentIcon">
+          <ShieldCheck size={46} strokeWidth={2.1} />
+        </div>
+
+        <small className="personalConsentEyebrow">Перед началом работы</small>
+        <h1 id="personal-consent-title">Обработка персональных данных</h1>
+        <p className="personalConsentLead">
+          Чтобы создать кабинет, хранить записи и отправлять сервисные уведомления,
+          Zapisi.Pro необходимо обрабатывать данные вашего Telegram-профиля и сведения,
+          которые вы добавляете в сервис.
+        </p>
+
+        <div className="personalConsentSummary">
+          <div><Shield size={18} strokeWidth={2.4} /><span>Только для работы выбранных функций сервиса</span></div>
+          <div><FileText size={18} strokeWidth={2.4} /><span>Согласие можно отозвать через поддержку</span></div>
+        </div>
+
+        <div className="personalConsentDocuments">
+          <button type="button" onClick={() => openDocument("https://app-zapisi-pro.site/privacy")}>
+            Политика конфиденциальности
+            <ArrowRight size={17} strokeWidth={2.4} />
+          </button>
+          <button type="button" onClick={() => openDocument("https://app-zapisi-pro.site/consent")}>
+            Согласие на обработку данных
+            <ArrowRight size={17} strokeWidth={2.4} />
+          </button>
+        </div>
+
+        <label className="personalConsentCheckbox">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(event) => setConfirmed(event.target.checked)}
+          />
+          <span>
+            Я ознакомился(ась) с документами и свободно, своей волей даю согласие
+            на обработку моих персональных данных на указанных условиях.
+          </span>
+        </label>
+
+        {error && (
+          <div className="personalConsentError" role="alert">
+            {error}
+            <button type="button" onClick={loadConsent}>Повторить</button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="personalConsentAccept"
+          disabled={!confirmed || saving}
+          onClick={acceptConsent}
+        >
+          {saving ? "Сохраняем…" : "Согласен и продолжить"}
+        </button>
+
+        <p className="personalConsentConsequence">
+          Без согласия сервис не сможет создать и обслуживать ваш кабинет. Вы можете закрыть Mini App и не продолжать.
+        </p>
+      </section>
+    </main>
   )
 }
 
@@ -624,7 +802,7 @@ function AdminPage() {
 
   useEffect(() => {
     fetch(`${API_URL}/api/admin/stats`, {
-      headers: { "X-Telegram-Id": telegramId() },
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then((res) => res.json())
       .then((data) => setStats(data))
@@ -839,7 +1017,7 @@ function MastersPage() {
 
   function loadMasters() {
     fetch(`${API_URL}/api/admin/masters`, {
-      headers: { "X-Telegram-Id": telegramId() },
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then((res) => res.json())
       .then((data) => setMasters(Array.isArray(data) ? data.map(normalizeMaster) : []))
@@ -858,6 +1036,7 @@ function MastersPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": telegramId(),
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         telegramId: Number(telegramIdValue),
@@ -893,6 +1072,7 @@ function MastersPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": telegramId(),
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         isFounder: founder ?? false,
@@ -917,7 +1097,7 @@ function MastersPage() {
   function deleteMaster(id: number) {
     fetch(`${API_URL}/api/admin/masters/${id}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": telegramId() },
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json()
@@ -1088,7 +1268,7 @@ function UsersPage() {
 
   useEffect(() => {
     fetch(`${API_URL}/api/admin/users`, {
-      headers: { "X-Telegram-Id": telegramId() },
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then((res) => res.json())
       .then((data) => setUsers(data))
@@ -1137,7 +1317,9 @@ function MasterHomePage() {
   const [copyMessage, setCopyMessage] = useState("")
 
   useEffect(() => {
-    fetch(`${API_URL}/api/master/${key}`)
+    fetch(`${API_URL}/api/master/${key}/private-profile`, {
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then(async (res) => {
         if (!res.ok) {
           setDenied(true)
@@ -1163,7 +1345,7 @@ function MasterHomePage() {
     if (!key || !master) return
 
     fetch(`${API_URL}/api/master/${key}/onboarding`, {
-      headers: { "X-Telegram-Id": telegramId() || String(master.telegramId) },
+      headers: { "X-Telegram-Id": telegramId() || String(master.telegramId), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => setOnboarding(data ? normalizeOnboarding(data) : null))
@@ -1355,7 +1537,9 @@ function MasterOnboardingPage() {
     setLoading(true)
     setMessage("")
 
-    fetch(`${API_URL}/api/master/${key}`)
+    fetch(`${API_URL}/api/master/${key}/private-profile`, {
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error("Мастер не найден")
         return normalizeMaster(await res.json())
@@ -1363,7 +1547,7 @@ function MasterOnboardingPage() {
       .then((masterData) => {
         setMaster(masterData)
         return fetch(`${API_URL}/api/master/${key}/onboarding`, {
-          headers: { "X-Telegram-Id": telegramId() || String(masterData.telegramId) },
+          headers: { "X-Telegram-Id": telegramId() || String(masterData.telegramId), "X-Telegram-Init-Data": telegramInitData() },
         })
       })
       .then(async (res) => {
@@ -1492,7 +1676,7 @@ function MasterAnalyticsPage() {
     setMessage("")
 
     fetch(`${API_URL}/api/master/${key}/analytics?from=${from}&to=${to}`, {
-      headers: { "X-Telegram-Id": telegramId() },
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -1708,6 +1892,7 @@ function MasterSubscriptionPage() {
         headers: {
           "Content-Type": "application/json",
           "X-Telegram-Id": telegramId(),
+          "X-Telegram-Init-Data": telegramInitData(),
         },
         body: JSON.stringify({ planCode: plan.code }),
       })
@@ -1864,7 +2049,7 @@ function MasterSubscriptionPaymentPage() {
 
     try {
       const res = await fetch(`${API_URL}/api/master/${key}/subscription/payments/${paymentToken}`, {
-        headers: { "X-Telegram-Id": telegramId() },
+        headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
       })
       const data = await res.json()
 
@@ -1989,11 +2174,20 @@ function PublicProfileStub() {
   useEffect(() => {
     if (!key) return
 
+    const profileRequest = currentTelegramId
+      ? fetch(`${API_URL}/api/master/${key}/private-profile`, {
+          headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
+        }).then((res) => res.ok ? res.json() : fetch(`${API_URL}/api/master/${key}`).then((publicRes) => {
+          if (!publicRes.ok) throw new Error("Мастер не найден")
+          return publicRes.json()
+        }))
+      : fetch(`${API_URL}/api/master/${key}`).then((res) => {
+          if (!res.ok) throw new Error("Мастер не найден")
+          return res.json()
+        })
+
     Promise.all([
-      fetch(`${API_URL}/api/master/${key}`).then((res) => {
-        if (!res.ok) throw new Error("Мастер не найден")
-        return res.json()
-      }),
+      profileRequest,
       fetch(`${API_URL}/api/master/${key}/services`).then((res) => {
         if (!res.ok) return []
         return res.json()
@@ -2094,6 +2288,7 @@ function PublicProfileStub() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         name: draftName,
@@ -2561,6 +2756,7 @@ function PublicBookingStub() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         masterKey: key,
@@ -2591,7 +2787,7 @@ function PublicBookingStub() {
 
     fetch(`${API_URL}/api/user/${currentTelegramId}/bookings/${bookingResult.bookingId}/paid`, {
       method: "POST",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -2766,7 +2962,7 @@ function MasterBookingsPage() {
     setMessage("")
 
     fetch(`${API_URL}/api/master/${key}/bookings`, {
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json()
@@ -2804,7 +3000,7 @@ function MasterBookingsPage() {
 
     fetch(`${API_URL}/api/master/${key}/bookings/${bookingId}/${action}`, {
       method: "POST",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -2827,7 +3023,7 @@ function MasterBookingsPage() {
 
     fetch(`${API_URL}/api/master/${key}/time-blocks/${blockId}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -3109,6 +3305,7 @@ function MasterTimeBlockPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         title: title.trim(),
@@ -3221,7 +3418,7 @@ function MasterSchedulePage() {
     setMessage("")
 
     fetch(`${API_URL}/api/master/${key}/schedule`, {
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json()
@@ -3245,7 +3442,7 @@ function MasterSchedulePage() {
     if (!key) return
 
     fetch(`${API_URL}/api/master/${key}/schedule-mode`, {
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -3261,7 +3458,7 @@ function MasterSchedulePage() {
     setManualLoading(true)
 
     fetch(`${API_URL}/api/master/${key}/manual-slots?date=${date}`, {
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => [])
@@ -3299,6 +3496,7 @@ function MasterSchedulePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({ mode: nextMode }),
     })
@@ -3322,6 +3520,7 @@ function MasterSchedulePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         date: selectedManualDate,
@@ -3345,7 +3544,7 @@ function MasterSchedulePage() {
 
     fetch(`${API_URL}/api/master/${key}/manual-slots/${slotId}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -3363,7 +3562,7 @@ function MasterSchedulePage() {
 
     fetch(`${API_URL}/api/master/${key}/manual-slots?date=${selectedManualDate}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -3394,6 +3593,7 @@ function MasterSchedulePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         startTime,
@@ -3624,7 +3824,7 @@ function useUserDashboard() {
     }
 
     fetch(`${API_URL}/api/user/${routeTelegramId}/dashboard`, {
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const text = await res.text()
@@ -4100,6 +4300,7 @@ function BecomeMasterPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({ key, source: registrationSource }),
     })
@@ -4227,7 +4428,7 @@ function UserBookingsPage() {
 
     fetch(`${API_URL}/api/user/${userTelegramId}/bookings/${bookingId}/cancel`, {
       method: "POST",
-      headers: { "X-Telegram-Id": String(userTelegramId) },
+      headers: { "X-Telegram-Id": String(userTelegramId), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -4418,7 +4619,9 @@ function MasterClientsPage() {
 
   function loadClients() {
     setLoading(true)
-    fetch(`${API_URL}/api/master/${key}/clients`)
+    fetch(`${API_URL}/api/master/${key}/clients`, {
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then((res) => res.json())
       .then((data) => setClients(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Ошибка загрузки клиентов мастера:", err))
@@ -4445,6 +4648,7 @@ function MasterClientsPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({ search }),
     })
@@ -4568,7 +4772,9 @@ function MasterBroadcastPage() {
   const [selectedClient, setSelectedClient] = useState<MasterClient | null>(null)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/master/${key}/clients`)
+    fetch(`${API_URL}/api/master/${key}/clients`, {
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then((res) => res.json())
       .then((data) => setClients(Array.isArray(data) ? data : []))
       .catch(() => setClients([]))
@@ -4611,6 +4817,7 @@ function MasterBroadcastPage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": telegramId(),
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         title: title.trim(),
@@ -4813,7 +5020,9 @@ function MasterServicesPage() {
   useEffect(() => {
     loadServices()
 
-    fetch(`${API_URL}/api/master/${key}`)
+    fetch(`${API_URL}/api/master/${key}/private-profile`, {
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then((res) => res.json())
       .then((data) => setHasPaymentDetails(Boolean(data.paymentDetails?.trim())))
       .catch(() => setHasPaymentDetails(false))
@@ -4898,7 +5107,11 @@ function MasterServicesPage() {
 
     fetch(serviceUrl, {
       method: editingService ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Id": telegramId(),
+        "X-Telegram-Init-Data": telegramInitData(),
+      },
       body: JSON.stringify({
         name: name.trim(),
         price: priceValue,
@@ -4930,6 +5143,7 @@ function MasterServicesPage() {
 
     fetch(`${API_URL}/api/master/${key}/services/${serviceId}`, {
       method: "DELETE",
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json()
@@ -5161,7 +5375,9 @@ function MasterProfilePage() {
   const cropDrag = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/master/${key}`)
+    fetch(`${API_URL}/api/master/${key}/private-profile`, {
+      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error("Мастер не найден")
 
@@ -5334,6 +5550,7 @@ function MasterProfilePage() {
       method: "POST",
       headers: {
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: formData,
     })
@@ -5380,7 +5597,7 @@ function MasterProfilePage() {
 
     fetch(`${API_URL}/api/master/${key}/portfolio`, {
       method: "POST",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
       body: formData,
     })
       .then(async (res) => {
@@ -5412,7 +5629,7 @@ function MasterProfilePage() {
 
     fetch(`${API_URL}/api/master/${key}/portfolio/${photoId}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -5443,6 +5660,7 @@ function MasterProfilePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         photoIds: nextPhotos.map((photo) => photo.id),
@@ -5492,6 +5710,7 @@ function MasterProfilePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         title: addressTitle.trim(),
@@ -5518,7 +5737,7 @@ function MasterProfilePage() {
 
     fetch(`${API_URL}/api/master/${key}/addresses/${addressId}`, {
       method: "DELETE",
-      headers: { "X-Telegram-Id": currentTelegramId },
+      headers: { "X-Telegram-Id": currentTelegramId, "X-Telegram-Init-Data": telegramInitData() },
     })
       .then(async (res) => {
         const data = await res.json().catch(() => null)
@@ -5542,6 +5761,7 @@ function MasterProfilePage() {
       headers: {
         "Content-Type": "application/json",
         "X-Telegram-Id": currentTelegramId,
+        "X-Telegram-Init-Data": telegramInitData(),
       },
       body: JSON.stringify({
         name,

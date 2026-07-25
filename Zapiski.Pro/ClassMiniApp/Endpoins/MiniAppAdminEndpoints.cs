@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Telegram.Bot.Types;
+using Zapiski.Pro.ClassMiniApp.Services;
 using Zapiski.Pro.MiniApp.Models;
 using Zapiski.Pro.MiniApp.Services;
 
@@ -10,18 +11,25 @@ public static class MiniAppAdminEndpoints
 {
     public static void MapMiniAppAdminEndpoints(
         this WebApplication app,
-        MiniAppAdminService adminService)
+        MiniAppAdminService adminService,
+        string botToken)
     {
        
 
-        app.MapGet("/api/admin/masters", async () =>
+        app.MapGet("/api/admin/masters", (HttpContext context) =>
         {
+            if (!IsAdmin(context, adminService, botToken))
+                return Results.Unauthorized();
+
             var result =  adminService.GetMasters();
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/admin/users", async () =>
+        app.MapGet("/api/admin/users", (HttpContext context) =>
         {
+            if (!IsAdmin(context, adminService, botToken))
+                return Results.Unauthorized();
+
             var result =  adminService.GetUsers();
             return Results.Ok(result);
         });
@@ -29,7 +37,7 @@ public static class MiniAppAdminEndpoints
      HttpContext context,
      MiniAppCreateMasterRequest request) =>
         {
-            if (!IsAdmin(context, adminService))
+            if (!IsAdmin(context, adminService, botToken))
                 return Results.Unauthorized();
 
             var result = await adminService.CreateMaster(request);
@@ -43,7 +51,7 @@ public static class MiniAppAdminEndpoints
      HttpContext context,
      int id) =>
         {
-            if (!IsAdmin(context, adminService))
+            if (!IsAdmin(context, adminService, botToken))
                 return Results.Unauthorized();
 
             var result = await adminService.DeleteMaster(id);
@@ -59,7 +67,7 @@ public static class MiniAppAdminEndpoints
      int id,
      MiniAppAdminGrantSubscriptionRequest request) =>
         {
-            if (!IsAdmin(context, adminService))
+            if (!IsAdmin(context, adminService, botToken))
                 return Results.Unauthorized();
 
             var result = adminService.GrantSubscription(id, request);
@@ -72,17 +80,15 @@ public static class MiniAppAdminEndpoints
 
         app.MapGet("/api/admin/stats", (HttpContext context) =>
         {
-            if (!IsAdmin(context, adminService))
+            if (!IsAdmin(context, adminService, botToken))
                 return Results.Unauthorized();
 
             var result = adminService.GetStats();
             return Results.Ok(result);
         });
-        static bool IsAdmin(HttpContext context, MiniAppAdminService adminService)
+        static bool IsAdmin(HttpContext context, MiniAppAdminService adminService, string botToken)
         {
-            var telegramIdText = context.Request.Headers["X-Telegram-Id"].FirstOrDefault();
-
-            if (!long.TryParse(telegramIdText, out var telegramId))
+            if (!TelegramWebAppAuth.TryGetTelegramId(context.Request, botToken, out var telegramId))
                 return false;
 
             return adminService.IsAdmin(telegramId);

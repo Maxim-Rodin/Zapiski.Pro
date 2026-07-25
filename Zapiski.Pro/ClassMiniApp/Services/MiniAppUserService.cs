@@ -27,6 +27,22 @@ namespace Zapiski.Pro.ClassMiniApp.Services
             return repository.GetDashboard(telegramId);
         }
 
+        public MiniAppPersonalDataConsentDto GetPersonalDataConsent(long telegramId)
+        {
+            if (telegramId <= 0)
+                return new MiniAppPersonalDataConsentDto();
+
+            return repository.GetPersonalDataConsent(telegramId);
+        }
+
+        public MiniAppPersonalDataConsentDto AcceptPersonalDataConsent(long telegramId)
+        {
+            if (telegramId <= 0)
+                return new MiniAppPersonalDataConsentDto();
+
+            return repository.AcceptPersonalDataConsent(telegramId);
+        }
+
         public async Task<MiniAppBecomeMasterResult> BecomeMaster(long telegramId, MiniAppBecomeMasterRequest request)
         {
             if (telegramId <= 0)

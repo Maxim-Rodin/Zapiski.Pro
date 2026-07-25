@@ -14,11 +14,12 @@ namespace Zapiski.Pro.MiniApp.Endpoints
         public static void MapMiniAppMasterEndpoints(
             this WebApplication app,
             MiniAppMasterService masterService,
-            YooKassaPaymentService yooKassaPaymentService)
+            YooKassaPaymentService yooKassaPaymentService,
+            string botToken)
         {
             app.MapGet("/api/master/{key}", (string key) =>
             {
-                var master = masterService.GetMasterProfile(key);
+                var master = masterService.GetPublicMasterProfile(key);
 
                 if (master == null)
                     return Results.NotFound(new
@@ -30,8 +31,29 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(master);
             });
 
-            app.MapGet("/api/master/{key}/clients", (string key) =>
+            app.MapGet("/api/master/{key}/private-profile", (HttpRequest httpRequest, string key) =>
             {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте профиль из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
+                return Results.Ok(masterService.GetMasterProfile(key));
+            });
+
+            app.MapGet("/api/master/{key}/clients", (HttpRequest httpRequest, string key) =>
+            {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
                 var accessError = EnsureMasterAccess(masterService, key);
                 if (accessError != null)
                     return accessError;
@@ -68,8 +90,16 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 }
             );
 
-            app.MapGet("/api/master/{key}/stats", (string key) =>
+            app.MapGet("/api/master/{key}/stats", (HttpRequest httpRequest, string key) =>
             {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
                 var accessError = EnsureMasterAccess(masterService, key);
                 if (accessError != null)
                     return accessError;
@@ -108,8 +138,16 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 return Results.Ok(onboarding);
             });
 
-            app.MapGet("/api/master/{key}/analytics", (string key, string? from, string? to) =>
+            app.MapGet("/api/master/{key}/analytics", (HttpRequest httpRequest, string key, string? from, string? to) =>
             {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
                 var accessError = EnsureMasterAccess(masterService, key);
                 if (accessError != null)
                     return accessError;
@@ -596,13 +634,22 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Ok(result);
                 });
 
-            app.MapPost("/api/master/{key}/services", (string key, MiniAppCreateMasterServiceRequest request) =>
+            app.MapPost("/api/master/{key}/services",
+                (HttpRequest httpRequest, string key, MiniAppCreateMasterServiceRequest request) =>
             {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
                 var accessError = EnsureMasterAccess(masterService, key);
                 if (accessError != null)
                     return accessError;
 
-                var result = masterService.CreateService(key, request);
+                var result = masterService.CreateService(key, telegramId, request);
 
                 if (!result.Success)
                     return Results.BadRequest(result);
@@ -611,13 +658,21 @@ namespace Zapiski.Pro.MiniApp.Endpoints
             });
 
             app.MapPut("/api/master/{key}/services/{serviceId:int}",
-                (string key, int serviceId, MiniAppCreateMasterServiceRequest request) =>
+                (HttpRequest httpRequest, string key, int serviceId, MiniAppCreateMasterServiceRequest request) =>
                 {
+                    if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                        return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                            statusCode: StatusCodes.Status401Unauthorized);
+
+                    var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                    if (ownerError != null)
+                        return ownerError;
+
                     var accessError = EnsureMasterAccess(masterService, key);
                     if (accessError != null)
                         return accessError;
 
-                    var result = masterService.UpdateService(key, serviceId, request);
+                    var result = masterService.UpdateService(key, telegramId, serviceId, request);
 
                     if (!result.Success)
                         return Results.BadRequest(result);
@@ -625,13 +680,22 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                     return Results.Ok(result);
                 });
 
-            app.MapDelete("/api/master/{key}/services/{serviceId:int}", (string key, int serviceId) =>
+            app.MapDelete("/api/master/{key}/services/{serviceId:int}",
+                (HttpRequest httpRequest, string key, int serviceId) =>
             {
+                if (!TelegramWebAppAuth.TryGetTelegramId(httpRequest, botToken, out var telegramId))
+                    return Results.Json(new { success = false, message = "Откройте раздел из Telegram" },
+                        statusCode: StatusCodes.Status401Unauthorized);
+
+                var ownerError = EnsureMasterOwner(masterService, key, telegramId);
+                if (ownerError != null)
+                    return ownerError;
+
                 var accessError = EnsureMasterAccess(masterService, key);
                 if (accessError != null)
                     return accessError;
 
-                var result = masterService.DeleteService(key, serviceId);
+                var result = masterService.DeleteService(key, telegramId, serviceId);
 
                 if (!result.Success)
                     return Results.BadRequest(result);
@@ -718,6 +782,22 @@ namespace Zapiski.Pro.MiniApp.Endpoints
                 success = false,
                 message = "Доступ закончился. Оформите подписку, чтобы продолжить пользоваться мастер-панелью."
             }, statusCode: StatusCodes.Status402PaymentRequired);
+        }
+
+        private static IResult? EnsureMasterOwner(
+            MiniAppMasterService masterService,
+            string key,
+            long telegramId)
+        {
+            var master = masterService.GetMasterProfile(key);
+
+            if (master == null)
+                return Results.NotFound(new { success = false, message = "Мастер не найден" });
+
+            if (master.TelegramId != telegramId)
+                return Results.Forbid();
+
+            return null;
         }
     }
 }

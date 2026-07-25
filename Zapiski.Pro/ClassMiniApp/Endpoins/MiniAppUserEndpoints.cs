@@ -11,6 +11,39 @@ namespace Zapiski.Pro.MiniApp.Endpoints
             this WebApplication app,
             MiniAppUserService userService)
         {
+            app.MapGet("/api/user/{telegramId:long}/personal-data-consent", (long telegramId, HttpContext context) =>
+            {
+                if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))
+                    return Results.Unauthorized();
+
+                if (currentTelegramId != telegramId)
+                    return Results.Forbid();
+
+                return Results.Ok(userService.GetPersonalDataConsent(telegramId));
+            });
+
+            app.MapPost("/api/user/{telegramId:long}/personal-data-consent", (long telegramId, HttpContext context) =>
+            {
+                if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))
+                    return Results.Unauthorized();
+
+                if (currentTelegramId != telegramId)
+                    return Results.Forbid();
+
+                var consent = userService.AcceptPersonalDataConsent(telegramId);
+
+                if (!consent.Accepted)
+                {
+                    return Results.NotFound(new
+                    {
+                        success = false,
+                        message = "Пользователь не найден. Сначала откройте бота."
+                    });
+                }
+
+                return Results.Ok(consent);
+            });
+
             app.MapGet("/api/user/{telegramId:long}/dashboard", (long telegramId, HttpContext context) =>
             {
                 if (!long.TryParse(context.Request.Headers["X-Telegram-Id"], out var currentTelegramId))

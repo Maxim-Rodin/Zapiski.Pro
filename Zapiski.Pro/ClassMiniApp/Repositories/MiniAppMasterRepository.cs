@@ -58,6 +58,25 @@ namespace Zapiski.Pro.MiniApp.Repositories
             };
         }
 
+        public MiniAppPublicMasterProfileDto? GetPublicMasterByKey(string key)
+        {
+            var master = GetMasterByKey(key);
+
+            if (master == null)
+                return null;
+
+            return new MiniAppPublicMasterProfileDto
+            {
+                Id = master.Id,
+                Key = master.Key,
+                Username = master.Username,
+                Name = master.Name,
+                Description = master.Description,
+                PhoneNumber = master.PhoneNumber,
+                AvatarUrl = master.AvatarUrl
+            };
+        }
+
         public MiniAppMasterActionResult UpdateProfile(string key, long telegramId, MiniAppUpdateMasterProfileRequest request)
         {
             var master = GetMasterByKey(key);
@@ -1468,12 +1487,15 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return services;
         }
 
-        public MiniAppMasterActionResult CreateService(string key, MiniAppCreateMasterServiceRequest request)
+        public MiniAppMasterActionResult CreateService(string key, long telegramId, MiniAppCreateMasterServiceRequest request)
         {
             var master = GetMasterByKey(key);
 
             if (master == null)
                 return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
 
             var name = request.Name?.Trim();
 
@@ -1519,12 +1541,15 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Услуга добавлена");
         }
 
-        public MiniAppMasterActionResult UpdateService(string key, int serviceId, MiniAppCreateMasterServiceRequest request)
+        public MiniAppMasterActionResult UpdateService(string key, long telegramId, int serviceId, MiniAppCreateMasterServiceRequest request)
         {
             var master = GetMasterByKey(key);
 
             if (master == null)
                 return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
 
             var name = request.Name?.Trim();
 
@@ -1581,12 +1606,15 @@ namespace Zapiski.Pro.MiniApp.Repositories
             return Ok("Услуга обновлена");
         }
 
-        public MiniAppMasterActionResult DeleteService(string key, int serviceId)
+        public MiniAppMasterActionResult DeleteService(string key, long telegramId, int serviceId)
         {
             var master = GetMasterByKey(key);
 
             if (master == null)
                 return Failed("Мастер не найден");
+
+            if (master.TelegramId != telegramId)
+                return Failed("Нет доступа к этому профилю");
 
             var bookingsCount = Convert.ToInt32(db.ExecuteScalar(@"
                 SELECT COUNT(*)

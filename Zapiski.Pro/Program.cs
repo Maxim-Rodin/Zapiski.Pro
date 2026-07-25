@@ -67,6 +67,8 @@ namespace Zapisi.Pro
 
             // загрузка переменных окружения из .env файла
             var token = Environment.GetEnvironmentVariable("BOT_TOKEN"); // получение токена бота из переменных окружения  
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("BOT_TOKEN не настроен");
 
             var host = Environment.GetEnvironmentVariable("DB_HOST");
             Console.WriteLine("DB_HOST = " + Environment.GetEnvironmentVariable("DB_HOST"));
@@ -87,6 +89,19 @@ namespace Zapisi.Pro
                 ALTER TABLE ""Masters""
                 ALTER COLUMN ""RegisteredAt"" SET DEFAULT NOW(),
                 ALTER COLUMN ""RegisteredAt"" SET NOT NULL;
+
+                CREATE TABLE IF NOT EXISTS ""PersonalDataConsents""
+                (
+                    ""idConsent"" serial PRIMARY KEY,
+                    ""UserId"" integer NOT NULL REFERENCES ""Users""(""idUser"") ON DELETE CASCADE,
+                    ""Version"" varchar(32) NOT NULL,
+                    ""AcceptedAt"" timestamptz NOT NULL DEFAULT NOW(),
+                    ""Method"" varchar(40) NOT NULL,
+                    ""IsActive"" boolean NOT NULL DEFAULT true
+                );
+
+                CREATE INDEX IF NOT EXISTS ""IX_PersonalDataConsents_UserId_IsActive""
+                ON ""PersonalDataConsents"" (""UserId"", ""IsActive"");
             ");
             Console.WriteLine("===== ENV DEBUG =====");
             Console.WriteLine($"DB_HOST = {Environment.GetEnvironmentVariable("DB_HOST")}");
@@ -119,8 +134,8 @@ namespace Zapisi.Pro
             var miniAppUserRepository = new MiniAppUserRepository(db);
             var miniAppUserService = new MiniAppUserService(miniAppUserRepository, botClient);
 
-            app.MapMiniAppAdminEndpoints(miniAppAdminService);
-            app.MapMiniAppMasterEndpoints(miniAppMasterService, yooKassaPaymentService);
+            app.MapMiniAppAdminEndpoints(miniAppAdminService, token);
+            app.MapMiniAppMasterEndpoints(miniAppMasterService, yooKassaPaymentService, token);
             app.MapMiniAppUserEndpoints(miniAppUserService);
    
             app.RunAsync();
