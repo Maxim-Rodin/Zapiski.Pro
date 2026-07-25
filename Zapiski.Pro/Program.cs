@@ -4,6 +4,7 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SqlServer.Server;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -75,7 +76,11 @@ namespace Zapisi.Pro
             var user = Environment.GetEnvironmentVariable("DB_USER");
             var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
             db = new DbHelper($"Host={host};Port=5432;Username={user};Password={pass};Database=Zapisi.Pro");
-            db.ExecuteNonQuery(@"
+            for (var attempt = 1; attempt <= 30; attempt++)
+            {
+                try
+                {
+                    db.ExecuteNonQuery(@"
                 ALTER TABLE ""Masters""
                 ADD COLUMN IF NOT EXISTS ""RegistrationSource"" varchar(20) NOT NULL DEFAULT 'direct';
 
@@ -102,7 +107,19 @@ namespace Zapisi.Pro
 
                 CREATE INDEX IF NOT EXISTS ""IX_PersonalDataConsents_UserId_IsActive""
                 ON ""PersonalDataConsents"" (""UserId"", ""IsActive"");
+
+                CREATE INDEX IF NOT EXISTS ""IX_PersonalDataConsents_ActiveVersion""
+                ON ""PersonalDataConsents"" (""UserId"", ""Version"", ""AcceptedAt"" DESC)
+                WHERE ""IsActive"" = true;
             ");
+                    break;
+                }
+                catch (NpgsqlException ex) when (attempt < 30)
+                {
+                    Console.WriteLine($"PostgreSQL ещё не готов ({attempt}/30): {ex.Message}");
+                    await Task.Delay(TimeSpan.FromSeconds(2));
+                }
+            }
             Console.WriteLine("===== ENV DEBUG =====");
             Console.WriteLine($"DB_HOST = {Environment.GetEnvironmentVariable("DB_HOST")}");
             Console.WriteLine($"DB_USER = {Environment.GetEnvironmentVariable("DB_USER")}");

@@ -406,12 +406,46 @@ type InfoTab = {
 }
 
 const SUPPORT_URL = "https://t.me/Zapisi_Support"
+const PERSONAL_DATA_CONSENT_VERSION = "2026-07-25"
 
 const telegramId = () =>
   String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id ?? "")
 
 const telegramInitData = () =>
   String(window.Telegram?.WebApp?.initData ?? "")
+
+const consentCacheKey = (userId: string) =>
+  `zapisi-personal-data-consent:${PERSONAL_DATA_CONSENT_VERSION}:${userId}`
+
+const hasCachedConsent = (userId: string) => {
+  if (!userId) return false
+
+  try {
+    return localStorage.getItem(consentCacheKey(userId)) === "accepted"
+  } catch {
+    return false
+  }
+}
+
+const cacheConsent = (userId: string) => {
+  if (!userId) return
+
+  try {
+    localStorage.setItem(consentCacheKey(userId), "accepted")
+  } catch {
+    // Если хранилище недоступно, серверная проверка продолжит работать при каждом запуске.
+  }
+}
+
+const clearCachedConsent = (userId: string) => {
+  if (!userId) return
+
+  try {
+    localStorage.removeItem(consentCacheKey(userId))
+  } catch {
+    // Нечего очищать.
+  }
+}
 
 const formatDateInput = (date: Date) => {
   const year = date.getFullYear()
@@ -509,7 +543,11 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
     new URLSearchParams(window.location.search).get("previewConsent") === "1"
   const currentTelegramId = telegramId()
   const [accepted, setAccepted] = useState<boolean | null>(
-    isLocalConsentPreview ? false : currentTelegramId ? null : true
+    isLocalConsentPreview
+      ? false
+      : currentTelegramId
+        ? hasCachedConsent(currentTelegramId) ? true : null
+        : true
   )
   const [confirmed, setConfirmed] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -529,6 +567,11 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
       return
     }
 
+    if (hasCachedConsent(currentTelegramId)) {
+      setAccepted(true)
+      return
+    }
+
     setAccepted(null)
     setError("")
 
@@ -543,7 +586,13 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
           throw new Error(data.message || "Не удалось проверить согласие")
         }
 
-        setAccepted(Boolean(data.accepted ?? data.Accepted))
+        const isAccepted = Boolean(data.accepted ?? data.Accepted)
+        if (isAccepted) {
+          cacheConsent(currentTelegramId)
+        } else {
+          clearCachedConsent(currentTelegramId)
+        }
+        setAccepted(isAccepted)
       })
       .catch((reason) => {
         setAccepted(false)
@@ -587,6 +636,7 @@ function PersonalDataConsentGate({ children }: { children: ReactNode }) {
           throw new Error(data.message || "Не удалось сохранить согласие")
         }
 
+        cacheConsent(currentTelegramId)
         setAccepted(true)
       })
       .catch((reason) => {
@@ -1316,40 +1366,34 @@ function MasterHomePage() {
   const [copyMessage, setCopyMessage] = useState("")
 
   useEffect(() => {
-    fetch(`${API_URL}/api/master/${key}/private-profile`, {
-      headers: { "X-Telegram-Id": telegramId(), "X-Telegram-Init-Data": telegramInitData() },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          setDenied(true)
-          return
-        }
+    if (!key) return
 
-        setMaster(normalizeMaster(await res.json()))
+    const authHeaders = {
+      "X-Telegram-Id": telegramId(),
+      "X-Telegram-Init-Data": telegramInitData(),
+    }
+
+    Promise.all([
+      fetch(`${API_URL}/api/master/${key}/private-profile`, { headers: authHeaders })
+        .then(async (res) => {
+          if (!res.ok) throw new Error("Мастер не найден")
+          return normalizeMaster(await res.json())
+        }),
+      fetch(`${API_URL}/api/master/${key}/subscription`)
+        .then((res) => res.ok ? res.json() : null)
+        .catch(() => null),
+      fetch(`${API_URL}/api/master/${key}/onboarding`, { headers: authHeaders })
+        .then((res) => res.ok ? res.json() : null)
+        .catch(() => null),
+    ])
+      .then(([masterData, subscriptionData, onboardingData]) => {
+        setMaster(masterData)
+        setSubscription(subscriptionData ? normalizeSubscription(subscriptionData) : null)
+        setOnboarding(onboardingData ? normalizeOnboarding(onboardingData) : null)
       })
       .catch(() => setDenied(true))
       .finally(() => setLoading(false))
   }, [key])
-
-  useEffect(() => {
-    if (!key) return
-
-    fetch(`${API_URL}/api/master/${key}/subscription`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => setSubscription(data ? normalizeSubscription(data) : null))
-      .catch(() => setSubscription(null))
-  }, [key])
-
-  useEffect(() => {
-    if (!key || !master) return
-
-    fetch(`${API_URL}/api/master/${key}/onboarding`, {
-      headers: { "X-Telegram-Id": telegramId() || String(master.telegramId), "X-Telegram-Init-Data": telegramInitData() },
-    })
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => setOnboarding(data ? normalizeOnboarding(data) : null))
-      .catch(() => setOnboarding(null))
-  }, [key, master])
 
   if (loading) {
     return <ComingSoon title="Загрузка..." subtitle="Получаем данные мастера" />

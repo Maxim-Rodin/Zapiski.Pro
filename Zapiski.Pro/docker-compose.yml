@@ -7,6 +7,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: strong_new_password_here
       POSTGRES_DB: Zapisi.Pro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d Zapisi.Pro"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
